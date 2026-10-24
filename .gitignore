@@ -4,3 +4,4 @@ app/tests/out/
 *.log
 .DS_Store
 Thumbs.db
+design/

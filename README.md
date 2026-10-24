@@ -13,7 +13,6 @@
 |---|---|
 | `app/` | La aplicación de escritorio (Electron). `src/main` proceso principal, `src/preload` puente seguro, `src/renderer` pantallas. |
 | `web/` | Web estática del producto (GitHub Pages): animaciones, capturas y descargas leídas de GitHub Releases. |
-| `design/` | Mockups HTML con los que se diseñó la app, más el QA de diseño. |
 | `.github/workflows/` | `release.yml` compila y publica el instalador al subir una etiqueta; `pages.yml` publica la web. |
 
 ## Desarrollo

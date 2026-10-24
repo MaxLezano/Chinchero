@@ -13,7 +13,7 @@ App de escritorio para Windows (Electron) tipo tablero de corcho: notas, fotos, 
 - `app/src/preload/preload.js`: API `window.chinchero` (lecturas síncronas, escrituras asíncronas).
 - `app/src/renderer/`: pantallas `00-bienvenida` … `04-papelera`. `assets/store.js` es la capa de datos (usa `window.chinchero` en la app y `localStorage` en un navegador, para probar sin Electron). El editor está en `assets/editor.js` + `editor.css`: modelo `doc → hojas → elementos + hilos`, el DOM se genera desde el modelo.
 - `web/`: sitio estático (GitHub Pages). `assets/site.js` lee las releases de la API de GitHub.
-- `design/`: mockups originales y QA (referencia histórica).
+- `design/`: mockups originales y QA. **Solo local** (está en `.gitignore`, no se sube al repo); usarla como referencia, no como fuente de verdad.
 
 ## Reglas del proyecto
 

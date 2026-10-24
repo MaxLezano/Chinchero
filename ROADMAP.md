@@ -77,9 +77,6 @@ Lista de tareas para avanzar de a una. Cada tarea se hace en una sesión de chat
 - Anunciar con `aria-live` lo que pasa en el lienzo (creado, movido, eliminado).
 - Revisar contraste en ambos temas y navegación completa con teclado.
 
-### 12. Ordenar el repositorio
-- Decidir qué hacer con `design/mockups` (archivar o borrar): la app (`app/src/renderer`) ya es la fuente de verdad.
-
 ### Opcionales (sin orden)
 - Firma de código para evitar el aviso de SmartScreen (de pago: certificado OV/EV o Azure Trusted Signing).
 - Dominio propio para la web.
@@ -94,4 +91,4 @@ Lista de tareas para avanzar de a una. Cada tarea se hace en una sesión de chat
 
 ## Hecho
 
-- **2026-10-24 · Base del proyecto**: mockups y QA en `design/`, app Electron con persistencia, instalador y actualizaciones, web del producto, flujos de GitHub Actions, fuentes locales, pruebas automáticas, nombre definitivo «Chinchero».
+- **2026-10-24 · Base del proyecto**: mockups y QA en `design/` (solo local, fuera del repo), app Electron con persistencia, instalador y actualizaciones, web del producto, flujos de GitHub Actions, fuentes locales, pruebas automáticas, nombre definitivo «Chinchero».
