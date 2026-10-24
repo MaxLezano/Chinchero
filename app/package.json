@@ -1,0 +1,31 @@
+{
+  "name": "chinchero",
+  "productName": "Chinchero",
+  "version": "0.1.0",
+  "description": "Tu tablero de corcho digital: notas, fotos y stickers unidos con hilos.",
+  "author": "Max Lezano",
+  "license": "MIT",
+  "private": true,
+  "main": "src/main/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win",
+    "dist:dir": "electron-builder --win --dir",
+    "release": "electron-builder --win --publish always",
+    "test:ui": "node tests/e2e-ui.js",
+    "test:app": "node tests/e2e-app.js",
+    "test": "node tests/e2e-ui.js && node tests/e2e-app.js && node tests/offline-fonts.js",
+    "test:offline": "node tests/offline-fonts.js"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.11"
+  },
+  "devDependencies": {
+    "electron": "^45.0.0",
+    "electron-builder": "^26.18.0",
+    "puppeteer-core": "^23.11.1"
+  },
+  "allowScripts": {
+    "electron-winstaller": false
+  }
+}

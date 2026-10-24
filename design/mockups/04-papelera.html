@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chinchero — Papelera</title>
+<link rel="stylesheet" href="assets/fonts/fonts.css">
+<link rel="stylesheet" href="assets/theme.css">
+<link rel="stylesheet" href="assets/shell.css">
+<script src="assets/theme.js"></script>
+<style>
+  .topbar .btn { margin-left: auto; }
+  .content { padding: 0 32px 40px; max-width: 900px; }
+  .note-info { color: var(--text-muted); font-size: 13px; margin: 0 0 20px; }
+  .list { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  .row { display: grid; grid-template-columns: 56px 1fr auto auto; gap: 16px; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+  .row:last-child { border-bottom: 0; }
+  .thumb { width: 56px; height: 40px; border-radius: 6px; border: 1px solid var(--border); position: relative; overflow: hidden; }
+  .thumb i { position: absolute; width: 16px; height: 14px; box-shadow: 0 1px 2px rgba(0,0,0,.25); }
+  .name { font-weight: 600; }
+  .meta { font-size: 12px; color: var(--text-muted); display: flex; gap: 6px; align-items: center; margin-top: 2px; }
+  .meta .group-dot { width: 8px; height: 8px; }
+  .kind { font-size: 11px; padding: 3px 8px; border-radius: 99px; background: var(--surface-2); color: var(--text-muted); }
+  .days { font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+  .days.soon { color: #e03131; }
+  .actions { display: flex; gap: 6px; }
+  .actions .btn { padding: 6px 10px; font-size: 13px; }
+  .btn-danger { color: #e03131; }
+  .empty { display: none; text-align: center; padding: 60px 16px; color: var(--text-muted); }
+  .empty.show { display: block; }
+  .empty .icon { width: 48px; height: 48px; stroke-width: 1.2; margin-bottom: 10px; }
+  @media (max-width: 720px) {
+    .content { padding: 0 16px 40px; }
+    .row { grid-template-columns: 56px 1fr; }
+    .days { grid-column: 2; }
+    .actions { grid-column: 1 / -1; }
+    .tip { left: 16px; }
+  }
+</style>
+</head>
+<body>
+<aside class="sidebar" data-active="trash"></aside>
+
+<main>
+  <div class="topbar">
+    <h1>Papelera</h1>
+    <button class="btn btn-danger" id="emptyAll">Vaciar papelera</button>
+  </div>
+  <div class="content">
+    <p class="note-info">Los elementos se eliminan para siempre a los 30 días.</p>
+    <div class="list" id="list">
+      <div class="row">
+        <div class="thumb surface-dots"><i style="left:8px;top:10px;background:var(--note-yellow)"></i><i style="left:30px;top:14px;background:var(--note-pink)"></i></div>
+        <div><div class="name">Notas reunión</div><div class="meta"><span class="kind">Tablero</span><span class="group-dot" style="background:#4dabf7"></span>Trabajo · 6 elementos</div></div>
+        <div class="days">quedan 28 días</div>
+        <div class="actions"><button class="btn" data-a="restore">Restaurar</button><button class="btn btn-danger" data-a="delete">Eliminar</button></div>
+      </div>
+      <div class="row">
+        <div class="thumb surface-cork"><i style="left:20px;top:12px;background:var(--note-green)"></i></div>
+        <div><div class="name">Hoja 3</div><div class="meta"><span class="kind">Hoja</span><span class="group-dot" style="background:#e8590c"></span>Proyecto Chinchero › Moodboard UI</div></div>
+        <div class="days">quedan 12 días</div>
+        <div class="actions"><button class="btn" data-a="restore">Restaurar</button><button class="btn btn-danger" data-a="delete">Eliminar</button></div>
+      </div>
+      <div class="row">
+        <div class="thumb surface-plain" style="display:grid;place-items:center"><span class="group-dot" style="background:#fab005;width:14px;height:14px"></span></div>
+        <div><div class="name">Recetas</div><div class="meta"><span class="kind">Grupo</span>2 tableros</div></div>
+        <div class="days soon">quedan 2 días</div>
+        <div class="actions"><button class="btn" data-a="restore">Restaurar</button><button class="btn btn-danger" data-a="delete">Eliminar</button></div>
+      </div>
+    </div>
+    <div class="empty" id="empty">
+      <svg class="icon" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M5 7l1 13h12l1-13M9 7V4h6v3"/></svg>
+      <div>La papelera está vacía</div>
+    </div>
+  </div>
+</main>
+
+<script src="assets/ui.js"></script>
+<script src="assets/guide.js"></script>
+<script src="assets/sidebar.js"></script>
+<script>
+  const list = document.getElementById("list");
+  window.HELP = { tour: "trash" };
+  Tour.define("trash", [
+    { el: null, title: "La papelera", text: "Lo que eliminas (tableros, hojas o grupos) espera aquí 30 días antes de borrarse para siempre." },
+    { el: "#list .row", title: "Cada fila es algo eliminado", text: "Ves qué es, de dónde venía y cuántos días le quedan. En <b>rojo</b>, lo que está a punto de borrarse." },
+    { el: "#list .row .actions", place: "left", title: "Restaurar o eliminar", text: "<b>Restaurar</b> lo devuelve a su sitio. <b>Eliminar</b> lo borra para siempre: te pediremos confirmación." },
+    { el: "#emptyAll", place: "bottom", title: "Vaciar", text: "Borra todo de una vez. Úsalo con cuidado: no se puede deshacer." },
+  ]);
+  Tour.auto("trash");
+  setTimeout(() => Tips.show("trash-undo", "Para recuperar algo que acabas de borrar en un tablero, no hace falta venir aquí: pulsa <b>Ctrl+Z</b> en el propio tablero."), 1500);
+  function refresh() {
+    const empty = !list.children.length;
+    list.style.display = empty ? "none" : "";
+    document.getElementById("empty").classList.toggle("show", empty);
+    document.getElementById("emptyAll").disabled = empty;
+    document.querySelector('.sidebar a[href="04-papelera.html"] .count').textContent = list.children.length || "";
+  }
+  list.onclick = e => {
+    const b = e.target.closest("[data-a]"); if (!b) return;
+    const row = b.closest(".row"), name = row.querySelector(".name").textContent;
+    if (b.dataset.a === "restore") {
+      const next = row.nextSibling;
+      row.remove();
+      toast(`«${name}» restaurado`, "Deshacer", () => { list.insertBefore(row, next); refresh(); });
+    } else if (confirm(`¿Eliminar «${name}» para siempre? No se puede deshacer.`)) {
+      row.remove(); toast(`«${name}» eliminado`);
+    }
+    refresh();
+  };
+  document.getElementById("emptyAll").onclick = () => {
+    if (confirm("¿Vaciar la papelera? Todo se eliminará para siempre.")) { list.innerHTML = ""; refresh(); }
+  };
+  refresh();
+</script>
+</body>
+</html>

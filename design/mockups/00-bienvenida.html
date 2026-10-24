@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chinchero — Bienvenida</title>
+<link rel="stylesheet" href="assets/fonts/fonts.css">
+<link rel="stylesheet" href="assets/theme.css">
+<script src="assets/theme.js"></script>
+<style>
+  body { min-height: 100vh; display: grid; place-items: center; overflow: hidden; padding: 16px; }
+  .deco { position: fixed; width: 150px; min-height: 130px; padding: 26px 14px 14px; font: 600 22px/1.1 var(--font-hand); color: var(--note-ink); box-shadow: 0 12px 18px -10px rgba(0,0,0,.5); }
+  .deco.photo { background: #fff; padding: 8px 8px 30px; width: 140px; }
+  .deco.photo i { display: block; height: 110px; }
+  .card { position: relative; z-index: 2; width: min(520px, 100%); background: var(--surface); border-radius: 16px; padding: 36px 32px 24px; box-shadow: 0 30px 80px rgba(0,0,0,.35); }
+  .card > .pin { width: 22px; height: 22px; top: -9px; }
+  .step { display: none; }
+  .step.active { display: block; animation: in .25s ease; }
+  @keyframes in { from { opacity: 0; transform: translateY(6px); } }
+  h1 { font: 700 44px/1 var(--font-hand); margin: 0 0 10px; }
+  h2 { font-size: 20px; margin: 0 0 6px; }
+  p { color: var(--text-muted); margin: 0 0 22px; line-height: 1.5; }
+  .choices { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 8px; }
+  .choice { border: 2px solid var(--border); border-radius: 12px; padding: 0; background: none; overflow: hidden; text-align: left; }
+  .choice.selected { border-color: var(--accent); }
+  .choice .pv { height: 90px; position: relative; }
+  .choice .pv i { position: absolute; width: 40px; height: 36px; box-shadow: 0 4px 6px -2px rgba(0,0,0,.4); }
+  .choice span { display: block; padding: 8px 12px; font-weight: 500; font-size: 13px; }
+  .pv-light { background: #faf8f3 radial-gradient(rgba(40,35,25,.18) 1.2px, transparent 1.3px) 0 0 / 14px 14px; }
+  .pv-dark { background: #1d1f23 radial-gradient(rgba(255,255,255,.15) 1.2px, transparent 1.3px) 0 0 / 14px 14px; }
+  .option { display: flex; gap: 12px; align-items: flex-start; border: 2px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 10px; cursor: pointer; }
+  .option.selected { border-color: var(--accent); background: var(--accent-soft); }
+  .option input { margin-top: 3px; accent-color: var(--accent); }
+  .option b { display: block; margin-bottom: 2px; }
+  .option small { color: var(--text-muted); }
+  .option code { font-size: 12px; }
+  .field input { width: 100%; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 11px 12px; color: var(--text); font: inherit; font-size: 15px; }
+  .footer { display: flex; align-items: center; margin-top: 26px; gap: 8px; }
+  .dots { display: flex; gap: 6px; margin-right: auto; }
+  .linkbtn { border: 0; background: none; color: var(--accent); font-weight: 600; padding: 0; font-size: 13px; }
+  .linkbtn.muted { color: var(--text-muted); font-weight: 500; margin-right: 14px; }
+  .check { display: flex; gap: 8px; align-items: center; margin-top: 14px; font-size: 13px; color: var(--text-muted); cursor: pointer; }
+  .check input { accent-color: var(--accent); }
+  .dots i { width: 8px; height: 8px; border-radius: 50%; background: var(--border); }
+  .dots i.on { background: var(--accent); width: 20px; border-radius: 4px; }
+  @media (max-width: 720px) { .deco { display: none; } .card { padding: 32px 20px 20px; } }
+</style>
+</head>
+<body class="surface-cork">
+  <div class="deco" style="left:7%;top:12%;background:var(--note-yellow);transform:rotate(-6deg)"><span class="pin"></span>Ideas sueltas</div>
+  <div class="deco photo" style="right:9%;top:10%;transform:rotate(5deg)"><span class="pin" style="--pin:#1c7ed6"></span><i style="background:linear-gradient(160deg,#ff9a76,#5c3d6e)"></i></div>
+  <div class="deco" style="left:11%;bottom:12%;background:var(--note-blue);transform:rotate(4deg)"><span class="pin" style="--pin:#2f9e44"></span>Fotos y recuerdos</div>
+  <div class="deco" style="right:8%;bottom:14%;background:var(--note-pink);transform:rotate(-3deg)"><span class="pin" style="--pin:#ae3ec9"></span>Todo unido con hilos</div>
+
+  <div class="card">
+    <span class="pin"></span>
+
+    <div class="step active">
+      <h1>¡Hola! Esto es Chinchero</h1>
+      <p>Tu tablero de corcho digital: pincha notas, fotos y stickers, únelos con hilos y organízalos en grupos y hojas. Funciona sin conexión y todo queda en tu equipo.</p>
+      <button class="linkbtn" id="haveData">¿Ya usas Chinchero en otro PC? Abrir mis datos →</button>
+    </div>
+
+    <div class="step">
+      <h2>¿Claro u oscuro?</h2>
+      <p>Lo puedes cambiar cuando quieras desde Ajustes.</p>
+      <div class="choices" id="themeChoices">
+        <button class="choice" data-v="light"><div class="pv pv-light"><i style="left:20px;top:20px;background:var(--note-yellow);transform:rotate(-4deg)"></i><i style="left:80px;top:34px;background:var(--note-blue);transform:rotate(3deg)"></i></div><span>Claro</span></button>
+        <button class="choice" data-v="dark"><div class="pv pv-dark"><i style="left:20px;top:20px;background:var(--note-yellow);transform:rotate(-4deg)"></i><i style="left:80px;top:34px;background:var(--note-pink);transform:rotate(3deg)"></i></div><span>Oscuro</span></button>
+      </div>
+    </div>
+
+    <div class="step">
+      <h2>¿Dónde guardamos tus tableros?</h2>
+      <p>Las imágenes se copian aquí, así nada se pierde si mueves los originales.</p>
+      <label class="option selected"><input type="radio" name="loc" checked><div><b>Junto al programa (portable)</b><small>Llévate la carpeta en un USB y sigue donde lo dejaste.<br><code>D:\Chinchero\datos</code></small></div></label>
+      <label class="option"><input type="radio" name="loc"><div><b>En mis Documentos</b><small><code>C:\Users\…\Documents\Chinchero</code></small></div></label>
+      <label class="option"><input type="radio" name="loc"><div><b>Elegir otra carpeta…</b><small>Por ejemplo, una carpeta sincronizada con OneDrive.</small></div></label>
+      <label class="option" id="existing"><input type="radio" name="loc"><div><b>Abrir datos existentes…</b><small>Elige la carpeta <code>datos</code> que copiaste de otro PC o USB. Se cargarán tus tableros.</small></div></label>
+    </div>
+
+    <div class="step">
+      <h2>Tu primer tablero</h2>
+      <p>Lo crearemos dentro de un grupo llamado «Personal». Luego puedes crear más grupos y tableros.</p>
+      <div class="field"><input id="boardName" value="Mi primer tablero" aria-label="Nombre del tablero"></div>
+      <label class="check"><input type="checkbox" id="wantTours" checked> Enséñame a usar cada pantalla con tutoriales guiados</label>
+      <label class="check"><input type="checkbox" id="wantTips" checked> Muéstrame sugerencias mientras trabajo</label>
+    </div>
+
+    <div class="footer">
+      <button class="linkbtn muted" id="skip">Saltar</button>
+      <div class="dots" id="dots"><i class="on"></i><i></i><i></i><i></i></div>
+      <button class="btn" id="back" style="visibility:hidden">Atrás</button>
+      <button class="btn btn-primary" id="next">Empezar</button>
+    </div>
+  </div>
+
+<script>
+  const steps = [...document.querySelectorAll(".step")];
+  const dots = [...document.querySelectorAll("#dots i")];
+  let i = 0;
+  function go(n) {
+    i = n;
+    steps.forEach((s, k) => s.classList.toggle("active", k === i));
+    dots.forEach((d, k) => d.classList.toggle("on", k === i));
+    document.getElementById("back").style.visibility = i ? "visible" : "hidden";
+    document.getElementById("skip").style.visibility = i === steps.length - 1 ? "hidden" : "visible";
+    document.getElementById("next").textContent = i === 0 ? "Empezar" : i === steps.length - 1 ? "Crear y abrir" : "Siguiente";
+    if (i === steps.length - 1) document.getElementById("boardName").select();
+  }
+  document.getElementById("next").onclick = () => {
+    if (i < steps.length - 1) return go(i + 1);
+    setPref("tours", document.getElementById("wantTours").checked ? "on" : "off");
+    setPref("tips", document.getElementById("wantTips").checked ? "on" : "off");
+    location.href = `02-tablero.html?template=blank&name=${encodeURIComponent(document.getElementById("boardName").value.trim() || "Mi primer tablero")}`;
+  };
+  document.getElementById("back").onclick = () => go(i - 1);
+  document.getElementById("skip").onclick = () => location.href = "01-tableros.html";
+  document.getElementById("haveData").onclick = () => { go(2); document.getElementById("existing").click(); };
+  document.addEventListener("keydown", e => { if (e.key === "Enter" && !e.target.matches("button")) document.getElementById("next").click(); });
+
+  const themeBox = document.getElementById("themeChoices");
+  const markTheme = () => themeBox.querySelectorAll(".choice").forEach(c => c.classList.toggle("selected", c.dataset.v === document.documentElement.dataset.theme));
+  themeBox.onclick = e => { const c = e.target.closest(".choice"); if (c) { setPref("theme", c.dataset.v); markTheme(); } };
+  markTheme();
+
+  document.querySelectorAll(".option").forEach(o => o.onclick = () => {
+    document.querySelectorAll(".option").forEach(x => x.classList.toggle("selected", x === o));
+  });
+</script>
+</body>
+</html>

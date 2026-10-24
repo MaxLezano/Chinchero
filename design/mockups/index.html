@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chinchero — Mockups</title>
+<link rel="stylesheet" href="assets/fonts/fonts.css">
+<link rel="stylesheet" href="assets/theme.css">
+<script src="assets/theme.js"></script>
+<style>
+  body { min-height: 100vh; }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 48px 16px; }
+  header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+  h1 { font-family: var(--font-hand); font-size: 48px; margin: 0; }
+  header .btn { margin-left: auto; }
+  p.lead { color: var(--text-muted); margin: 0 0 32px; }
+  .views { display: grid; gap: 14px; }
+  .view { display: grid; grid-template-columns: 56px 1fr auto; gap: 16px; align-items: center; padding: 16px 18px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; text-decoration: none; color: inherit; box-shadow: var(--shadow); }
+  .view:hover { border-color: var(--accent); }
+  .num { font-family: var(--font-hand); font-size: 34px; color: var(--accent); text-align: center; }
+  .view h2 { margin: 0 0 4px; font-size: 16px; }
+  .view p { margin: 0; color: var(--text-muted); font-size: 13px; }
+  .tag { font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); white-space: nowrap; }
+  .tag.todo { background: var(--surface-2); color: var(--text-muted); }
+  .view.disabled { opacity: .6; pointer-events: none; }
+  @media (max-width: 560px) { .view { grid-template-columns: 40px 1fr; } .tag { grid-column: 2; justify-self: start; } }
+</style>
+</head>
+<body class="surface-dots">
+<div class="wrap">
+  <header>
+    <h1>Chinchero · mockups</h1>
+    <button class="btn" onclick="toggleTheme()">Claro / Oscuro</button>
+  </header>
+  <p class="lead">Vistas de la app para iterar la idea antes de construir la versión de Windows.</p>
+
+  <div class="views">
+    <a class="view" href="00-bienvenida.html">
+      <div class="num">00</div>
+      <div><h2>Bienvenida</h2><p>Primer inicio: tema, carpeta de datos portable o abrir datos existentes, primer tablero y elegir si ver tutoriales y sugerencias.</p></div>
+      <span class="tag">v3</span>
+    </a>
+    <a class="view" href="01-tableros.html">
+      <div class="num">01</div>
+      <div><h2>Tableros</h2><p>Grupos, Recientes y Favoritos, búsqueda, orden, mover tableros arrastrando a un grupo, plantillas al crear, sugerencias y tutorial.</p></div>
+      <span class="tag">v3</span>
+    </a>
+    <a class="view" href="02-tablero.html">
+      <div class="num">02</div>
+      <div><h2>Tablero (editor)</h2><p>Notas, fichas, listas, texto, fotos, enlaces, archivos, stickers, zonas y dibujo. Hilos editables, deshacer, redimensionar, girar, selección múltiple, copiar/pegar, Ctrl+K, minimapa, tutorial interactivo y sugerencias.</p></div>
+      <span class="tag">v3</span>
+    </a>
+    <a class="view" href="02-tablero.html?template=detective&amp;name=Caso%20abierto">
+      <div class="num">02b</div>
+      <div><h2>Plantilla Detective</h2><p>El mismo editor abierto con una plantilla: fotos, notas e hilos con etiquetas sobre corcho.</p></div>
+      <span class="tag">v3</span>
+    </a>
+    <a class="view" href="03-ajustes.html">
+      <div class="num">03</div>
+      <div><h2>Ajustes</h2><p>Tema, hilo, letra, fondo, inclinación, cuadrícula, datos portables, copias, ayuda (tutoriales y sugerencias) y atajos.</p></div>
+      <span class="tag">v3</span>
+    </a>
+    <a class="view" href="04-papelera.html">
+      <div class="num">04</div>
+      <div><h2>Papelera</h2><p>Tableros, hojas y grupos eliminados; restaurar (con deshacer) o borrar para siempre.</p></div>
+      <span class="tag">v3</span>
+    </a>
+  </div>
+</div>
+</div>
+</body>
+</html>

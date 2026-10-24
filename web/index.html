@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chinchero — Tu tablero de corcho digital</title>
+<meta name="description" content="Chinchero es una app gratuita para Windows: pincha notas, fotos y stickers en un tablero de corcho, únelos con hilos y organiza tus ideas. Funciona sin conexión.">
+<meta property="og:title" content="Chinchero — Tu tablero de corcho digital">
+<meta property="og:description" content="Notas, fotos y stickers unidos con hilos, como un corcho de verdad. Gratis para Windows.">
+<meta property="og:image" content="assets/screens/detective-dark.webp">
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="stylesheet" href="assets/fonts/fonts.css">
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="logo" href="#"><img src="assets/icon-256.png" alt="">Chinchero</a>
+    <nav class="nav-links" aria-label="Secciones">
+      <a href="#funciones">Funciones</a><a href="#como">Cómo se usa</a><a href="#capturas">Capturas</a><a href="#descargar">Descargar</a><a href="#preguntas">Preguntas</a>
+    </nav>
+    <div class="nav-actions">
+      <button class="icon-btn" id="themeBtn" aria-label="Cambiar tema">
+        <svg class="ico-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+        <svg class="ico-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+      </button>
+      <a class="btn" data-repo target="_blank" rel="noopener" aria-label="Código en GitHub"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-3.2 19.5c.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.3-3.4-1.3-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.5 2.3 1.1 2.9.8.1-.6.3-1.1.6-1.3-2.2-.3-4.6-1.1-4.6-5a3.9 3.9 0 0 1 1-2.7 3.6 3.6 0 0 1 .1-2.7s.8-.3 2.8 1a9.6 9.6 0 0 1 5 0c1.9-1.3 2.8-1 2.8-1 .5 1.4.2 2.4.1 2.7a3.9 3.9 0 0 1 1 2.7c0 3.9-2.4 4.7-4.6 5 .4.3.7.9.7 1.9V21c0 .3.2.6.7.5A10 10 0 0 0 12 2z"/></svg><span>GitHub</span></a>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section class="hero dots-bg">
+    <div class="wrap">
+      <div>
+        <span class="eyebrow">📌 Gratis · Windows · Sin conexión</span>
+        <h1>Tu tablero de corcho <span class="hand">digital</span></h1>
+        <p class="lead">Pincha notas, fotos, listas y stickers. Únelos con hilos como en las pelis de detectives y organiza tus ideas en tableros y hojas. Todo queda en tu equipo.</p>
+        <div class="cta">
+          <a class="btn btn-primary dl-btn" href="#descargar">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 5.5 10.5 4.5v7H3zM11.5 4.4 21 3v8.5h-9.5zM3 12.5h7.5v7L3 18.5zM11.5 12.5H21V21l-9.5-1.4z"/></svg>
+            Descargar para Windows <small class="dl-ver">…</small>
+          </a>
+          <a class="btn" href="#como">Ver cómo funciona</a>
+        </div>
+        <div class="hero-meta"><span>Windows 10 y 11</span><span>Se actualiza sola</span><span>Código abierto</span></div>
+      </div>
+
+      <div class="board" id="heroBoard" aria-label="Animación: alguien crea notas, une ideas con hilos y las agrupa en una zona">
+        <div class="el zone" data-k="z1" style="left:3%;top:4%;width:94%;height:44%"><span>Escapada</span></div>
+        <div class="el note" data-k="n1" style="left:8%;top:13%;width:30%;background:var(--note-yellow);--r:-4deg"><span class="pin"></span><span class="t" data-text="Ideas para el finde"></span></div>
+        <div class="el photo" data-k="p1" style="left:58%;top:9%;width:32%;--r:4deg"><span class="pin" style="--pin:#1c7ed6"></span><div class="img"></div><div class="cap">La sierra</div></div>
+        <div class="el list" data-k="l1" style="left:58%;top:47%;width:34%;--r:-2deg"><span class="pin" style="--pin:#2f9e44"></span><b>Llevar</b><i>Carpa</i><i>Mapa</i><i>Termo y mate</i></div>
+        <div class="el note" data-k="n2" style="left:10%;top:58%;width:28%;background:var(--note-pink);--r:3deg"><span class="pin" style="--pin:#ae3ec9"></span><span class="t" data-text="¡Llevar cámara!"></span></div>
+        <div class="el sticker" data-k="s1" style="left:40%;top:70%;--r:-12deg">⭐</div>
+        <svg class="threads" viewBox="0 0 400 300" preserveAspectRatio="none" aria-hidden="true">
+          <path data-k="t1" d="M92 41 Q 190 90 296 29"/>
+          <path data-k="t2" d="M296 29 Q 340 100 300 143"/>
+        </svg>
+        <svg class="cursor" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 2l16 9-7 2-3 7z" fill="#fff" stroke="#111" stroke-width="1.6" stroke-linejoin="round"/></svg>
+      </div>
+    </div>
+  </section>
+
+  <div class="uses reveal"><div class="wrap">
+    <span class="lbl">Para</span><span class="chip">🧠 Lluvia de ideas</span><span class="chip">🕵️ Investigar</span><span class="chip">✈️ Planear viajes</span><span class="chip">🎨 Moodboards</span><span class="chip">📚 Estudiar</span><span class="chip">📋 Proyectos</span>
+  </div></div>
+
+  <section id="funciones">
+    <div class="wrap">
+      <div class="sec-head reveal"><div class="kicker">Todo lo de un corcho</div><h2>…y lo que un corcho no puede hacer</h2><p>Pensado para que lo uses sin manual: arrastras, pinchas y listo.</p></div>
+      <div class="features">
+        <article class="feature reveal"><div class="fi" style="--c:#fff3bf">📝</div><h3>Notas, fichas y listas</h3><p>Notas adhesivas de colores, fichas con título y listas de tareas que se tachan solas.</p></article>
+        <article class="feature reveal"><div class="fi" style="--c:#e7f5ff">🖼️</div><h3>Fotos, enlaces y archivos</h3><p>Arrastra imágenes, pega capturas con Ctrl+V, suma enlaces con vista previa y adjunta PDFs.</p></article>
+        <article class="feature reveal"><div class="fi" style="--c:#ffe3e3">🧵</div><h3>Hilos entre chinches</h3><p>Arrastra de una chinche a otra para tender un hilo. Ponle color, etiqueta y tensión.</p></article>
+        <article class="feature reveal"><div class="fi" style="--c:#f3f0ff">🗂️</div><h3>Zonas y grupos</h3><p>Agrupa con zonas que arrastran su contenido, o con Ctrl+G para mover todo junto.</p></article>
+        <article class="feature reveal"><div class="fi" style="--c:#ebfbee">📑</div><h3>Tableros y hojas</h3><p>Organiza tableros en grupos y cada tablero en hojas, como pestañas de Excel.</p></article>
+        <article class="feature reveal"><div class="fi" style="--c:#fff4e6">🔎</div><h3>Encuentra todo</h3><p>Ctrl+K busca cualquier nota, foto o lista en todas las hojas y salta directo a ella.</p></article>
+        <article class="feature reveal"><div class="fi" style="--c:#f8f0e3">🌗</div><h3>Corcho, claro y oscuro</h3><p>Fondo de corcho, puntos o cuadrícula, en tema claro u oscuro. Tú eliges.</p></article>
+        <article class="feature reveal"><div class="fi" style="--c:#e6fcf5">↩️</div><h3>Sin miedo a equivocarte</h3><p>Guardado automático, deshacer infinito y papelera durante 30 días.</p></article>
+        <article class="feature reveal"><div class="fi" style="--c:#fff0f6">🔒</div><h3>Tus datos son tuyos</h3><p>Sin cuentas ni nube obligatoria. Todo queda en una carpeta que puedes copiar donde quieras.</p></article>
+      </div>
+    </div>
+  </section>
+
+  <section id="como" class="alt">
+    <div class="wrap">
+      <div class="sec-head reveal"><div class="kicker">En cuatro gestos</div><h2>Cómo se usa</h2><p>Y si te pierdes, cada pantalla tiene un tutorial guiado y sugerencias que aparecen en el momento justo.</p></div>
+      <div class="steps">
+        <article class="step reveal">
+          <div class="demo d1 dots-bg"><div class="mn"><span class="p"></span><span class="t">Comprar pan</span></div>
+            <svg class="mcur" viewBox="0 0 24 24"><path d="M4 2l16 9-7 2-3 7z" fill="#fff" stroke="#111" stroke-width="1.6"/></svg></div>
+          <div class="txt"><div class="num">1</div><h3>Pincha una nota</h3><p>Pulsa N, haz clic donde quieras y escribe.</p></div>
+        </article>
+        <article class="step reveal">
+          <div class="demo d2 dots-bg"><div class="mn a"><span class="p"></span>Pista</div><div class="mn b"><span class="p"></span>Sospecha</div>
+            <svg viewBox="0 0 280 170" preserveAspectRatio="none"><path d="M63 36 Q 150 110 225 86"/></svg>
+            <svg class="mcur" viewBox="0 0 24 24"><path d="M4 2l16 9-7 2-3 7z" fill="#fff" stroke="#111" stroke-width="1.6"/></svg></div>
+          <div class="txt"><div class="num">2</div><h3>Únelas con un hilo</h3><p>Arrastra de una chinche a otra. Así de simple.</p></div>
+        </article>
+        <article class="step reveal">
+          <div class="demo d3 dots-bg"><div class="mn"><span class="p"></span>Luz</div><div class="mn"><span class="p"></span>Sonido</div><div class="mn"><span class="p"></span>Guion</div><div class="mz"><b>Rodaje</b></div></div>
+          <div class="txt"><div class="num">3</div><h3>Agrupa en zonas</h3><p>Una zona mueve todo lo que tiene dentro.</p></div>
+        </article>
+        <article class="step reveal">
+          <div class="demo d4 dots-bg"><div class="ms">🔎&nbsp;<b>presupuesto</b></div><div class="mr">📎 presupuesto.xlsx <small style="margin-left:auto;color:var(--muted)">Referencias</small></div><div class="mr">📝 Pedir presupuesto</div></div>
+          <div class="txt"><div class="num">4</div><h3>Encuéntralo al vuelo</h3><p>Ctrl+K y escribe: te lleva directo.</p></div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section id="capturas">
+    <div class="wrap">
+      <div class="sec-head reveal"><div class="kicker">Así se ve</div><h2>Capturas reales de la app</h2><p>Cambia el tema arriba a la derecha para verlas en claro u oscuro.</p></div>
+      <div class="tabs" role="tablist">
+        <button class="tab" data-shot="editor">Tablero</button>
+        <button class="tab" data-shot="detective">Detective</button>
+        <button class="tab" data-shot="kanban">Kanban</button>
+        <button class="tab" data-shot="select">Edición</button>
+        <button class="tab" data-shot="search">Buscar</button>
+        <button class="tab" data-shot="boards">Tableros</button>
+        <button class="tab" data-shot="settings">Ajustes</button>
+      </div>
+      <figure class="shot reveal" style="margin:0"><div class="bar"><i></i><i></i><i></i><span>Chinchero</span></div><img id="shotImg" alt="" width="1440" height="900"></figure>
+      <p class="shot-caption" id="shotCaption"></p>
+    </div>
+  </section>
+
+  <section class="alt">
+    <div class="wrap">
+      <div class="sec-head reveal"><div class="kicker">Para ir rápido</div><h2>Atajos que vas a usar todos los días</h2></div>
+      <div class="keys reveal">
+        <div class="key">Nota nueva <kbd>N</kbd></div><div class="key">Tender hilo <kbd>L</kbd></div><div class="key">Buscar <kbd>Ctrl K</kbd></div><div class="key">Deshacer <kbd>Ctrl Z</kbd></div>
+        <div class="key">Agrupar <kbd>Ctrl G</kbd></div><div class="key">Duplicar <kbd>Ctrl D</kbd></div><div class="key">Zoom <kbd>Rueda</kbd></div><div class="key">Encuadrar todo <kbd>Shift 1</kbd></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="descargar">
+    <div class="wrap">
+      <div class="sec-head reveal"><div class="kicker">Gratis, para siempre</div><h2>Descarga Chinchero</h2><p>Un instalador para Windows. Las versiones nuevas se instalan solas.</p></div>
+      <div class="dl">
+        <div class="card latest reveal" id="latest"><div class="skeleton" style="width:40%;height:26px"></div><div class="skeleton" style="width:60%"></div><div class="skeleton" style="width:30%;height:44px"></div></div>
+        <div>
+          <div class="card reveal">
+            <h3 style="margin-top:0">Requisitos</h3>
+            <ul class="req"><li>Windows 10 u 11 de 64 bits</li><li>Unos 300 MB libres</li><li>No necesita internet para usarla</li></ul>
+            <div class="callout"><b>¿Windows muestra un aviso al instalar?</b> Es normal en apps nuevas sin firma comercial: pulsa «Más información» → «Ejecutar de todas formas».</div>
+          </div>
+          <div class="card reveal" style="margin-top:22px">
+            <h3 style="margin-top:0">Todas las versiones</h3>
+            <ul class="versions" id="versions"><li><div class="skeleton"></div></li></ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="preguntas" class="alt">
+    <div class="wrap">
+      <div class="sec-head reveal"><div class="kicker">Dudas</div><h2>Preguntas frecuentes</h2></div>
+      <div class="faq reveal">
+        <details><summary>¿Es gratis?</summary><p>Sí, totalmente. Y el código es abierto: puedes verlo en GitHub.</p></details>
+        <details><summary>¿Dónde se guardan mis tableros?</summary><p>En la carpeta Documentos\Chinchero (puedes cambiarla en Ajustes). Las imágenes que pinchas se copian ahí, así no se pierden aunque muevas los originales.</p></details>
+        <details><summary>¿Puedo pasar mis tableros a otra computadora?</summary><p>Sí: haz una copia de seguridad desde Ajustes → Datos (o copia la carpeta) y en el otro equipo elige «Abrir datos existentes».</p></details>
+        <details><summary>¿Cómo se actualiza?</summary><p>Chinchero busca versiones nuevas al abrirse, las descarga en segundo plano y las instala cuando la cierras. También puedes buscarlas a mano en Ajustes → Acerca de.</p></details>
+        <details><summary>¿Hay versión para Mac o Linux?</summary><p>Por ahora solo Windows. Si te interesa otra plataforma, cuéntalo en GitHub.</p></details>
+        <details><summary>Encontré un error o tengo una idea</summary><p>Abre un «issue» en el repositorio de GitHub. ¡Toda sugerencia suma!</p></details>
+      </div>
+    </div>
+  </section>
+
+  <section class="final dots-bg">
+    <div class="wrap reveal">
+      <div class="note-big">
+        <h2>Tus ideas merecen un buen corcho</h2>
+        <a class="btn btn-primary dl-btn" href="#descargar"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 5.5 10.5 4.5v7H3zM11.5 4.4 21 3v8.5h-9.5zM3 12.5h7.5v7L3 18.5zM11.5 12.5H21V21l-9.5-1.4z"/></svg>Descargar gratis <small class="dl-ver">…</small></a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>© 2026 Chinchero · Hecho con 📌 por Max Lezano</span>
+    <span><a data-repo target="_blank" rel="noopener">GitHub</a> · Licencia MIT</span>
+  </div>
+</footer>
+
+<script src="assets/site.js"></script>
+</body>
+</html>

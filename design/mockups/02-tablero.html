@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chinchero — Tablero</title>
+<link rel="stylesheet" href="assets/fonts/fonts.css">
+<link rel="stylesheet" href="assets/theme.css">
+<link rel="stylesheet" href="assets/editor.css">
+<script src="assets/theme.js"></script>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></symbol>
+  <symbol id="i-cursor" viewBox="0 0 24 24"><path d="M5 3l14 7-6 2-2 6z"/></symbol>
+  <symbol id="i-hand" viewBox="0 0 24 24"><path d="M8 13V5a1.5 1.5 0 0 1 3 0v6M11 11V4a1.5 1.5 0 0 1 3 0v7M14 11V5.5a1.5 1.5 0 0 1 3 0V14a7 7 0 0 1-7 7h-.5a6 6 0 0 1-5-2.7L3 15.5a1.5 1.5 0 0 1 2.4-1.8L8 16"/></symbol>
+  <symbol id="i-note" viewBox="0 0 24 24"><path d="M4 4h16v10l-6 6H4z"/><path d="M14 20v-6h6"/></symbol>
+  <symbol id="i-card" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="1"/><path d="M3 9h18M7 13h10M7 16h6"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/></symbol>
+  <symbol id="i-text" viewBox="0 0 24 24"><path d="M5 6V4h14v2M12 4v16M9 20h6"/></symbol>
+  <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z"/><path d="M14 3v5h5"/></symbol>
+  <symbol id="i-smile" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8.5 14.5a4.5 4.5 0 0 0 7 0M9 9.5h.01M15 9.5h.01"/></symbol>
+  <symbol id="i-zone" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="14" rx="3" stroke-dasharray="3 3"/><path d="M5 3h7"/></symbol>
+  <symbol id="i-pen" viewBox="0 0 24 24"><path d="M4 20l4-1 11-11-3-3L5 16z"/><path d="M14 6l3 3"/></symbol>
+  <symbol id="i-thread" viewBox="0 0 24 24"><circle cx="5" cy="6" r="2"/><circle cx="19" cy="17" r="2"/><path d="M6.5 7.5C10 14 13 9 17.5 15.5"/></symbol>
+  <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/></symbol>
+  <symbol id="i-redo" viewBox="0 0 24 24"><path d="m15 14 5-5-5-5"/><path d="M20 9H9a5 5 0 0 0 0 10h3"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+  <symbol id="i-share" viewBox="0 0 24 24"><path d="M12 3v12M7 8l5-5 5 5M5 15v5h14v-5"/></symbol>
+  <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17.5h.01"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+  <symbol id="i-fit" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></symbol>
+  <symbol id="i-map" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><rect x="11" y="10" width="7" height="6" rx="1"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="m6 15 6-6 6 6"/></symbol>
+</svg>
+
+<header class="topbar">
+  <a class="back" href="01-tableros.html" aria-label="Volver a tableros"><svg class="icon"><use href="#i-back"/></svg>Tableros</a>
+  <div class="crumb">
+    <span class="group"><span class="dot"></span>Proyecto Chinchero /</span>
+    <span id="boardName" contenteditable="true" spellcheck="false" role="textbox" aria-label="Nombre del tablero" data-tip="Clic para renombrar" data-tip-pos="bottom">Ideas generales</span>
+  </div>
+  <div class="save" id="save" role="status" aria-live="polite"><i></i><span>Guardado</span></div>
+  <div class="segmented" id="surfaces" role="group" aria-label="Fondo de la hoja">
+    <button data-s="dots">Puntos</button>
+    <button data-s="cork">Corcho</button>
+    <button data-s="grid">Cuadrícula</button>
+    <button data-s="plain">Liso</button>
+  </div>
+  <div class="top-right">
+    <span id="undoGroup" style="display:flex;gap:2px">
+      <button class="icon-btn" id="undoBtn" aria-label="Deshacer" data-tip="Deshacer · Ctrl+Z" data-tip-pos="bottom"><svg class="icon"><use href="#i-undo"/></svg></button>
+      <button class="icon-btn" id="redoBtn" aria-label="Rehacer" data-tip="Rehacer · Ctrl+Y" data-tip-pos="bottom"><svg class="icon"><use href="#i-redo"/></svg></button>
+    </span>
+    <span class="sep"></span>
+    <button class="icon-btn" id="searchBtn" aria-label="Buscar y acciones" data-tip="Buscar y acciones · Ctrl+K" data-tip-pos="bottom"><svg class="icon"><use href="#i-search"/></svg></button>
+    <button class="icon-btn" id="threadsBtn" aria-label="Mostrar hilos" data-tip="Hilos: encima, atenuados u ocultos" data-tip-pos="bottom"><svg class="icon"><use href="#i-thread"/></svg></button>
+    <button class="icon-btn" id="exportBtn" aria-label="Exportar" data-tip="Exportar" data-tip-pos="bottom"><svg class="icon"><use href="#i-share"/></svg></button>
+    <span class="sep"></span>
+    <button class="icon-btn" id="helpBtn" aria-label="Ayuda" data-tip="Ayuda y tutorial" data-tip-pos="bottom"><svg class="icon"><use href="#i-help"/></svg></button>
+    <button class="icon-btn" aria-label="Cambiar tema" data-tip="Cambiar tema" data-tip-pos="left" onclick="toggleTheme()"><svg class="icon ico-moon"><use href="#i-moon"/></svg><svg class="icon ico-sun"><use href="#i-sun"/></svg></button>
+  </div>
+</header>
+
+<nav class="toolbar" id="toolbar" aria-label="Herramientas">
+  <button class="icon-btn" data-tool="select" aria-label="Seleccionar" data-tip="Seleccionar y mover · V"><svg class="icon"><use href="#i-cursor"/></svg></button>
+  <hr>
+  <button class="icon-btn" data-tool="note" aria-label="Nota" data-tip="Nota adhesiva · N"><svg class="icon"><use href="#i-note"/></svg></button>
+  <button class="icon-btn" data-tool="card" aria-label="Ficha" data-tip="Ficha · F"><svg class="icon"><use href="#i-card"/></svg></button>
+  <button class="icon-btn" data-tool="list" aria-label="Lista" data-tip="Lista de tareas · C"><svg class="icon"><use href="#i-list"/></svg></button>
+  <button class="icon-btn" data-tool="text" aria-label="Texto" data-tip="Texto · T"><svg class="icon"><use href="#i-text"/></svg></button>
+  <hr>
+  <button class="icon-btn" data-tool="image" aria-label="Imagen" data-tip="Imagen / foto · I"><svg class="icon"><use href="#i-image"/></svg></button>
+  <button class="icon-btn" data-tool="link" aria-label="Enlace" data-tip="Enlace web · K"><svg class="icon"><use href="#i-link"/></svg></button>
+  <button class="icon-btn" data-tool="file" aria-label="Archivo" data-tip="Archivo adjunto · A"><svg class="icon"><use href="#i-file"/></svg></button>
+  <button class="icon-btn" data-tool="sticker" aria-label="Stickers" data-tip="Stickers y sellos · S"><svg class="icon"><use href="#i-smile"/></svg></button>
+  <hr>
+  <button class="icon-btn" data-tool="zone" aria-label="Zona" data-tip="Zona: agrupa elementos · Z"><svg class="icon"><use href="#i-zone"/></svg></button>
+  <button class="icon-btn" data-tool="draw" aria-label="Dibujo" data-tip="Dibujo a mano alzada · D"><svg class="icon"><use href="#i-pen"/></svg></button>
+  <button class="icon-btn" data-tool="thread" aria-label="Hilo" data-tip="Hilo entre chinches · L"><svg class="icon"><use href="#i-thread"/></svg></button>
+</nav>
+
+<div class="popover" id="stickerPop" role="dialog" aria-label="Stickers">
+  <h5 id="stickerTitle">Stickers</h5>
+  <div class="sticker-grid">
+    <button data-st="emoji">⭐</button><button data-st="emoji">❤️</button><button data-st="emoji">💡</button><button data-st="emoji">✅</button><button data-st="emoji">⚠️</button>
+    <button data-st="emoji">🔥</button><button data-st="emoji">🎯</button><button data-st="emoji">🚀</button><button data-st="emoji">👀</button><button data-st="emoji">❓</button>
+    <button data-st="emoji">📌</button><button data-st="emoji">🎉</button><button data-st="emoji">🧠</button><button data-st="emoji">💬</button><button data-st="emoji">🗓️</button>
+  </div>
+  <h5>Sellos</h5>
+  <div class="badge-row">
+    <button data-st="stamp" data-text="URGENTE" data-color="#e03131"><span class="badge" style="--b:#e03131">URGENTE</span></button>
+    <button data-st="stamp" data-text="HECHO" data-color="#2f9e44"><span class="badge" style="--b:#2f9e44">HECHO</span></button>
+    <button data-st="stamp" data-text="IDEA" data-color="#1c7ed6"><span class="badge" style="--b:#1c7ed6">IDEA</span></button>
+    <button data-st="stamp" data-text="REVISAR" data-color="#f08c00"><span class="badge" style="--b:#f08c00">REVISAR</span></button>
+    <button data-st="custom"><span class="badge" style="--b:#7048e8">+ Sello propio</span></button>
+  </div>
+  <h5>Mis stickers <button class="pop-link" id="importSticker">Importar…</button></h5>
+  <div class="sticker-grid" id="myStickers"></div>
+</div>
+
+<div class="popover" id="drawPop" role="dialog" aria-label="Opciones de dibujo">
+  <h5>Rotulador</h5>
+  <div class="draw-opts">
+    <button class="swatch on" data-dc="#e03131" style="background:#e03131" aria-label="Rojo"></button>
+    <button class="swatch" data-dc="#1c7ed6" style="background:#1c7ed6" aria-label="Azul"></button>
+    <button class="swatch" data-dc="#2b2a27" style="background:#2b2a27" aria-label="Negro"></button>
+    <button class="swatch" data-dc="#f59f00" style="background:#f59f00" aria-label="Amarillo"></button>
+    <button class="swatch" data-dc="#2f9e44" style="background:#2f9e44" aria-label="Verde"></button>
+    <button class="swatch" data-dc="#ffffff" style="background:#ffffff" aria-label="Blanco"></button>
+  </div>
+  <h5 style="margin-top:10px">Grosor</h5>
+  <div class="seg">
+    <button data-dw="2">Fino</button><button data-dw="3" class="on">Medio</button><button data-dw="6">Grueso</button>
+  </div>
+</div>
+
+<div class="hint" id="hint" role="status"></div>
+<div class="ctx" id="ctx" role="toolbar" aria-label="Opciones del elemento"></div>
+<div class="fmt" id="fmt" role="toolbar" aria-label="Formato de texto"></div>
+<div class="band" id="band"></div>
+<div class="ghost" id="ghost"></div>
+
+<div class="viewport" id="viewport">
+  <div class="world" id="world">
+    <div id="items"></div>
+    <div id="groupBox"><span>Grupo</span></div>
+    <svg id="threads">
+      <defs>
+        <radialGradient id="pinShine" cx=".35" cy=".3" r=".7"><stop offset="0" stop-color="#fff" stop-opacity=".7"/><stop offset=".25" stop-color="#fff" stop-opacity="0"/></radialGradient>
+        <filter id="pinShadow" x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="1.5" dy="3" stdDeviation="1.5" flood-opacity=".4"/></filter>
+      </defs>
+      <g id="threadLayer"></g>
+    </svg>
+    <svg id="drawTmp"></svg>
+  </div>
+</div>
+
+<div class="canvas-empty" id="canvasEmpty">
+  <div>
+    <b>Hoja en blanco</b>
+    Elige una herramienta a la izquierda y haz clic donde quieras · arrastra o pega imágenes · clic derecho para más
+    <div class="starters">
+      <small>Sugerencias para empezar</small>
+      <button class="btn" data-start="note">📝 Nota</button>
+      <button class="btn" data-start="image">🖼️ Imagen</button>
+      <button class="btn" data-start="list">☑️ Lista</button>
+      <button class="btn" data-start="kanban">📋 Plantilla Kanban</button>
+      <button class="btn" data-start="detective">🕵️ Plantilla Detective</button>
+    </div>
+  </div>
+</div>
+<div class="dropzone" id="dropzone">Suelta aquí: las imágenes se pinchan como fotos, los archivos como adjuntos y las URL como enlaces</div>
+
+<div class="lightbox" id="lightbox" role="dialog" aria-label="Visor de imagen">
+  <button class="icon-btn lb-btn close" aria-label="Cerrar (Esc)">✕</button>
+  <button class="icon-btn lb-btn prev" aria-label="Anterior (←)">‹</button>
+  <button class="icon-btn lb-btn next" aria-label="Siguiente (→)">›</button>
+  <figure><div class="frame" id="lbFrame"></div><figcaption><span id="lbCaption"></span> <small id="lbCount" style="font:12px var(--font);color:#999;margin-left:8px"></small></figcaption></figure>
+</div>
+
+<div class="minimap" id="minimap" aria-label="Minimapa"></div>
+
+<div class="cmdk-back" id="cmdk" role="dialog" aria-label="Buscar y acciones">
+  <div class="cmdk">
+    <input id="cmdkInput" placeholder="Busca notas, fotos, listas… o escribe una acción" aria-label="Buscar">
+    <ul id="cmdkList" role="listbox"></ul>
+  </div>
+</div>
+
+<footer class="bottombar">
+  <button class="bar-btn" id="allSheets" aria-label="Todas las hojas" data-tip="Todas las hojas" data-tip-pos="top-start"><svg class="icon"><use href="#i-chev"/></svg></button>
+  <div class="sheets" id="sheets" role="tablist" aria-label="Hojas"></div>
+  <button class="bar-btn" id="addSheet" aria-label="Nueva hoja" data-tip="Nueva hoja" data-tip-pos="top"><svg class="icon"><use href="#i-plus"/></svg></button>
+  <div class="spacer"></div>
+  <div class="zoom">
+    <button class="icon-btn" id="mmToggle" aria-label="Minimapa" data-tip="Minimapa" data-tip-pos="top"><svg class="icon"><use href="#i-map"/></svg></button>
+    <button class="icon-btn" id="zoomOut" aria-label="Alejar" data-tip="Alejar" data-tip-pos="top"><svg class="icon"><use href="#i-minus"/></svg></button>
+    <button class="icon-btn" id="zoomLabel" style="width:52px;font-size:12px" aria-label="Zoom al 100%" data-tip="Volver al 100% · Ctrl+0" data-tip-pos="top">100%</button>
+    <button class="icon-btn" id="zoomIn" aria-label="Acercar" data-tip="Acercar" data-tip-pos="top"><svg class="icon"><use href="#i-plus"/></svg></button>
+    <button class="icon-btn" id="zoomFit" aria-label="Ajustar a la vista" data-tip="Ajustar a la vista · Shift+1" data-tip-pos="left"><svg class="icon"><use href="#i-fit"/></svg></button>
+  </div>
+</footer>
+
+<script src="assets/ui.js"></script>
+<script src="assets/guide.js"></script>
+<script src="assets/editor.js"></script>
+</body>
+</html>

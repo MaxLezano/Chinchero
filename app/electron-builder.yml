@@ -1,0 +1,37 @@
+# Instalador de Windows (NSIS) y publicación en GitHub Releases.
+# Las actualizaciones automáticas (electron-updater) leen las releases de este mismo repositorio.
+appId: com.maxlezano.chinchero
+productName: Chinchero
+copyright: Copyright © 2026 Max Lezano
+
+directories:
+  output: dist
+  buildResources: build
+
+files:
+  - src/**/*
+  - build/icon.png
+  - package.json
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: build/icon.png
+  artifactName: Chinchero-Setup-${version}.${ext}
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Chinchero
+  # Los tableros viven en Documentos\Chinchero: desinstalar nunca los borra
+  deleteAppDataOnUninstall: false
+
+publish:
+  provider: github
+  owner: MaxLezano
+  repo: Chinchero
+  releaseType: release
