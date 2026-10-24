@@ -32,42 +32,65 @@ Lista de tareas para avanzar de a una. Cada tarea se hace en una sesión de chat
 - Comprobar el aviso «Descargando…», el banner «Reiniciar ahora» y que tras reiniciar queda en 0.1.1.
 - Revisar «Buscar actualizaciones» en Ajustes con y sin conexión.
 
-### 3. Rendimiento con tableros grandes
+### 3. Plantilla «Semana» y atajos de grupo
+- Nueva plantilla «Semana / Planificador»: zonas de Lunes a Domingo en columnas + zona «Ideas de la semana» y una lista de pendientes. Disponible en el modal de nuevo tablero, en la hoja en blanco y en Ctrl+K.
+- Añadir **Ctrl+U** como atajo alternativo de Desagrupar (se mantiene Ctrl+Shift+G). Fuera de la edición de texto, para no chocar con el subrayado.
+- Pegado de imágenes: Ctrl+V pega como polaroid (como hoy) y **Ctrl+Shift+V** como foto sin marco.
+
+### 4. Exportación en alta resolución (PNG y PDF)
+- Hoy «Exportar PNG» captura solo el área visible a la resolución de pantalla.
+- Exportar **toda la hoja** (encuadrada, sin la interfaz) a PNG en 2x, aunque no entre en pantalla: capturar por partes o renderizar en una ventana oculta del tamaño del contenido.
+- Exportar a **PDF** la hoja actual o todas las hojas (una página por hoja) con `printToPDF`.
+- Mantener «Copiar como imagen» (para pegar en WhatsApp o documentos) usando la misma captura de alta resolución.
+
+### 5. Copias de seguridad en .zip y robustez de datos
+- Hoy «Hacer copia» copia la carpeta tal cual. Pasar a **un solo archivo `.zip`** (librería pura en JS, p. ej. `fflate`, sin depender de internet).
+- «Restaurar copia (.zip)» en Ajustes → Datos.
+- Copias automáticas al abrir la app (últimas 5 en `backups/` dentro de la carpeta de datos).
+- Si `library.json` o un tablero no se pueden leer, recuperar desde la última copia y avisar.
+
+### 6. Compartir un tablero (.zip)
+- En el menú de cada tablero: «Exportar tablero…» genera un `.chinchero` (zip con el JSON del tablero + sus imágenes y archivos).
+- En Tableros: «Importar tablero…» y arrastrar el archivo a la ventana; crea un tablero nuevo (ids nuevos, imágenes copiadas a `media/`).
+- Asociar la extensión `.chinchero` en el instalador para abrir con doble clic.
+
+### 7. Sonidos de interacción (opcional, apagados por defecto)
+- Interruptor en Ajustes → Apariencia: «Sonidos de interacción» y volumen.
+- Sonidos sutiles: clic de chinche al clavar, roce de papel al soltar una nota, cinta al fijar, «tic» al tachar una tarea.
+- Generarlos con Web Audio (síntesis) o con archivos propios dentro del proyecto: nada se descarga de internet y no hay problemas de licencia.
+- Respetar el volumen del sistema y no sonar al deshacer en ráfaga.
+
+### 8. Rendimiento con tableros grandes
 - Hoy `render()` reconstruye todo el DOM de la hoja en cada cambio. Pasar a render incremental (solo los elementos que cambian).
 - Generar miniaturas reducidas de las imágenes al importarlas (`media/thumbs/`) y usarlas en el lienzo; la original solo en el visor.
 - Crear una prueba de carga: 500 elementos y 100 fotos. Objetivo: arrastrar y hacer zoom sin tirones, abrir el tablero en menos de 1 s.
 
-### 4. Robustez de los datos
-- Copias automáticas al abrir la app (últimas 5 en `backups/` dentro de la carpeta de datos).
-- Si `library.json` o un tablero no se pueden leer, recuperar desde la última copia y avisar.
-- Botón en Ajustes para restaurar una copia automática.
-
-### 5. Seguridad de Electron
+### 9. Seguridad de Electron
 - Activar los «fuses» de Electron (desactivar `RunAsNode`, `--inspect`, `NODE_OPTIONS`; verificar integridad del asar).
 - Content-Security-Policy en las pantallas (solo recursos locales y `chinchero-media:`).
 - Validar los argumentos de cada IPC en el proceso principal.
 
-### 6. Compartir un tablero
-- Exportar un tablero a un archivo `.chinchero` (JSON + imágenes en un zip) e importarlo desde la pantalla de Tableros.
-- Asociar la extensión `.chinchero` al instalador para abrir con doble clic.
-
-### 7. Exportar a PDF
-- Exportar la hoja actual o todas las hojas a PDF (una página por hoja, encuadrada).
-
-### 8. Liberar espacio
+### 10. Liberar espacio
 - En Ajustes → Datos: detectar imágenes y archivos de `media/` que ningún tablero usa y ofrecer borrarlos.
 
-### 9. Accesibilidad
+### 11. Accesibilidad
 - Anunciar con `aria-live` lo que pasa en el lienzo (creado, movido, eliminado).
 - Revisar contraste en ambos temas y navegación completa con teclado.
 
-### 10. Ordenar el repositorio
+### 12. Ordenar el repositorio
 - Decidir qué hacer con `design/mockups` (archivar o borrar): la app (`app/src/renderer`) ya es la fuente de verdad.
 
 ### Opcionales (sin orden)
 - Firma de código para evitar el aviso de SmartScreen (de pago: certificado OV/EV o Azure Trusted Signing).
 - Dominio propio para la web.
 - Versión para macOS / Linux.
+
+## Ideas revisadas que ya están hechas
+
+- **Espacio + arrastrar para mover el lienzo** (también rueda del ratón, botón central y arrastrar el fondo). El cursor pasa a mano.
+- **Pegado inteligente con Ctrl+V** donde está el ratón: imagen → foto polaroid (copiada a `media/`), URL → tarjeta de enlace, texto → nota adhesiva, elemento copiado de Chinchero → copia del elemento. Funciona con capturas de Win+Shift+S.
+- **Agrupar Ctrl+G / Desagrupar Ctrl+Shift+G** sobre la selección múltiple, con recuadro de grupo y Ctrl+clic para elegir un elemento dentro del grupo.
+- **Exportar PNG real** de la vista actual y «Copiar como imagen» (la alta resolución y el PDF son la tarea 4).
 
 ## Hecho
 
