@@ -106,9 +106,25 @@
     return { items: [...z, ...notes], threads: [] };
   }
 
+  function semanaItems() {
+    const days = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+    const z = days.map((title, i) => mk("zone", 140 + i * 260, 110, { w: 240, h: 420, title, color: i < 5 ? "#4dabf7" : "#f783ac" }));
+    const ideas = mk("zone", 140, 570, { w: 1000, h: 300, title: "Ideas de la semana", color: "#ffa94d" });
+    const items = [...z, ideas,
+      mk("text", 150, 30, { text: "Mi semana ✏️", rot: -1 }),
+      mk("note", 165, 160, { color: "yellow", text: "Reunión 10:00", rot: -2 }),
+      mk("note", 685, 160, { color: "blue", text: "Entregar informe", rot: 2, pin: pinC("#1c7ed6") }),
+      mk("note", 1465, 160, { color: "pink", text: "Paseo 🌳", rot: -1, pin: pinC("#ae3ec9") }),
+      mk("note", 170, 620, { color: "orange", text: "Probar una receta nueva", rot: 1, pin: pinC("#f59f00") }),
+      mk("list", 1200, 600, { w: 260, title: "Pendientes", pin: pinC("#2f9e44"), tasks: [{ text: "Comprar regalo", done: false }, { text: "Llamar al dentista", done: false }, { text: "Pagar facturas", done: true }] }),
+    ];
+    return { items, threads: [] };
+  }
+
   const TEMPLATES = {
     blank: () => [newSheet("Hoja 1")],
     kanban: () => [newSheet("Tablero", { color: "blue", surface: "grid", ...kanbanItems() })],
+    semana: () => [newSheet("Semana", { color: "green", surface: "grid", ...semanaItems() })],
     detective() {
       const p1 = mk("photo", 160, 120, { w: 170, h: 160, art: "person", caption: "Sospechoso A", rot: -4 });
       const p2 = mk("photo", 540, 90, { w: 170, h: 160, art: "person", caption: "Sospechoso B", rot: 3, pin: pinC("#1c7ed6") });
@@ -994,13 +1010,13 @@
     const kb = f.size / 1024;
     return { name: f.name, ext, size: kb > 1024 ? (kb / 1024).toFixed(1).replace(".", ",") + " MB" : Math.max(1, Math.round(kb)) + " KB" };
   }
-  function addFiles(files, pt, over) {
+  function addFiles(files, pt, over, bare) {
     const imgs = files.filter(f => f.type.startsWith("image/")), others = files.filter(f => !f.type.startsWith("image/"));
     if (over?.type === "photo" && imgs.length) {
       checkpoint(); fillPhoto(over, imgs.shift()); render(); saved();
       toast("Imagen colocada en la foto");
     }
-    imgs.forEach((f, k) => { const it = mk("photo", 0, 0); fillPhoto(it, f); add(it, { x: pt.x + k * 40, y: pt.y + k * 30 }); });
+    imgs.forEach((f, k) => { const it = mk("photo", 0, 0, bare ? { frame: "none" } : {}); fillPhoto(it, f); add(it, { x: pt.x + k * 40, y: pt.y + k * 30 }); });
     others.forEach((f, k) => {
       const it = add(mk("file", 0, 0, fileData(f)), { x: pt.x + k * 30, y: pt.y + (imgs.length ? 220 : 0) + k * 30 });
       Store.importFile(f).then(url => { it.src = url; saved(); }).catch(() => toast(`No se pudo guardar «${f.name}»`));
@@ -1102,6 +1118,7 @@
     try { document.execCommand("copy"); } catch (e) {}
   }
   const pastePoint = () => mouseInside ? lastMouse : viewCenter();
+  let pasteBare = false; // Ctrl+Shift+V: las imágenes se pegan sin marco
 
   function onCopy(e, cut) {
     if (editing || e.target.matches?.("input, textarea") || !selection.length) return;
@@ -1114,7 +1131,8 @@
   document.addEventListener("cut", e => onCopy(e, true));
   document.addEventListener("paste", e => {
     if (editing || e.target.matches?.("input, textarea") || e.target.isContentEditable) return;
-    const dt = e.clipboardData, text = dt.getData("text/plain");
+    const dt = e.clipboardData, text = dt.getData("text/plain"), bare = pasteBare;
+    pasteBare = false;
     e.preventDefault();
     if (text.startsWith(CLIP)) {
       try { pasteItems(JSON.parse(text.slice(CLIP.length)), pastePoint()); } catch (er) {}
@@ -1122,9 +1140,9 @@
     }
     if (clipFresh && internalClip) return pasteItems(internalClip, pastePoint());
     const files = [...dt.files];
-    if (files.length) return addFiles(files, pastePoint());
+    if (files.length) return addFiles(files, pastePoint(), null, bare);
     if (!text.trim()) return internalClip && pasteItems(internalClip, pastePoint());
-    if (isImageUrl(text)) add(mk("photo", 0, 0, { src: text.trim(), caption: "Imagen web" }), pastePoint());
+    if (isImageUrl(text)) add(mk("photo", 0, 0, { src: text.trim(), caption: "Imagen web", ...(bare && { frame: "none" }) }), pastePoint());
     else if (isUrl(text)) add(mk("link", 0, 0, linkData(text)), pastePoint());
     else add(mk("note", 0, 0, { text: esc(text.trim()).replace(/\n/g, "<br>") }), pastePoint());
     checkTips("paste");
@@ -1557,7 +1575,7 @@
       if (!toPin) m.push({ label: "Unir con hilo…", kbd: "Arrastra la chinche", action: () => { setTool("thread"); threadFrom = it; elOf(it.id).classList.add("thread-target"); } });
     }
     if (its.length > 1) m.push("-",
-      selGroup() ? { label: "Desagrupar", kbd: "Ctrl+Shift+G", action: ungroupSel } : { label: "Agrupar", kbd: "Ctrl+G", action: groupSel },
+      selGroup() ? { label: "Desagrupar", kbd: "Ctrl+U", action: ungroupSel } : { label: "Agrupar", kbd: "Ctrl+G", action: groupSel },
       { label: "Alinear a la izquierda", action: () => align("left") },
       { label: "Alinear arriba", action: () => align("top") },
       { label: "Ordenar en cuadrícula", action: tidy },
@@ -1810,6 +1828,14 @@
     renameSheet(doc.active);
   }
 
+  function addWeekSheet() {
+    checkpoint();
+    sheet().view = { ...view };
+    doc.sheets.push(TEMPLATES.semana()[0]);
+    switchSheet(doc.sheets.length - 1);
+    saved(); fit();
+  }
+
   sheetsEl.addEventListener("click", e => {
     const s = e.target.closest(".sheet");
     if (s && !e.target.isContentEditable) switchSheet(+s.dataset.i);
@@ -2037,6 +2063,7 @@
       { icon: "🔗", label: "Añadir enlace…", sub: "K", run: () => createCenter("link") },
       ...doc.sheets.map((s, i) => ({ icon: "📄", label: `Ir a la hoja «${s.name}»`, sub: i === doc.active ? "actual" : "", run: () => switchSheet(i) })),
       { icon: "➕", label: "Nueva hoja", sub: "", run: addSheet },
+      { icon: "📅", label: "Nueva hoja con plantilla Semana", sub: "", run: addWeekSheet },
       { icon: "🔍", label: "Ajustar a la vista", sub: "Shift+1", run: fit },
       { icon: "🌗", label: "Cambiar tema claro/oscuro", sub: "", run: () => toggleTheme() },
       { icon: "⌨️", label: "Ver atajos de teclado", sub: "?", run: () => showShortcuts(SHORTCUTS) },
@@ -2077,9 +2104,9 @@
     const b = e.target.closest("[data-start]");
     if (!b) return;
     const k = b.dataset.start;
-    if (k === "kanban" || k === "detective") {
+    if (k === "kanban" || k === "semana" || k === "detective") {
       checkpoint();
-      const src = k === "kanban" ? kanbanItems() : TEMPLATES.detective()[0];
+      const src = k === "kanban" ? kanbanItems() : k === "semana" ? semanaItems() : TEMPLATES.detective()[0];
       sheet().items.push(...src.items);
       sheet().threads.push(...src.threads);
       if (k === "detective") { sheet().surface = "cork"; applySurface(); }
@@ -2126,6 +2153,8 @@
     if (mod && k === "a") { e.preventDefault(); return selectAll(); }
     if (mod && k === "d") { e.preventDefault(); return duplicateSel(); }
     if (mod && k === "g") { e.preventDefault(); return e.shiftKey ? ungroupSel() : groupSel(); }
+    if (mod && k === "u") { e.preventDefault(); return ungroupSel(); }
+    if (mod && k === "v") pasteBare = e.shiftKey;
     if (mod && e.key === "]") { e.preventDefault(); return restack(1); }
     if (mod && e.key === "[") { e.preventDefault(); return restack(-1); }
     if (mod && e.shiftKey && k === "l") { e.preventDefault(); return toggleLock(); }
@@ -2177,7 +2206,7 @@
   /* ---------- Atajos y tutorial ---------- */
   const SHORTCUTS = [
     { title: "Herramientas", rows: [["Seleccionar", "V"], ["Nota / Ficha / Lista / Texto", "N F C T"], ["Imagen / Enlace / Archivo", "I K A"], ["Stickers / Zona / Dibujo", "S Z D"], ["Hilo", "L"], ["Dejar herramienta fija", "Doble-clic"]] },
-    { title: "Edición", rows: [["Deshacer / Rehacer", "Ctrl+Z Ctrl+Y"], ["Copiar / Cortar / Pegar", "Ctrl+C Ctrl+X Ctrl+V"], ["Duplicar", "Ctrl+D"], ["Duplicar arrastrando", "Alt+arrastrar"], ["Editar seleccionado", "Enter"], ["Seleccionar todo", "Ctrl+A"], ["Seleccionar con recuadro", "Shift+arrastrar"], ["Agrupar / Desagrupar", "Ctrl+G Ctrl+Shift+G"], ["Elegir uno dentro de un grupo", "Ctrl+clic"], ["Añadir a la selección", "Shift+clic"], ["Mover 1 px / 10 px", "Flechas Shift+Flechas"], ["Siguiente elemento", "Tab"], ["Al frente / al fondo", "Ctrl+] Ctrl+["], ["Bloquear", "Ctrl+Shift+L"], ["Eliminar", "Supr"]] },
+    { title: "Edición", rows: [["Deshacer / Rehacer", "Ctrl+Z Ctrl+Y"], ["Copiar / Cortar / Pegar", "Ctrl+C Ctrl+X Ctrl+V"], ["Duplicar", "Ctrl+D"], ["Duplicar arrastrando", "Alt+arrastrar"], ["Editar seleccionado", "Enter"], ["Seleccionar todo", "Ctrl+A"], ["Seleccionar con recuadro", "Shift+arrastrar"], ["Agrupar / Desagrupar", "Ctrl+G Ctrl+U"], ["Pegar imagen sin marco", "Ctrl+Shift+V"], ["Elegir uno dentro de un grupo", "Ctrl+clic"], ["Añadir a la selección", "Shift+clic"], ["Mover 1 px / 10 px", "Flechas Shift+Flechas"], ["Siguiente elemento", "Tab"], ["Al frente / al fondo", "Ctrl+] Ctrl+["], ["Bloquear", "Ctrl+Shift+L"], ["Eliminar", "Supr"]] },
     { title: "Vista", rows: [["Buscar y acciones", "Ctrl+K"], ["Mover lienzo", "Arrastrar-fondo"], ["Zoom", "Rueda"], ["Desplazar en horizontal", "Shift+rueda"], ["Zoom 100% / Ajustar", "Ctrl+0 Shift+1"], ["Hoja anterior / siguiente", "Ctrl+PgUp Ctrl+PgDn"]] },
     { title: "Chinches e hilos", rows: [["Tender un hilo", "Arrastrar-chinche"], ["Mover la chinche", "Shift+arrastrar"], ["Etiqueta del hilo", "Doble-clic"], ["Girar", "Arrastrar-junto-a-una-esquina"], ["Girar de 15° en 15°", "Shift+girar"]] },
   ];

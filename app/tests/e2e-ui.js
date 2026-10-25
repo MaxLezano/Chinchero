@@ -102,8 +102,27 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     await p.mouse.click(star.x, star.y); await sleep(150);
     ok("clic en un miembro selecciona el grupo", (await p.evaluate(() => document.querySelectorAll(".item.sel").length)) === nsel);
     await shot(p, "e20-group");
-    await p.keyboard.down("Control"); await p.keyboard.down("Shift"); await p.keyboard.press("g"); await p.keyboard.up("Shift"); await p.keyboard.up("Control"); await sleep(150);
+    await p.keyboard.down("Control"); await p.keyboard.press("u"); await p.keyboard.up("Control"); await sleep(150);
+    ok("Ctrl+U desagrupa", await p.evaluate(() => getComputedStyle(document.querySelector("#groupBox")).display !== "block"));
     await p.keyboard.press("Escape");
+  }
+  // Ctrl+V pega la imagen como polaroid; Ctrl+Shift+V, sin marco
+  {
+    const pasteImg = async shift => {
+      await p.mouse.move(700, 300);
+      await p.evaluate(shift => {
+        document.body.dispatchEvent(new KeyboardEvent("keydown", { key: "V", ctrlKey: true, shiftKey: shift, bubbles: true }));
+        const dt = new DataTransfer();
+        dt.items.add(new File([Uint8Array.from(atob("R0lGODlhAQABAAAAACw="), c => c.charCodeAt(0))], "pixel.gif", { type: "image/gif" }));
+        document.dispatchEvent(new ClipboardEvent("paste", { clipboardData: dt, bubbles: true }));
+      }, shift);
+      await sleep(200);
+      const bare = await p.evaluate(() => { const el = document.querySelector(".item.sel.t-photo"); return el ? el.classList.contains("noframe") : null; });
+      await p.keyboard.press("Delete");
+      return bare;
+    };
+    ok("Ctrl+V pega imagen como polaroid", (await pasteImg(false)) === false);
+    ok("Ctrl+Shift+V pega imagen sin marco", (await pasteImg(true)) === true);
   }
   // Dibujo: dos trazos seguidos = un solo elemento; seleccionado se arrastra desde su recuadro
   {
@@ -270,6 +289,11 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   await p.click('[data-start="kanban"]'); await sleep(400);
   ok("sugerencia Kanban rellena la hoja", (await count()) >= 8);
   await shot(p, "e13-kanban");
+  await p.keyboard.down("Control"); await p.keyboard.press("k"); await p.keyboard.up("Control"); await sleep(150);
+  await p.keyboard.type("plantilla semana"); await sleep(150);
+  await p.keyboard.press("Enter"); await sleep(500);
+  ok("Ctrl+K crea hoja con plantilla Semana", await p.evaluate(() => document.querySelector(".sheet.active .name").textContent === "Semana" && document.querySelectorAll(".t-zone").length === 8));
+  await shot(p, "e13b-semana");
 
   // Copiar / pegar entre hojas
   await p.click(".sheet:nth-child(1)"); await sleep(250);

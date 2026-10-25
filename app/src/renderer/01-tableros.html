@@ -138,6 +138,7 @@
         <button type="button" class="opt selected" data-v="blank"><div class="tpl">📄</div><span>En blanco</span><small>Lienzo vacío</small></button>
         <button type="button" class="opt" data-v="detective"><div class="tpl">🕵️</div><span>Detective</span><small>Fotos y notas unidas con hilos</small></button>
         <button type="button" class="opt" data-v="kanban"><div class="tpl">📋</div><span>Kanban</span><small>Por hacer, haciendo, hecho</small></button>
+        <button type="button" class="opt" data-v="semana"><div class="tpl">📅</div><span>Semana</span><small>Lunes a domingo, ideas y pendientes</small></button>
         <button type="button" class="opt" data-v="moodboard"><div class="tpl">🎨</div><span>Moodboard</span><small>Imágenes y paleta</small></button>
         <button type="button" class="opt" data-v="viaje"><div class="tpl">✈️</div><span>Viaje</span><small>Itinerario, lugares, equipaje</small></button>
       </div>
@@ -330,7 +331,7 @@
 
   /* ---------- Sugerencias ---------- */
   const SUGGESTIONS = [
-    { id: "templates", em: "🧩", title: "Empieza con una plantilla", text: "Detective, Kanban, Moodboard o Viaje: tableros listos para rellenar.", cta: "Ver plantillas", fn: () => openModal("detective") },
+    { id: "templates", em: "🧩", title: "Empieza con una plantilla", text: "Detective, Kanban, Semana, Moodboard o Viaje: tableros listos para rellenar.", cta: "Ver plantillas", fn: () => openModal("detective") },
     { id: "backup", em: "💾", title: "Haz una copia de seguridad", text: "Guarda una copia de tus tableros en un USB o en una carpeta de la nube.", cta: "Ir a Datos", fn: () => location.href = "03-ajustes.html#datos" },
     { id: "dragcards", em: "🗂️", title: "Ordena arrastrando", text: "Arrastra una tarjeta sobre un grupo de la izquierda para moverla.", cta: "Entendido", fn: () => {} },
   ];
