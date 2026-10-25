@@ -2,12 +2,13 @@
 //   library.json        grupos, metadatos de tableros, papelera y stickers propios
 //   boards/<id>.json    contenido de cada tablero (hojas, elementos, hilos)
 //   media/<hash>.<ext>  imágenes y archivos copiados al tablero (la app no depende de los originales)
+//   media/thumbs/       miniaturas de las imágenes grandes para el lienzo (se pueden borrar: se regeneran)
 //   backups/auto-*.zip  copias automáticas al abrir la app (solo los JSON, las 5 últimas)
 // Un tablero suelto se comparte como .chinchero (zip con tablero.json y sus imágenes)
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
-const { app } = require("electron");
+const { app, nativeImage } = require("electron");
 const { zipSync, unzipSync } = require("fflate");
 
 const CONFIG = () => path.join(app.getPath("userData"), "config.json");
@@ -37,6 +38,7 @@ const paths = {
   library: () => path.join(dataDir(), "library.json"),
   board: id => path.join(dataDir(), "boards", safeName(id) + ".json"),
   media: () => path.join(dataDir(), "media"),
+  thumbs: () => path.join(dataDir(), "media", "thumbs"),
   backups: () => path.join(dataDir(), "backups"),
 };
 
@@ -96,7 +98,32 @@ function storeBuffer(buf, ext) {
     fs.mkdirSync(paths.media(), { recursive: true });
     fs.writeFileSync(dest, buf);
   }
+  // La miniatura se crea justo después de responder, para no retrasar la importación
+  setImmediate(() => { try { thumbFile(name); } catch {} });
   return `chinchero-media://media/${name}`;
+}
+
+// Miniaturas: el lienzo pide chinchero-media://thumbs/<nombre> y recibe una copia de 1280 px como mucho por lado
+// (decodificar 100 fotos de 12 MP hace que el zoom vaya a tirones). La original se usa en el visor y al abrirla.
+// Se crean al importar y, para las imágenes de antes, la primera vez que se piden. PNG sigue en PNG (transparencia).
+const THUMB_SIDE = 1280;
+const small = new Set(); // imágenes que no necesitan miniatura (pequeñas o en un formato que nativeImage no lee)
+function thumbFile(name) {
+  name = path.basename(name);
+  const src = path.join(paths.media(), name), png = /\.(png|bmp)$/i.test(name);
+  if (!/\.(png|jpe?g|bmp)$/i.test(name) || small.has(name)) return src;
+  const dest = path.join(paths.thumbs(), name.replace(/\.\w+$/, png ? ".png" : ".jpg"));
+  if (fs.existsSync(dest)) return dest;
+  const img = fs.existsSync(src) ? nativeImage.createFromPath(src) : null;
+  const { width, height } = img?.getSize() || {};
+  if (!img) return src;
+  if (img.isEmpty() || Math.max(width, height) <= THUMB_SIDE) { small.add(name); return src; }
+  const k = THUMB_SIDE / Math.max(width, height);
+  const out = img.resize({ width: Math.round(width * k), height: Math.round(height * k), quality: "good" });
+  fs.mkdirSync(paths.thumbs(), { recursive: true });
+  fs.writeFileSync(dest + ".tmp", png ? out.toPNG() : out.toJPEG(85));
+  fs.renameSync(dest + ".tmp", dest);
+  return dest;
 }
 
 // Resuelve una URL chinchero-media:// a un archivo dentro de media/ (sin permitir salir de la carpeta)
@@ -116,7 +143,7 @@ function dirStats() {
       if (e.isDirectory()) walk(p);
       else {
         bytes += fs.statSync(p).size;
-        if (/\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(e.name)) images++;
+        if (/\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(e.name) && !p.startsWith(paths.thumbs())) images++;
       }
     }
   };
@@ -126,7 +153,7 @@ function dirStats() {
 
 /* ---------- Copias de seguridad (.zip) ---------- */
 
-// Archivos de la carpeta de datos como { "ruta/relativa": bytes }. Sin backups/ ni temporales.
+// Archivos de la carpeta de datos como { "ruta/relativa": bytes }. Sin backups/, miniaturas ni temporales.
 function dataFiles({ onlyJSON = false } = {}) {
   const root = dataDir(), files = {};
   const walk = rel => {
@@ -134,7 +161,7 @@ function dataFiles({ onlyJSON = false } = {}) {
     try { entries = fs.readdirSync(path.join(root, rel), { withFileTypes: true }); } catch { return; }
     for (const e of entries) {
       const r = rel ? `${rel}/${e.name}` : e.name;
-      if (e.isDirectory()) { if (r !== "backups" && !(onlyJSON && r === "media")) walk(r); }
+      if (e.isDirectory()) { if (r !== "backups" && r !== "media/thumbs" && !(onlyJSON && r === "media")) walk(r); }
       else if (!e.name.endsWith(".tmp") && !e.name.includes(".corrupto-") && (!onlyJSON || e.name.endsWith(".json"))) files[r] = fs.readFileSync(path.join(root, r));
     }
   };
@@ -295,6 +322,6 @@ function readOrRecover(file, rel, label) {
 
 module.exports = {
   config, dataDir, getLibrary, saveLibrary, loadBoard, saveBoard, deleteBoard,
-  importPath, importBuffer, mediaFile, dirStats, backupTo, autoBackup, restoreFrom, takeRecovered,
+  importPath, importBuffer, mediaFile, thumbFile, dirStats, backupTo, autoBackup, restoreFrom, takeRecovered,
   exportBoard, importBoardFile,
 };

@@ -14,7 +14,8 @@
     "release": "electron-builder --win --publish always",
     "test:ui": "node tests/e2e-ui.js",
     "test:app": "node tests/e2e-app.js",
-    "test": "node tests/e2e-ui.js && node tests/e2e-app.js && node tests/offline-fonts.js",
+    "test": "node tests/e2e-ui.js && node tests/e2e-app.js && node tests/carga.js && node tests/offline-fonts.js",
+    "test:carga": "node tests/carga.js",
     "test:offline": "node tests/offline-fonts.js"
   },
   "dependencies": {

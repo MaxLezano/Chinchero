@@ -17,29 +17,24 @@ Lista de tareas para avanzar de a una. Cada tarea se hace en una sesión de chat
 - Instalador NSIS verificado localmente (`npm run dist`).
 - Web estática en `web/` con animaciones, capturas reales y descargas leídas de la API de GitHub.
 - Sin dependencias de internet: fuentes incluidas en el proyecto.
-- Pruebas: `app/tests/e2e-ui.js` (55 casos de interfaz), `e2e-app.js` (33 casos con la app real), `offline-fonts.js`.
+- Pruebas: `app/tests/e2e-ui.js` (55 casos de interfaz), `e2e-app.js` (33 casos con la app real), `carga.js` (10 casos de rendimiento con 500 elementos), `offline-fonts.js`.
 
 ## Pendientes
 
-### 1. Rendimiento con tableros grandes
-- Hoy `render()` reconstruye todo el DOM de la hoja en cada cambio. Pasar a render incremental (solo los elementos que cambian).
-- Generar miniaturas reducidas de las imágenes al importarlas (`media/thumbs/`) y usarlas en el lienzo; la original solo en el visor.
-- Crear una prueba de carga: 500 elementos y 100 fotos. Objetivo: arrastrar y hacer zoom sin tirones, abrir el tablero en menos de 1 s.
-
-### 2. Seguridad de Electron
+### 1. Seguridad de Electron
 - Activar los «fuses» de Electron (desactivar `RunAsNode`, `--inspect`, `NODE_OPTIONS`; verificar integridad del asar).
 - Content-Security-Policy en las pantallas (solo recursos locales y `chinchero-media:`).
 - Validar los argumentos de cada IPC en el proceso principal.
 - Escapar todos los valores que `itemHTML`, `miniHTML` y `cardHTML` ponen sin `esc` (colores, trazos, ids, emoji); hoy solo se limpian al importar un `.chinchero`.
 
-### 3. Liberar espacio
-- En Ajustes → Datos: detectar imágenes y archivos de `media/` que ningún tablero usa y ofrecer borrarlos.
+### 2. Liberar espacio
+- En Ajustes → Datos: detectar imágenes y archivos de `media/` que ningún tablero usa y ofrecer borrarlos (también su miniatura en `media/thumbs/`).
 
-### 4. Accesibilidad
+### 3. Accesibilidad
 - Anunciar con `aria-live` lo que pasa en el lienzo (creado, movido, eliminado).
 - Revisar contraste en ambos temas y navegación completa con teclado.
 
-### 5. QA y revisión de UX/UI de toda la app
+### 4. QA y revisión de UX/UI de toda la app
 - Recorrer todas las pantallas (bienvenida, tableros, editor, ajustes, papelera, modales, menús, Ctrl+K, tutoriales) en tema claro y oscuro, y a distintos tamaños de ventana.
 - Buscar fallos de funcionamiento: acciones que no responden, estados sin feedback, errores en consola, datos que no se guardan.
 - Buscar errores visuales: alineaciones, espaciados irregulares, textos cortados o desbordados, iconos desalineados.
@@ -67,3 +62,4 @@ Lista de tareas para avanzar de a una. Cada tarea se hace en una sesión de chat
 - **2026-10-25 · Copias de seguridad en .zip y robustez de datos**: «Hacer copia…» guarda un solo `.zip` (con `fflate`, puro JS) con `library.json`, `boards/` y `media/` (las imágenes sin recomprimir). «Restaurar copia…» en Ajustes → Datos: valida el zip (solo acepta `library.json`, `boards/<id>.json` y `media/<archivo>`, también dentro de una carpeta), guarda antes el estado actual en `backups/antes-de-restaurar-*.zip`, reemplaza los tableros y suma las imágenes. Al abrir la app se guarda `backups/auto-<fecha>-<hash>.zip` con **solo los JSON** (las imágenes nunca cambian, se nombran por contenido) y se conservan las 5 últimas; no se copia si nada cambió ni si algún JSON está dañado. Si `library.json` o un tablero no se pueden leer, el archivo se aparta como `.corrupto-<fecha>`, se recupera de la copia automática más nueva que lo tenga y se avisa con un toast. 9 casos nuevos en `e2e-app.js` (`CHINCHERO_RESTORE_FILE` evita el diálogo en pruebas). Pendiente posible: las copias automáticas no incluyen `media/`; cuando exista «Liberar espacio» habrá que no borrar imágenes que use alguna copia.
 - **2026-10-25 · Compartir un tablero (.chinchero)**: «Exportar tablero…» (clic derecho en la tarjeta, menú Exportar del editor y Ctrl+K) guarda un `.chinchero`: zip con `tablero.json` (`formato: "chinchero-tablero"`, metadatos, nombre del grupo y el documento) y `media/` con las imágenes y archivos que usa. «Importar tablero» en Tableros, arrastrar el archivo a Tableros o al lienzo, y doble clic (asociación en el instalador NSIS; con la app abierta llega por `second-instance`). Se crea un tablero nuevo con id nuevo, en el grupo actual o en uno con el mismo nombre; las imágenes se guardan de nuevo por contenido en `media/` y se reescriben sus URLs. Como el archivo viene de otra persona, al importar se limpia: el texto con formato solo conserva etiquetas simples sin atributos y los demás valores no pueden traer comillas ni etiquetas; los toasts pasan a texto plano. 8 casos nuevos en `e2e-app.js` (`CHINCHERO_IMPORT_FILE` evita el diálogo), incluido un tablero malicioso. Pendiente: probar el doble clic con la app instalada (no se instaló en esta sesión; el instalador compila).
 - **2026-10-25 · Sonidos de interacción**: interruptor «Sonidos de interacción» (apagado por defecto) y volumen en Ajustes → Apariencia, con una muestra al encender o mover el volumen. `assets/sound.js` sintetiza con Web Audio cuatro sonidos sin archivos: chinche al crear o fijar con chinche, roce de papel al soltar tras mover (y al crear elementos sin fijación), cinta al fijar con cinta y «tic» al tachar una tarea. Deshacer/rehacer no suena (solo vuelven a dibujar) y además hay un límite anti-ráfaga (el mismo sonido no se repite en menos de 80 ms, máximo 4 por medio segundo). El volumen se suma al del sistema. 5 casos nuevos en `e2e-ui.js`. Pendiente: afinar el timbre de cada sonido escuchándolo en la app.
+- **2026-10-25 · Rendimiento con tableros grandes**: `render()` ya no reconstruye la hoja: cada elemento guarda el HTML con que se dibujó y solo se rehace si cambia (clases y posición se aplican siempre; al editar se invalida). Los hilos y chinches del SVG se actualizan igual, por clave: reemplazar todo el SVG obligaba a repintar la hoja entera en cada movimiento. El minimapa reutiliza sus nodos. Las fotos se ven en el lienzo con una miniatura de 1280 px como mucho (`chinchero-media://thumbs/…` → `media/thumbs/`), creada al importar con `nativeImage` o la primera vez que se pide (imágenes de antes); el visor y «Abrir» usan la original. Las miniaturas no van en las copias ni en los `.chinchero`. Con zoom < 45 % las sombras se simplifican. Prueba nueva `tests/carga.js` (500 elementos, 100 fotos de 3000×2000, 120 hilos): abre en ~250 ms; arrastrar a 20 % con todo en pantalla pasó de p95 36 ms a 24 ms y el pico de zoom de 261 ms a ~45 ms. Pendiente posible: al exportar a 2x, una foto ampliada a más de 640 px de ancho sale con la miniatura (algo menos nítida).

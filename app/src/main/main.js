@@ -82,7 +82,8 @@ function createWindow() {
 
 app.whenReady().then(() => {
   protocol.handle("chinchero-media", req => {
-    const file = store.mediaFile(req.url);
+    const u = new URL(req.url);
+    const file = u.host === "thumbs" ? store.thumbFile(decodeURIComponent(u.pathname)) : store.mediaFile(req.url);
     return file && fs.existsSync(file)
       ? net.fetch(pathToFileURL(file).toString())
       : new Response("No encontrado", { status: 404 });

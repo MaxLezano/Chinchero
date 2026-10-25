@@ -264,7 +264,8 @@
 
   const sheet = () => doc.sheets[doc.active];
   const byId = id => sheet().items.find(i => i.id === id);
-  const elOf = id => itemsEl.querySelector(`[data-id="${id}"]`);
+  const els = new Map(); // id → { el, html }: los nodos de la hoja actual (ver render)
+  const elOf = id => els.get(id)?.el || null;
   const linkedCount = it => sheet().threads.filter(t => t.a === it.id || t.b === it.id).length;
 
   function recalcZ() {
@@ -340,6 +341,8 @@
   function mutate(fn) { checkpoint(); fn(); render(); saved(); }
 
   /* ---------- Render ---------- */
+  // En el lienzo las fotos guardadas usan su miniatura (ver thumbFile en main/store.js); el visor usa la original
+  const thumb = src => src.replace(/^chinchero-media:\/\/media\//, "chinchero-media://thumbs/");
   function itemHTML(it) {
     const fix = it.fix === "pin" ? `<span class="pin" style="left:${it.pin.x * 100}%;top:${it.pin.y * 100}%;--pin:${it.pin.color}" title="Arrastra para unir con un hilo · Mayús+arrastrar para moverla"></span>`
       : it.fix === "tape" ? '<span class="tape"></span>' : "";
@@ -354,7 +357,7 @@
       }
       case "text": return fix + `<div class="txt" data-edit="text">${esc(it.text)}</div>`;
       case "photo": {
-        const media = it.src ? `<img src="${esc(it.src)}" alt="">` : it.art ? ART[it.art] : '<div class="ph-empty">Arrastra una imagen aquí<br>o haz doble clic para elegirla</div>';
+        const media = it.src ? `<img src="${esc(thumb(it.src))}" alt="" decoding="async">` : it.art ? ART[it.art] : '<div class="ph-empty">Arrastra una imagen aquí<br>o haz doble clic para elegirla</div>';
         return fix + `<div class="img ${it.fit}" style="height:${it.h}px">${media}</div>` + (it.frame === "polaroid" ? `<div class="caption" data-edit="caption">${esc(it.caption)}</div>` : "");
       }
       case "link": return fix + `<div class="lp" style="--g:${it.grad}">${esc(it.domain.charAt(0).toUpperCase())}</div><div class="lb"><div class="lt" data-edit="title">${esc(it.title)}</div><div class="lu">🔗 ${esc(it.domain)}</div></div>`;
@@ -381,10 +384,30 @@
     if (it.type === "zone") el.style.setProperty("--zc", it.color);
   }
 
+  // Render incremental: cada elemento recuerda el HTML con que se dibujó y solo se reconstruye si cambia.
+  // Clases y estilos (posición, giro, tamaño) se aplican siempre: es barato y no toca el contenido.
   function render() {
-    itemsEl.innerHTML = sheet().items.map(it =>
-      `<div class="item t-${it.type}${it.frame === "none" ? " noframe" : ""}${it.locked ? " locked" : ""}" data-id="${it.id}">${itemHTML(it)}${it.locked ? '<span class="lock-ico" aria-hidden="true">🔒</span>' : ""}</div>`).join("");
-    for (const it of sheet().items) styleItem(elOf(it.id), it);
+    const items = sheet().items, seen = new Set();
+    let prev = null;
+    for (const it of items) {
+      const html = itemHTML(it) + (it.locked ? '<span class="lock-ico" aria-hidden="true">🔒</span>' : "");
+      let c = els.get(it.id);
+      if (!c) {
+        c = { el: document.createElement("div"), html: null };
+        c.el.dataset.id = it.id;
+        els.set(it.id, c);
+      }
+      if (c.html !== html) { c.el.innerHTML = html; c.html = html; }
+      else c.el.querySelector(":scope > .handles")?.remove(); // applySelection las vuelve a poner
+      c.el.className = `item t-${it.type}${it.frame === "none" ? " noframe" : ""}${it.locked ? " locked" : ""}`;
+      styleItem(c.el, it);
+      // El orden del DOM sigue al del modelo; solo se mueve lo que no está en su sitio
+      const at = prev ? prev.nextSibling : itemsEl.firstChild;
+      if (at !== c.el) itemsEl.insertBefore(c.el, at);
+      prev = c.el;
+      seen.add(it.id);
+    }
+    for (const [id, c] of els) if (!seen.has(id)) { c.el.remove(); els.delete(id); }
     applySelection();
     $("#canvasEmpty").classList.toggle("show", !sheet().items.length);
     drawMinimap();
@@ -478,23 +501,47 @@
     const sh = sheet();
     sh.threads = sh.threads.filter(t => byId(t.a)?.fix === "pin" && byId(t.b)?.fix === "pin");
     const related = new Set(selection);
-    let out = "";
-    const heads = new Map();
+    const out = [], heads = new Map();
     for (const t of sh.threads) {
       const a = pinWorld(byId(t.a)), b = pinWorld(byId(t.b));
       if (!a || !b) continue;
       const { d, mid } = curve(a, b, t.sag ?? 1);
       const hl = t.id === selThread || related.has(t.a) || related.has(t.b);
-      out += `<g class="th${hl ? " hl" : ""}${t.id === selThread ? " sel" : ""}" data-t="${t.id}">
+      out.push(["t" + t.id, `<g class="th${hl ? " hl" : ""}${t.id === selThread ? " sel" : ""}" data-t="${t.id}">
         <path d="${d}" class="sh" transform="translate(1.5 4)"/><path d="${d}" class="ln" style="stroke:${t.color || "var(--thread)"}"/><path d="${d}" class="hit"/>
-        ${t.label ? labelSVG(mid, t.label) : ""}</g>`;
+        ${t.label ? labelSVG(mid, t.label) : ""}</g>`]);
       heads.set(t.a, a); heads.set(t.b, b);
     }
     if (preview?.a) {
-      out += `<path d="${curve(preview.a, preview.b).d}" class="pv"/>`;
+      out.push(["pv", `<path d="${curve(preview.a, preview.b).d}" class="pv"/>`]);
       heads.set("_", preview.a);
     }
-    threadLayer.innerHTML = out + [...heads.values()].map(pinHead).join("");
+    for (const [id, p] of heads) out.push(["h" + id, pinHead(p)]);
+    patchSvg(threadLayer, out, svgEls);
+  }
+
+  // Como render() pero para el SVG de hilos: solo se rehacen los nodos cuyo marcado cambió.
+  // Reemplazar todo el SVG (que cubre la hoja entera) obligaba a repintarlo completo en cada movimiento.
+  const svgEls = new Map(); // clave → { el, html }
+  function patchSvg(parent, entries, cache) {
+    const seen = new Set();
+    let prev = null;
+    for (const [key, html] of entries) {
+      let c = cache.get(key);
+      if (!c || c.html !== html) {
+        const tmp = document.createElementNS("http://www.w3.org/2000/svg", "g");
+        tmp.innerHTML = html;
+        const el = tmp.firstElementChild;
+        if (c) c.el.replaceWith(el);
+        c = { el, html };
+        cache.set(key, c);
+      }
+      const at = prev ? prev.nextSibling : parent.firstChild;
+      if (at !== c.el) parent.insertBefore(c.el, at);
+      prev = c.el;
+      seen.add(key);
+    }
+    for (const [key, c] of cache) if (!seen.has(key)) { c.el.remove(); cache.delete(key); }
   }
 
   function addThread(a, b) {
@@ -521,6 +568,7 @@
     world.style.transform = `translate(${view.x}px, ${view.y}px) scale(${view.z})`;
     world.style.setProperty("--inv", (1 / view.z).toFixed(3));
     viewport.style.setProperty("--bz", view.z); // el fondo (puntos, cuadrícula, corcho) escala con el zoom vía CSS
+    viewport.classList.toggle("far", view.z < .45); // de lejos, sombras simples (ver editor.css)
     viewport.style.backgroundPosition = `${view.x}px ${view.y}px`;
     $("#zoomLabel").textContent = Math.round(view.z * 100) + "%";
     placeCtx(); placeFmt(); drawMinimap();
@@ -1164,6 +1212,7 @@
     stopEdit();
     if (!selection.includes(it.id) || selection.length > 1) { selection = [it.id]; selThread = null; }
     editing = { it, el: fieldEl, field: fieldEl.dataset.edit, i: fieldEl.dataset.i, before: opts.continues ? opts.before ?? null : JSON.stringify(it) };
+    els.get(it.id).html = null; // al editar, el DOM ya no coincide con el HTML guardado: el próximo render lo rehace
     if (!opts.continues) checkpoint();
     applySelection();
     fieldEl.contentEditable = "true";
@@ -2058,7 +2107,8 @@
   }, { passive: false });
 
   /* ---------- Minimapa ---------- */
-  let mmRaf = 0;
+  let mmRaf = 0, mmView = null;
+  const mmDots = [];
   function drawMinimap() {
     if (mmRaf) return;
     mmRaf = requestAnimationFrame(() => { mmRaf = 0; paintMinimap(); });
@@ -2082,8 +2132,15 @@
     const sc = Math.min(W / (x1 - x0), H / (y1 - y0));
     const ox = (W - (x1 - x0) * sc) / 2, oy = (H - (y1 - y0) * sc) / 2;
     minimap._m = { x0, y0, sc, ox, oy };
-    minimap.innerHTML = rs.map(r => `<i style="left:${ox + (r.x - x0) * sc}px;top:${oy + (r.y - y0) * sc}px;width:${Math.max(2, r.w * sc)}px;height:${Math.max(2, r.h * sc)}px;background:${miniColor(r.o)}"></i>`).join("")
-      + `<b class="mv" style="left:${ox + (vx - x0) * sc}px;top:${oy + (vy - y0) * sc}px;width:${vw * sc}px;height:${vh * sc}px"></b>`;
+    // Se reutilizan los nodos y solo se reescribe el estilo de los que cambian (al arrastrar, casi siempre uno)
+    if (!mmView) { minimap.innerHTML = '<b class="mv"></b>'; mmView = minimap.firstChild; }
+    while (mmDots.length < rs.length) mmDots.push(minimap.insertBefore(document.createElement("i"), mmView));
+    while (mmDots.length > rs.length) mmDots.pop().remove();
+    rs.forEach((r, k) => {
+      const css = `left:${ox + (r.x - x0) * sc}px;top:${oy + (r.y - y0) * sc}px;width:${Math.max(2, r.w * sc)}px;height:${Math.max(2, r.h * sc)}px;background:${miniColor(r.o)}`;
+      if (mmDots[k]._css !== css) { mmDots[k].style.cssText = css; mmDots[k]._css = css; }
+    });
+    mmView.style.cssText = `left:${ox + (vx - x0) * sc}px;top:${oy + (vy - y0) * sc}px;width:${vw * sc}px;height:${vh * sc}px`;
   }
   minimap.addEventListener("pointerdown", e => {
     const m = minimap._m;

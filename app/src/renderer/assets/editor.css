@@ -115,6 +115,9 @@ body { overflow: hidden; user-select: none; }
 
 .t-sticker { font-size: calc(64px * var(--s, 1)); line-height: 1;
   filter: drop-shadow(2px 0 0 #fff) drop-shadow(-2px 0 0 #fff) drop-shadow(0 2px 0 #fff) drop-shadow(0 -2px 0 #fff) drop-shadow(0 6px 6px rgba(0,0,0,.3)); }
+/* Con el zoom muy alejado las sombras difuminadas apenas se ven y pintarlas en cientos de elementos hace que arrastrar vaya a tirones */
+.viewport.far :is(.t-note, .t-card, .t-list, .t-photo, .t-link, .t-file) { box-shadow: 0 1px 3px rgba(0,0,0,.35); }
+.viewport.far .t-sticker { filter: drop-shadow(2px 0 0 #fff) drop-shadow(-2px 0 0 #fff) drop-shadow(0 2px 0 #fff) drop-shadow(0 -2px 0 #fff); }
 .t-sticker img { display: block; width: calc(96px * var(--s, 1)); pointer-events: none; }
 
 .badge { display: inline-block; font: 800 15px/1 var(--font); letter-spacing: .06em; padding: .66em 1.06em; border-radius: 999px; color: #fff; background: var(--b, #e03131); border: 3px solid #fff; box-shadow: 0 6px 10px rgba(0,0,0,.3); white-space: nowrap; }
