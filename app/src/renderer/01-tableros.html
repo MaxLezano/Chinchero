@@ -108,6 +108,7 @@
   <div class="topbar">
     <h1 id="title"></h1>
     <label class="search"><svg class="icon"><use href="#i-search"/></svg><input id="search" placeholder="Buscar tableros…" aria-label="Buscar tableros"><kbd>Ctrl F</kbd></label>
+    <button class="btn" id="importBtn" title="Abre un tablero compartido (.chinchero). También puedes arrastrarlo a la ventana">Importar tablero</button>
     <button class="btn btn-primary" id="newBtn" onclick="openModal()"><svg class="icon"><use href="#i-plus"/></svg>Nuevo tablero</button>
   </div>
   <div class="subbar" id="chips">
@@ -307,6 +308,38 @@
     toast("Tablero enviado a la papelera", "Deshacer", () => { Store.restore(entry.id); render(); });
   }
 
+  /* ---------- Compartir: exportar e importar .chinchero ---------- */
+  async function exportBoard(id) {
+    if (await Store.desktop("exportBoard", id, Store.board(id).name)) toast("Tablero exportado. Quien lo reciba lo abre con doble clic o lo arrastra a Chinchero");
+  }
+  async function importBoards(files) {
+    const added = [];
+    for (const f of files) { const b = await Store.importBoard(f, groupId); if (b) added.push(b); }
+    if (!added.length) return;
+    render();
+    if (added.length === 1) toast(`Tablero «${added[0].name}» importado`, "Abrir", () => location.href = "02-tablero.html?board=" + added[0].id);
+    else toast(`${added.length} tableros importados`);
+  }
+  $("#importBtn").onclick = () => importBoards([null]);
+  // Arrastrar archivos .chinchero a la ventana (las tarjetas arrastradas no traen "Files")
+  document.addEventListener("dragover", e => { if (e.dataTransfer.types.includes("Files")) e.preventDefault(); });
+  document.addEventListener("drop", e => {
+    if (!e.dataTransfer.files.length) return;
+    e.preventDefault();
+    const files = [...e.dataTransfer.files].filter(f => /\.chinchero$/i.test(f.name));
+    files.length ? importBoards(files) : toast("Aquí solo se pueden soltar tableros compartidos (.chinchero)");
+  });
+  // Abiertos con doble clic: si es uno solo, se abre directamente
+  const opened = params.get("abrir") ? Store.takeOpened() : [];
+  if (opened.length) (async () => {
+    const added = [];
+    for (const p of opened) { const b = await Store.importBoard(p); if (b) added.push(b); }
+    if (added.length === 1) {
+      try { sessionStorage.setItem("chinchero-aviso", `Tablero «${added[0].name}» importado`); } catch {}
+      location.replace("02-tablero.html?board=" + added[0].id);
+    } else if (added.length) { render(); toast(`${added.length} tableros importados`); }
+  })();
+
   grid.addEventListener("contextmenu", e => {
     const card = e.target.closest(".card");
     if (!card) return;
@@ -317,6 +350,7 @@
       { label: b.fav ? "Quitar de favoritos" : "Añadir a favoritos", action: () => { Store.touch(id, { fav: !b.fav }); render(); } },
       { label: "Renombrar", kbd: "F2", action: () => rename(id) },
       { label: "Duplicar", action: () => duplicate(id) },
+      { label: "Exportar tablero…", action: () => exportBoard(id) },
       { label: "Mover a grupo…", action: () => showMenu(e.clientX + 12, e.clientY + 12,
         lib.groups.filter(g => g.id !== b.group).map(g => ({ label: "→ " + g.name, action: () => moveTo(id, g.id) }))) },
       "-",
@@ -390,7 +424,7 @@
     { el: null, title: "¡Estos son tus tableros!", text: "Te enseño esta pantalla en menos de un minuto. Puedes saltarlo y volver a verlo con el botón <b>?</b> de abajo a la izquierda." },
     { el: "#groupList", place: "right", title: "Grupos", text: "Organiza tus tableros en grupos como <b>Trabajo</b> o <b>Personal</b>. Usa <b>+</b> para crear uno y clic derecho para renombrarlo o cambiar su color." },
     { el: () => document.querySelector('.sidebar a[href*="view=fav"]'), place: "right", title: "Favoritos y recientes", text: "Marca un tablero con la ⭐ y lo tendrás siempre en <b>Favoritos</b>. <b>Recientes</b> muestra lo último que editaste." },
-    { el: () => grid.querySelector(".card"), title: "Cada tarjeta es un tablero", text: "Haz clic para abrirlo. Con <b>clic derecho</b> lo renombras, duplicas o mueves. También puedes <b>arrastrarlo</b> sobre un grupo de la izquierda." },
+    { el: () => grid.querySelector(".card"), title: "Cada tarjeta es un tablero", text: "Haz clic para abrirlo. Con <b>clic derecho</b> lo renombras, duplicas, mueves o exportas para compartirlo. También puedes <b>arrastrarlo</b> sobre un grupo de la izquierda." },
     { el: ".search", title: "Busca y filtra", text: "Escribe parte del nombre (atajo <b>Ctrl+F</b>) o usa los filtros de abajo." },
     { el: "#newBtn", place: "bottom", title: "Crea un tablero", text: "Elige nombre, grupo, fondo y, si quieres, una <b>plantilla</b> para no empezar de cero. Atajo: <b>Ctrl+N</b>." },
     { el: "#helpBtn", place: "right", title: "¿Dudas?", text: "Desde aquí vuelves a ver este tutorial, consultas los atajos o activas y desactivas las sugerencias." },

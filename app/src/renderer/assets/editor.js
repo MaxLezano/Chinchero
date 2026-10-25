@@ -1055,6 +1055,7 @@
       return;
     }
     const files = [...e.dataTransfer.files];
+    if (files.length && files.every(f => /\.chinchero$/i.test(f.name))) return importBoards(files);
     if (files.length) return addFiles(files, pt, over);
     const text = (e.dataTransfer.getData("text/uri-list") || e.dataTransfer.getData("text/plain")).split("\n")[0].trim();
     if (!text) return;
@@ -1995,12 +1996,26 @@
     toast("Preparando el PDF…");
     if (await Store.desktop("exportPdf", pages, name)) toast(`PDF guardado${all ? ` (${pages.length} ${pages.length === 1 ? "página" : "páginas"})` : ""}`);
   }
+  // Compartir: el tablero entero con sus imágenes en un .chinchero (antes se guarda lo pendiente)
+  async function exportBoard() {
+    persist(persistTimer !== null);
+    if (await Store.desktop("exportBoard", boardId, doc.name)) toast("Tablero exportado. Quien lo reciba lo abre con doble clic o lo arrastra a Chinchero");
+  }
+  // Un .chinchero soltado sobre el lienzo se importa como tablero nuevo (en el mismo grupo) y se abre
+  async function importBoards(files) {
+    const added = [];
+    for (const f of files) { const b = await Store.importBoard(f, Store.board(boardId)?.group); if (b) added.push(b); }
+    if (!added.length) return;
+    try { sessionStorage.setItem("chinchero-aviso", added.length === 1 ? `Tablero «${added[0].name}» importado` : `${added.length} tableros importados`); } catch {}
+    location.href = "02-tablero.html?board=" + added[added.length - 1].id;
+  }
   $("#exportBtn").onclick = e => {
     const r = e.currentTarget.getBoundingClientRect();
     showMenu(r.left - 160, r.bottom + 6, [
       { label: "Exportar hoja como imagen PNG…", action: exportPng },
       { label: "Exportar hoja como PDF…", action: () => exportPdf(false) },
       ...(doc.sheets.length > 1 ? [{ label: "Exportar todas las hojas como PDF…", action: () => exportPdf(true) }] : []),
+      { label: "Exportar tablero para compartir…", action: exportBoard },
       "-",
       { label: "Copiar hoja como imagen", action: copyPng },
     ]);
@@ -2137,6 +2152,7 @@
       { icon: "📤", label: "Exportar hoja como imagen PNG", sub: "", run: exportPng },
       { icon: "📄", label: "Exportar hoja como PDF", sub: "", run: () => exportPdf(false) },
       ...(doc.sheets.length > 1 ? [{ icon: "📚", label: "Exportar todas las hojas como PDF", sub: "", run: () => exportPdf(true) }] : []),
+      { icon: "📦", label: "Exportar tablero para compartir (.chinchero)", sub: "", run: exportBoard },
       { icon: "📋", label: "Copiar hoja como imagen", sub: "", run: copyPng },
     ].filter(a => !q || norm(a.label).includes(q));
     const shown = q ? found.slice(0, 30) : found.slice(0, 6);

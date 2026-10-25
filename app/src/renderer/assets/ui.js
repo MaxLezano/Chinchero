@@ -25,7 +25,8 @@
     document.querySelector(".toast")?.remove();
     const t = document.createElement("div");
     t.className = "toast";
-    t.innerHTML = `<span>${msg}</span>`;
+    // Como texto: los mensajes llevan nombres de tableros, hojas y listas (pueden venir de un tablero importado)
+    t.appendChild(document.createElement("span")).textContent = msg;
     if (actionLabel) {
       const b = document.createElement("button");
       b.textContent = actionLabel;

@@ -13,43 +13,39 @@ Lista de tareas para avanzar de a una. Cada tarea se hace en una sesión de chat
 
 ## Estado actual (2026-10-25)
 
-- App Electron funcional: tableros, hojas, grupos, papelera, ajustes, bienvenida, tutoriales y sugerencias. Guarda en disco (`Documentos\Chinchero`), copia imágenes y archivos a `media/`, exporta PNG y PDF, hace copias de seguridad en .zip (y automáticas al abrir), se actualiza desde GitHub Releases.
+- App Electron funcional: tableros, hojas, grupos, papelera, ajustes, bienvenida, tutoriales y sugerencias. Guarda en disco (`Documentos\Chinchero`), copia imágenes y archivos a `media/`, exporta PNG y PDF, hace copias de seguridad en .zip (y automáticas al abrir), comparte tableros sueltos como `.chinchero`, se actualiza desde GitHub Releases.
 - Instalador NSIS verificado localmente (`npm run dist`).
 - Web estática en `web/` con animaciones, capturas reales y descargas leídas de la API de GitHub.
 - Sin dependencias de internet: fuentes incluidas en el proyecto.
-- Pruebas: `app/tests/e2e-ui.js` (50 casos de interfaz), `e2e-app.js` (25 casos con la app real), `offline-fonts.js`.
+- Pruebas: `app/tests/e2e-ui.js` (50 casos de interfaz), `e2e-app.js` (33 casos con la app real), `offline-fonts.js`.
 
 ## Pendientes
 
-### 1. Compartir un tablero (.zip)
-- En el menú de cada tablero: «Exportar tablero…» genera un `.chinchero` (zip con el JSON del tablero + sus imágenes y archivos).
-- En Tableros: «Importar tablero…» y arrastrar el archivo a la ventana; crea un tablero nuevo (ids nuevos, imágenes copiadas a `media/`).
-- Asociar la extensión `.chinchero` en el instalador para abrir con doble clic.
-
-### 2. Sonidos de interacción (opcional, apagados por defecto)
+### 1. Sonidos de interacción (opcional, apagados por defecto)
 - Interruptor en Ajustes → Apariencia: «Sonidos de interacción» y volumen.
 - Sonidos sutiles: clic de chinche al clavar, roce de papel al soltar una nota, cinta al fijar, «tic» al tachar una tarea.
 - Generarlos con Web Audio (síntesis) o con archivos propios dentro del proyecto: nada se descarga de internet y no hay problemas de licencia.
 - Respetar el volumen del sistema y no sonar al deshacer en ráfaga.
 
-### 3. Rendimiento con tableros grandes
+### 2. Rendimiento con tableros grandes
 - Hoy `render()` reconstruye todo el DOM de la hoja en cada cambio. Pasar a render incremental (solo los elementos que cambian).
 - Generar miniaturas reducidas de las imágenes al importarlas (`media/thumbs/`) y usarlas en el lienzo; la original solo en el visor.
 - Crear una prueba de carga: 500 elementos y 100 fotos. Objetivo: arrastrar y hacer zoom sin tirones, abrir el tablero en menos de 1 s.
 
-### 4. Seguridad de Electron
+### 3. Seguridad de Electron
 - Activar los «fuses» de Electron (desactivar `RunAsNode`, `--inspect`, `NODE_OPTIONS`; verificar integridad del asar).
 - Content-Security-Policy en las pantallas (solo recursos locales y `chinchero-media:`).
 - Validar los argumentos de cada IPC en el proceso principal.
+- Escapar todos los valores que `itemHTML`, `miniHTML` y `cardHTML` ponen sin `esc` (colores, trazos, ids, emoji); hoy solo se limpian al importar un `.chinchero`.
 
-### 5. Liberar espacio
+### 4. Liberar espacio
 - En Ajustes → Datos: detectar imágenes y archivos de `media/` que ningún tablero usa y ofrecer borrarlos.
 
-### 6. Accesibilidad
+### 5. Accesibilidad
 - Anunciar con `aria-live` lo que pasa en el lienzo (creado, movido, eliminado).
 - Revisar contraste en ambos temas y navegación completa con teclado.
 
-### 7. QA y revisión de UX/UI de toda la app
+### 6. QA y revisión de UX/UI de toda la app
 - Recorrer todas las pantallas (bienvenida, tableros, editor, ajustes, papelera, modales, menús, Ctrl+K, tutoriales) en tema claro y oscuro, y a distintos tamaños de ventana.
 - Buscar fallos de funcionamiento: acciones que no responden, estados sin feedback, errores en consola, datos que no se guardan.
 - Buscar errores visuales: alineaciones, espaciados irregulares, textos cortados o desbordados, iconos desalineados.
@@ -75,3 +71,4 @@ Lista de tareas para avanzar de a una. Cada tarea se hace en una sesión de chat
 - **2026-10-25 · Plantilla «Semana» y atajos**: plantilla «Semana» (Lunes a Domingo en columnas, zona «Ideas de la semana», lista «Pendientes») en el modal de nuevo tablero, en la hoja en blanco y en Ctrl+K («Nueva hoja con plantilla Semana»). **Ctrl+U** desagrupa (además de Ctrl+Shift+G) y es el que muestra el menú. **Ctrl+Shift+V** pega imágenes como foto sin marco (también URL de imagen). Tres pruebas nuevas en `e2e-ui.js`.
 - **2026-10-25 · Exportación en alta resolución (PNG y PDF)**: el botón Exportar captura **la hoja entera** (elementos girados e hilos incluidos) a 2x, aunque no entre en pantalla: recorre el lienzo en mosaicos con `capturePage` y los une en un canvas (máx. 16000 px por lado). «Exportar hoja como PDF» y «Exportar todas las hojas como PDF» (una página por hoja, del tamaño de su contenido, con `@page` con nombre + `printToPDF` en una ventana oculta; las hojas vacías se saltan). «Copiar hoja como imagen» usa la misma captura. También en Ctrl+K. En pruebas, `CHINCHERO_EXPORT_DIR` guarda sin diálogo; 4 casos nuevos en `e2e-app.js`. Pendiente posible: el PDF es raster (2x), no vectorial; durante la captura el lienzo se mueve un instante.
 - **2026-10-25 · Copias de seguridad en .zip y robustez de datos**: «Hacer copia…» guarda un solo `.zip` (con `fflate`, puro JS) con `library.json`, `boards/` y `media/` (las imágenes sin recomprimir). «Restaurar copia…» en Ajustes → Datos: valida el zip (solo acepta `library.json`, `boards/<id>.json` y `media/<archivo>`, también dentro de una carpeta), guarda antes el estado actual en `backups/antes-de-restaurar-*.zip`, reemplaza los tableros y suma las imágenes. Al abrir la app se guarda `backups/auto-<fecha>-<hash>.zip` con **solo los JSON** (las imágenes nunca cambian, se nombran por contenido) y se conservan las 5 últimas; no se copia si nada cambió ni si algún JSON está dañado. Si `library.json` o un tablero no se pueden leer, el archivo se aparta como `.corrupto-<fecha>`, se recupera de la copia automática más nueva que lo tenga y se avisa con un toast. 9 casos nuevos en `e2e-app.js` (`CHINCHERO_RESTORE_FILE` evita el diálogo en pruebas). Pendiente posible: las copias automáticas no incluyen `media/`; cuando exista «Liberar espacio» habrá que no borrar imágenes que use alguna copia.
+- **2026-10-25 · Compartir un tablero (.chinchero)**: «Exportar tablero…» (clic derecho en la tarjeta, menú Exportar del editor y Ctrl+K) guarda un `.chinchero`: zip con `tablero.json` (`formato: "chinchero-tablero"`, metadatos, nombre del grupo y el documento) y `media/` con las imágenes y archivos que usa. «Importar tablero» en Tableros, arrastrar el archivo a Tableros o al lienzo, y doble clic (asociación en el instalador NSIS; con la app abierta llega por `second-instance`). Se crea un tablero nuevo con id nuevo, en el grupo actual o en uno con el mismo nombre; las imágenes se guardan de nuevo por contenido en `media/` y se reescriben sus URLs. Como el archivo viene de otra persona, al importar se limpia: el texto con formato solo conserva etiquetas simples sin atributos y los demás valores no pueden traer comillas ni etiquetas; los toasts pasan a texto plano. 8 casos nuevos en `e2e-app.js` (`CHINCHERO_IMPORT_FILE` evita el diálogo), incluido un tablero malicioso. Pendiente: probar el doble clic con la app instalada (no se instaló en esta sesión; el instalador compila).

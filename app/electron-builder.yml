@@ -20,6 +20,12 @@ win:
   icon: build/icon.png
   artifactName: Chinchero-Setup-${version}.${ext}
 
+# Doble clic en un .chinchero lo importa como tablero nuevo (usa el icono de la app)
+fileAssociations:
+  - ext: chinchero
+    name: Tablero de Chinchero
+    description: Tablero de Chinchero
+
 nsis:
   oneClick: false
   perMachine: false

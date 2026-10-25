@@ -22,6 +22,38 @@
 
   let lib = null;
 
+  // Un tablero importado viene de otra persona: antes de guardarlo se limpia. El texto con formato (notas y fichas)
+  // conserva solo etiquetas simples y sin atributos; los demás valores que no son texto visible (colores, ids, trazos,
+  // coordenadas) no pueden traer comillas ni etiquetas, porque la pantalla los pone tal cual en el HTML.
+  const TEXT_KEYS = new Set(["name", "title", "text", "caption", "label", "domain", "url", "src", "img", "size", "ext"]);
+  const RICH_TAGS = new Set(["B", "STRONG", "I", "EM", "U", "S", "STRIKE", "BR", "DIV", "P", "SPAN", "UL", "OL", "LI"]);
+  function cleanRich(html) {
+    const t = document.createElement("template"); // inerte: no ejecuta ni carga nada
+    t.innerHTML = html;
+    const walk = node => {
+      for (const n of [...node.childNodes]) {
+        if (n.nodeType === Node.TEXT_NODE) continue;
+        if (n.nodeType !== Node.ELEMENT_NODE) { n.remove(); continue; }
+        const tag = n.tagName.toUpperCase();
+        if (/^(SCRIPT|STYLE|TEMPLATE|IFRAME|OBJECT|EMBED|SVG|MATH)$/.test(tag)) { n.remove(); continue; }
+        walk(n);
+        if (RICH_TAGS.has(tag)) [...n.attributes].forEach(a => n.removeAttribute(a.name));
+        else n.replaceWith(...n.childNodes);
+      }
+    };
+    walk(t.content);
+    return t.innerHTML;
+  }
+  function cleanImported(v, key = "", parent = null) {
+    if (typeof v === "string") {
+      if (key === "text" && (parent?.type === "note" || parent?.type === "card")) return cleanRich(v);
+      return TEXT_KEYS.has(key) ? v : v.replace(/["'`<>&]/g, "");
+    }
+    if (Array.isArray(v)) return v.map(x => cleanImported(x, key, parent));
+    if (v && typeof v === "object") return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, cleanImported(x, k, v)]));
+    return typeof v === "number" || typeof v === "boolean" ? v : null;
+  }
+
   const Store = {
     native: !!native,
 
@@ -105,6 +137,24 @@
       l.trash = l.trash.filter(x => x !== t);
       Store.saveLibrary();
     },
+
+    // Importa un .chinchero como tablero nuevo (id nuevo; en el grupo pedido, en uno con su mismo nombre o en el primero).
+    // Sin archivo, la app pregunta cuál. Devuelve el tablero creado, o null si se canceló o no se pudo.
+    async importBoard(file, gid) {
+      const pkg = await Store.desktop("importBoard", file);
+      if (!pkg) return null;
+      if (pkg.error) { window.toast?.(`No se pudo importar: ${pkg.error}.`); return null; }
+      pkg.board = cleanImported(pkg.board); pkg.doc = cleanImported(pkg.doc);
+      const l = Store.library();
+      const g = Store.group(gid) || l.groups.find(x => x.name === pkg.group) || l.groups[0];
+      const b = { ...pkg.board, id: Store.uid(), name: pkg.board.name || pkg.doc.name || "Tablero importado", group: g?.id, fav: false, createdAt: Date.now(), updatedAt: Date.now() };
+      Store.saveBoard(b.id, { ...pkg.doc, name: b.name });
+      l.boards.push(b);
+      Store.saveLibrary();
+      return b;
+    },
+    // Lo que el usuario abrió con doble clic en un .chinchero (solo en la app de escritorio)
+    takeOpened() { return native?.takeOpened ? native.takeOpened() : []; },
 
     // Funciones que solo existen en la app de escritorio; en el navegador avisan
     desktop(fn, ...args) {

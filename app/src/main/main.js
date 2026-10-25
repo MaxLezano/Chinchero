@@ -17,11 +17,21 @@ protocol.registerSchemesAsPrivileged([
   { scheme: "chinchero-media", privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } },
 ]);
 
+// Archivos .chinchero abiertos con doble clic (al iniciar o con la app ya abierta): la pantalla de tableros los importa
+const opened = [];
+function queueOpen(argv) {
+  const files = argv.slice(1).filter(a => /\.chinchero$/i.test(a) && fs.existsSync(a));
+  opened.push(...files);
+  return files.length > 0;
+}
+queueOpen(process.argv);
+
 if (!app.requestSingleInstanceLock()) app.quit();
-app.on("second-instance", () => {
+app.on("second-instance", (e, argv) => {
   if (!win) return;
   if (win.isMinimized()) win.restore();
   win.focus();
+  if (queueOpen(argv)) win.loadFile(path.join(RENDERER, "01-tableros.html"), { query: { abrir: "1" } });
 });
 
 function createWindow() {
@@ -65,6 +75,7 @@ function createWindow() {
     return { action: "deny" };
   });
 
+  if (opened.length) return win.loadFile(path.join(RENDERER, "01-tableros.html"), { query: { abrir: "1" } });
   const start = cfg.firstRunDone ? "01-tableros.html" : "00-bienvenida.html";
   win.loadFile(path.join(RENDERER, start));
 }
@@ -134,6 +145,24 @@ ipcMain.handle("data:restore", async () => {
   }
   try { return { boards: store.restoreFrom(file) }; } catch (e) { return { error: e.message }; }
 });
+
+// Compartir un tablero: exportar a .chinchero e importar (del diálogo, de un archivo arrastrado o abierto con doble clic)
+ipcMain.handle("board:export", async (e, id, name) => {
+  const file = await savePath("Exportar tablero para compartir", name, "chinchero", "Tablero de Chinchero (.chinchero)", "documents");
+  if (!file) return null;
+  store.exportBoard(id, file);
+  return file;
+});
+ipcMain.handle("board:import", async (e, file) => {
+  file ||= process.env.CHINCHERO_IMPORT_FILE;
+  if (!file) {
+    const r = await dialog.showOpenDialog(win, { title: "Elige el tablero para importar", filters: [{ name: "Tablero de Chinchero (.chinchero)", extensions: ["chinchero"] }], properties: ["openFile"] });
+    if (r.canceled || !r.filePaths[0]) return null;
+    file = r.filePaths[0];
+  }
+  try { return store.importBoardFile(file); } catch (err) { return { error: err.message }; }
+});
+ipcMain.on("board:opened", e => { e.returnValue = opened.splice(0); });
 
 ipcMain.handle("open:external", (e, url) => {
   if (/^https?:\/\//i.test(url)) return shell.openExternal(url);

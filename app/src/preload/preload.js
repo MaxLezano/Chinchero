@@ -19,7 +19,12 @@ contextBridge.exposeInMainWorld("chinchero", {
     return ipcRenderer.invoke("media:importBuffer", new Uint8Array(await file.arrayBuffer()), ext);
   },
 
-  dataStats: () => ipcRenderer.invoke("data:stats"),
+  // Tablero compartido: un File arrastrado, la ruta de uno abierto con doble clic, o nada (la app pregunta cuál)
+  exportBoard: (id, name) => ipcRenderer.invoke("board:export", id, name),
+  importBoard: f => ipcRenderer.invoke("board:import", typeof f === "string" ? f : f ? webUtils.getPathForFile(f) : null),
+  takeOpened: () => ipcRenderer.sendSync("board:opened"),
+
+  dataStats:() => ipcRenderer.invoke("data:stats"),
   openDataDir: () => ipcRenderer.invoke("data:open"),
   chooseDataDir: mode => ipcRenderer.invoke("data:choose", mode),
   backup: () => ipcRenderer.invoke("data:backup"),

@@ -3,6 +3,7 @@
 //   boards/<id>.json    contenido de cada tablero (hojas, elementos, hilos)
 //   media/<hash>.<ext>  imágenes y archivos copiados al tablero (la app no depende de los originales)
 //   backups/auto-*.zip  copias automáticas al abrir la app (solo los JSON, las 5 últimas)
+// Un tablero suelto se comparte como .chinchero (zip con tablero.json y sus imágenes)
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
@@ -217,6 +218,53 @@ function restoreFrom(file) {
   return Object.keys(files).filter(r => r.startsWith("boards/")).length;
 }
 
+/* ---------- Compartir un tablero (.chinchero) ----------
+   Un .chinchero es un zip con tablero.json ({ formato, version, board, group, doc })
+   y media/<archivo> con las imágenes y archivos que usa el tablero. */
+const MEDIA_NAME = "[a-zA-Z0-9][a-zA-Z0-9_.-]*";
+const MEDIA_URL = new RegExp(`^chinchero-media://media/(${MEDIA_NAME})$`);
+
+// Copia de un JSON con cada cadena pasada por fn
+function mapStrings(v, fn) {
+  if (typeof v === "string") return fn(v);
+  if (Array.isArray(v)) return v.map(x => mapStrings(x, fn));
+  if (v && typeof v === "object") return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, mapStrings(x, fn)]));
+  return v;
+}
+
+function exportBoard(id, file) {
+  const lib = getLibrary(), entry = lib.boards.find(b => b.id === id), doc = loadBoard(id);
+  if (!entry || !doc) throw new Error("No se encontró el tablero");
+  const { id: _id, group, fav, ...board } = entry;
+  const pkg = { formato: "chinchero-tablero", version: 1, board, group: lib.groups.find(g => g.id === group)?.name || "", doc };
+  const files = { "tablero.json": Buffer.from(JSON.stringify(pkg)) };
+  mapStrings(pkg, s => {
+    const name = MEDIA_URL.exec(s)?.[1], src = name && path.join(paths.media(), name);
+    if (name && !files[`media/${name}`] && fs.existsSync(src)) files[`media/${name}`] = fs.readFileSync(src);
+    return s;
+  });
+  fs.writeFileSync(file, zipFiles(files));
+  return file;
+}
+
+// Lee un .chinchero: copia sus imágenes a media/ (renombradas por contenido) y devuelve { board, group, doc } con las URLs nuevas.
+// No toca la biblioteca: la pantalla le da un id nuevo y lo añade.
+function importBoardFile(file) {
+  let raw;
+  try { raw = unzipSync(new Uint8Array(fs.readFileSync(file))); } catch { throw new Error("el archivo no es un tablero de Chinchero"); }
+  const main = Object.keys(raw).find(r => r === "tablero.json" || r.endsWith("/tablero.json"));
+  let pkg = null;
+  try { pkg = main && JSON.parse(Buffer.from(raw[main]).toString("utf8")); } catch {}
+  if (pkg?.formato !== "chinchero-tablero" || !Array.isArray(pkg.doc?.sheets)) throw new Error("el archivo no es un tablero de Chinchero");
+  const prefix = main.slice(0, -"tablero.json".length), urls = {}, re = new RegExp(`^media/(${MEDIA_NAME})$`);
+  for (const [r, data] of Object.entries(raw)) {
+    const name = r.startsWith(prefix) && re.exec(r.slice(prefix.length))?.[1];
+    if (name) urls[`chinchero-media://media/${name}`] = storeBuffer(Buffer.from(data), path.extname(name));
+  }
+  const swap = s => urls[s] || s;
+  return { board: mapStrings(pkg.board || {}, swap), group: String(pkg.group || ""), doc: mapStrings(pkg.doc, swap) };
+}
+
 /* ---------- Recuperación de archivos dañados ---------- */
 
 // Avisos pendientes para la interfaz («Recuperamos … desde la copia del …»)
@@ -248,4 +296,5 @@ function readOrRecover(file, rel, label) {
 module.exports = {
   config, dataDir, getLibrary, saveLibrary, loadBoard, saveBoard, deleteBoard,
   importPath, importBuffer, mediaFile, dirStats, backupTo, autoBackup, restoreFrom, takeRecovered,
+  exportBoard, importBoardFile,
 };

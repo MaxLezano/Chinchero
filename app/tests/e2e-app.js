@@ -4,7 +4,7 @@ const { spawn } = require("child_process");
 const puppeteer = require("puppeteer-core");
 const fs = require("fs");
 const path = require("path");
-const { unzipSync } = require("fflate");
+const { unzipSync, zipSync, strToU8 } = require("fflate");
 
 const APP = path.join(__dirname, "..");
 const TMP = path.join(__dirname, "out", "app-profile");
@@ -15,16 +15,17 @@ fs.mkdirSync(SHOTS, { recursive: true });
 const DATA = path.join(TMP, "data");
 const EXPORT = path.join(TMP, "export");
 const RESTORE = path.join(TMP, "restaurar.zip");
+const IMPORT = path.join(TMP, "importar.chinchero");
 fs.mkdirSync(EXPORT, { recursive: true });
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const log = [];
 const ok = (n, c, x = "") => log.push(`${c ? "PASS" : "FAIL"} ${n}${x ? " — " + x : ""}`);
 
+const ELECTRON = path.join(APP, "node_modules/electron/dist/electron.exe");
+const ENV = { ...Object.fromEntries(Object.entries(process.env).filter(([k]) => k !== "ELECTRON_RUN_AS_NODE")), CHINCHERO_USER_DATA: path.join(TMP, "user"), CHINCHERO_DATA_DIR: DATA, CHINCHERO_EXPORT_DIR: EXPORT, CHINCHERO_RESTORE_FILE: RESTORE, CHINCHERO_IMPORT_FILE: IMPORT };
+
 async function launch() {
-  const proc = spawn(path.join(APP, "node_modules/electron/dist/electron.exe"), [APP, "--remote-debugging-port=9333"], {
-    env: { ...Object.fromEntries(Object.entries(process.env).filter(([k]) => k !== "ELECTRON_RUN_AS_NODE")), CHINCHERO_USER_DATA: path.join(TMP, "user"), CHINCHERO_DATA_DIR: DATA, CHINCHERO_EXPORT_DIR: EXPORT, CHINCHERO_RESTORE_FILE: RESTORE },
-    stdio: "ignore",
-  });
+  const proc = spawn(ELECTRON, [APP, "--remote-debugging-port=9333"], { env: ENV, stdio: "ignore" });
   let browser;
   for (let i = 0; i < 40 && !browser; i++) {
     await sleep(500);
@@ -164,6 +165,58 @@ delete process.env.ELECTRON_RUN_AS_NODE;
   page.once("dialog", d => d.accept());
   await page.evaluate(() => document.getElementById("restoreBtn").click()); await sleep(600);
   ok("un archivo que no es copia se rechaza sin tocar nada", await page.evaluate(() => document.querySelector(".toast")?.textContent.includes("No se pudo restaurar")) && fs.existsSync(file));
+
+  // 8) Compartir un tablero: exportar a .chinchero e importarlo (botón, archivo dañado, contenido peligroso, doble clic)
+  await page.goto(page.url().replace(/03-ajustes\.html.*/, "01-tableros.html?view=recent")); await sleep(800);
+  await page.click(`#grid > a.card[data-id="${boardId}"]`, { button: "right" }); await sleep(200);
+  await page.evaluate(() => [...document.querySelectorAll(".menu button")].find(b => b.textContent.includes("Exportar tablero")).click());
+  const shareFile = await waitFile(".chinchero");
+  const shared = shareFile ? unzipSync(fs.readFileSync(shareFile)) : {};
+  const sharedPkg = shared["tablero.json"] ? JSON.parse(Buffer.from(shared["tablero.json"]).toString("utf8")) : {};
+  const sharedMedia = Object.keys(shared).filter(n => n.startsWith("media/"));
+  ok("«Exportar tablero…» guarda un .chinchero con el tablero y sus imágenes", sharedPkg.formato === "chinchero-tablero" && sharedMedia.length > 0 && !shared["library.json"], Object.keys(shared).join(","));
+
+  fs.rmSync(path.join(DATA, "media"), { recursive: true, force: true });
+  fs.copyFileSync(shareFile, IMPORT);
+  await page.click("#importBtn"); await sleep(1000);
+  const libImp = JSON.parse(fs.readFileSync(path.join(DATA, "library.json"), "utf8"));
+  const imported = libImp.boards.find(b => b.id !== boardId);
+  ok("«Importar tablero» crea un tablero nuevo con otro id", libImp.boards.length === 2 && imported?.name === sharedPkg.board.name && fs.existsSync(path.join(DATA, "boards", imported.id + ".json")), libImp.boards.map(b => b.id).join(","));
+  ok("avisa que lo importó y ofrece abrirlo", await page.evaluate(() => document.querySelector(".toast")?.textContent.includes("importadoAbrir")));
+  ok("las imágenes del tablero importado se copian a media/", fs.existsSync(path.join(DATA, "media")) && fs.readdirSync(path.join(DATA, "media")).length === sharedMedia.length);
+  await page.screenshot({ path: `${SHOTS}/a6-imported.png` });
+  await Promise.all([page.waitForNavigation(), page.evaluate(() => document.querySelector(".toast button").click())]);
+  await sleep(1200);
+  ok("el tablero importado abre con su contenido e imagen", await page.evaluate(() => document.body.innerText.includes("Nota guardada en disco") && [...document.querySelectorAll(".t-photo img")].some(i => i.complete && i.naturalWidth === 120)));
+
+  fs.writeFileSync(IMPORT, "no es un tablero");
+  await page.goto(page.url().replace(/02-tablero\.html.*/, "01-tableros.html?view=recent")); await sleep(800);
+  await page.click("#importBtn"); await sleep(600);
+  ok("un archivo que no es un tablero se rechaza", await page.evaluate(() => document.querySelector(".toast")?.textContent.includes("No se pudo importar")) && JSON.parse(fs.readFileSync(path.join(DATA, "library.json"), "utf8")).boards.length === 2);
+
+  const evil = '<img src=x onerror="window.__xss=1">';
+  const evilDoc = { name: "Ajeno", active: 0, sheets: [{ name: `Hoja${evil}`, color: "yellow", threads: [], items: [
+    { id: `n1${evil}`, type: "note", x: 100, y: 100, w: 180, h: 170, rot: 0, z: 1, color: "yellow", fs: "m", fix: "pin", pin: { x: .5, y: .04, color: `red">${evil}` }, text: `<b onclick="x()">Hola</b>${evil}<script>window.__xss=1</script>` },
+    { id: "s1", type: "stamp", x: 400, y: 100, rot: 0, z: 2, s: 1, text: "SELLO", color: `red">${evil}` },
+  ] }] };
+  fs.writeFileSync(IMPORT, zipSync({ "tablero.json": strToU8(JSON.stringify({ formato: "chinchero-tablero", version: 1, board: { name: `Ajeno${evil}` }, doc: evilDoc })) }));
+  await page.click("#importBtn"); await sleep(800);
+  const evilId = JSON.parse(fs.readFileSync(path.join(DATA, "library.json"), "utf8")).boards.find(b => b.name.startsWith("Ajeno"))?.id;
+  await page.goto(page.url().replace(/01-tableros\.html.*/, "02-tablero.html?board=" + evilId)); await sleep(1200);
+  ok("un tablero importado no puede ejecutar código", await page.evaluate(() => !window.__xss && document.querySelector(".t-note .txt")?.innerHTML === "<b>Hola</b>" && !document.querySelector("#items img")),
+    await page.evaluate(() => document.querySelector(".t-note .txt")?.innerHTML));
+
+  fs.copyFileSync(shareFile, path.join(TMP, "doble-clic.chinchero"));
+  spawn(ELECTRON, [APP, path.join(TMP, "doble-clic.chinchero")], { env: ENV, stdio: "ignore" });
+  let opened = null;
+  for (let i = 0; i < 30 && !opened; i++) {
+    await sleep(300);
+    const id = new URL(page.url()).searchParams.get("board");
+    if (id && ![boardId, imported?.id, evilId].includes(id)) opened = id;
+  }
+  await sleep(800);
+  ok("abrir un .chinchero con doble clic (app abierta) lo importa y lo abre", !!opened && await page.evaluate(() => document.body.innerText.includes("Nota guardada en disco")), page.url());
+  await page.screenshot({ path: `${SHOTS}/a7-doble-clic.png` });
 
   await browser.disconnect(); proc.kill();
   fs.writeFileSync(path.join(SHOTS, "log.txt"), log.join("\n"));
