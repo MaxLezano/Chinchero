@@ -39,10 +39,12 @@ jobs:
 
       # Se publica con gh y no con electron-builder: al subir los archivos en paralelo,
       # electron-builder puede crear dos releases con la misma etiqueta.
+      # Las notas salen de app/notas/vX.Y.Z.md (la web las muestra); si no existe, se generan solas.
       - name: Publicar
         shell: bash
         run: |
-          gh release create "$GITHUB_REF_NAME" --title "Chinchero $GITHUB_REF_NAME" --generate-notes \
+          if [ -f "notas/$GITHUB_REF_NAME.md" ]; then NOTAS=(--notes-file "notas/$GITHUB_REF_NAME.md"); else NOTAS=(--generate-notes); fi
+          gh release create "$GITHUB_REF_NAME" --title "Chinchero $GITHUB_REF_NAME" "${NOTAS[@]}" \
             dist/Chinchero-Setup-*.exe dist/Chinchero-Setup-*.exe.blockmap dist/latest.yml
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
