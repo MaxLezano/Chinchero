@@ -42,8 +42,10 @@ async function check(isManual) {
   catch (err) { if (isManual) send({ state: "error", message: String(err?.message || err) }); }
 }
 
+// Instalación silenciosa: sin el asistente de NSIS (que confundía, parecía una instalación nueva).
+// Respeta la carpeta y el modo (todos los usuarios / solo para mí) de la instalación anterior.
 function install() {
-  autoUpdater.quitAndInstall(false, true);
+  setTimeout(() => autoUpdater.quitAndInstall(true, true), 1500); // deja ver el aviso «Instalando…»
 }
 
 module.exports = { init, check, install };

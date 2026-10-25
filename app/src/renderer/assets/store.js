@@ -136,12 +136,23 @@
     else if (u.state === "dev") t("En modo desarrollo no se buscan actualizaciones");
     else if (u.state === "error") t("No se pudo buscar actualizaciones. Revisa tu conexión.");
     else if (u.state === "ready") {
+      // Si el usuario lo cerró, no se insiste en cada pantalla: se instalará al cerrar Chinchero
+      let oculto = null;
+      try { oculto = sessionStorage.getItem("update-oculto"); } catch {}
+      if (oculto === u.version) return;
       document.querySelector(".update-banner")?.remove();
       const b = document.createElement("div");
       b.className = "update-banner";
       b.innerHTML = `<span>La versión <b>${u.version}</b> está lista. Se instalará al cerrar Chinchero.</span><button class="btn btn-primary">Reiniciar ahora</button><button class="icon-btn" aria-label="Cerrar">✕</button>`;
-      b.querySelector(".btn").onclick = () => native.installUpdate();
-      b.querySelector(".icon-btn").onclick = () => b.remove();
+      // La instalación tarda unos segundos (y puede pedir permiso de Windows): se avisa qué va a pasar
+      b.querySelector(".btn").onclick = () => {
+        b.innerHTML = `<span class="update-spinner" aria-hidden="true"></span><span role="status">Instalando la versión <b>${u.version}</b>… Chinchero se cerrará y volverá a abrirse solo. Si Windows pide permiso, haz clic en «Sí».</span>`;
+        native.installUpdate();
+      };
+      b.querySelector(".icon-btn").onclick = () => {
+        try { sessionStorage.setItem("update-oculto", u.version); } catch {}
+        b.remove();
+      };
       document.body.appendChild(b);
     }
   });

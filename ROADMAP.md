@@ -25,6 +25,7 @@ Lista de tareas para avanzar de a una. Cada tarea se hace en una sesión de chat
 - Con v0.1.0 instalada, publicar `v0.1.1` (cambio mínimo + notas de versión).
 - Comprobar el aviso «Descargando…», el banner «Reiniciar ahora» y que tras reiniciar queda en 0.1.1.
 - Revisar «Buscar actualizaciones» en Ajustes con y sin conexión.
+- Avance: 0.1.0 → 0.1.1 se actualizó bien y desinstalar respeta la carpeta de datos. Pero «Reiniciar ahora» no daba feedback y abría el asistente completo de NSIS. En 0.1.2 se instala en silencio y muestra «Instalando…». Falta probarlo de 0.1.2 a 0.1.3, porque el código que instala es el de la versión ya instalada.
 
 ### 2. Plantilla «Semana» y atajos de grupo
 - Nueva plantilla «Semana / Planificador»: zonas de Lunes a Domingo en columnas + zona «Ideas de la semana» y una lista de pendientes. Disponible en el modal de nuevo tablero, en la hoja en blanco y en Ctrl+K.
@@ -70,6 +71,13 @@ Lista de tareas para avanzar de a una. Cada tarea se hace en una sesión de chat
 ### 10. Accesibilidad
 - Anunciar con `aria-live` lo que pasa en el lienzo (creado, movido, eliminado).
 - Revisar contraste en ambos temas y navegación completa con teclado.
+
+### 11. QA y revisión de UX/UI de toda la app
+- Recorrer todas las pantallas (bienvenida, tableros, editor, ajustes, papelera, modales, menús, Ctrl+K, tutoriales) en tema claro y oscuro, y a distintos tamaños de ventana.
+- Buscar fallos de funcionamiento: acciones que no responden, estados sin feedback, errores en consola, datos que no se guardan.
+- Buscar errores visuales: alineaciones, espaciados irregulares, textos cortados o desbordados, iconos desalineados.
+- Detectar espacios vacíos o mal aprovechados y proponer mejoras de distribución.
+- Dejar un informe con capturas (`app/tests/out/`) y una lista priorizada; arreglar lo pequeño en la misma tarea y convertir lo grande en tareas nuevas del roadmap.
 
 ### Opcionales (sin orden)
 - Firma de código para evitar el aviso de SmartScreen (de pago: certificado OV/EV o Azure Trusted Signing).
