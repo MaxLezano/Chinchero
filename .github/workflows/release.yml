@@ -34,7 +34,15 @@ jobs:
           PKG=$(node -p "require('./package.json').version")
           if [ "$TAG" != "$PKG" ]; then echo "La etiqueta ($TAG) no coincide con package.json ($PKG)"; exit 1; fi
 
-      - name: Compilar y publicar
-        run: npx electron-builder --win --publish always
+      - name: Compilar
+        run: npx electron-builder --win --publish never
+
+      # Se publica con gh y no con electron-builder: al subir los archivos en paralelo,
+      # electron-builder puede crear dos releases con la misma etiqueta.
+      - name: Publicar
+        shell: bash
+        run: |
+          gh release create "$GITHUB_REF_NAME" --title "Chinchero $GITHUB_REF_NAME" --generate-notes \
+            dist/Chinchero-Setup-*.exe dist/Chinchero-Setup-*.exe.blockmap dist/latest.yml
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
