@@ -273,3 +273,4 @@ body { overflow: hidden; user-select: none; }
 body.exporting .ctx, body.exporting .minimap, body.exporting .hint, body.exporting .toolbar, body.exporting .tip,
 body.exporting .toast, body.exporting #groupBox, body.exporting .handles, body.exporting .canvas-empty, body.exporting .fmt { display: none !important; }
 body.exporting .item.sel { outline: none !important; }
+body.exporting [data-tip]::after { display: none !important; }

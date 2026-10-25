@@ -1917,26 +1917,92 @@
   $("#undoBtn").onclick = undo;
   $("#redoBtn").onclick = redo;
   $("#searchBtn").onclick = openCmdk;
-  // Captura el área visible del lienzo sin la interfaz (barras, asas, minimapa)
-  async function captureView(fn, ...args) {
+  /* ---------- Exportación: la hoja entera a 2x, por partes, sin la interfaz ---------- */
+  const EXPORT_SCALE = 2, EXPORT_MAX_SIDE = 16000, EXPORT_MAX_AREA = 120e6; // límites del canvas
+  const frames = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+  // Rectángulo de la hoja en coordenadas del mundo (incluye elementos girados e hilos)
+  function sheetBounds() {
+    const vr = viewport.getBoundingClientRect();
+    const rs = [...itemsEl.children, ...threadLayer.children].map(e => e.getBoundingClientRect()).filter(r => r.width || r.height);
+    if (!rs.length) return null;
+    const toW = (x, y) => ({ x: (x - vr.left - view.x) / view.z, y: (y - vr.top - view.y) / view.z });
+    const a = toW(Math.min(...rs.map(r => r.left)), Math.min(...rs.map(r => r.top)));
+    const b = toW(Math.max(...rs.map(r => r.right)), Math.max(...rs.map(r => r.bottom)));
+    const pad = 40;
+    return { x: a.x - pad, y: a.y - pad, w: b.x - a.x + pad * 2, h: b.y - a.y + pad * 2 };
+  }
+  // Recorre la hoja en mosaicos del tamaño del lienzo, captura cada uno y los une en un PNG
+  async function captureSheet() {
+    await Promise.all($$("img", itemsEl).map(i => i.decode().catch(() => {})));
+    const b = sheetBounds();
+    if (!b) return null;
+    const dpr = devicePixelRatio;
+    const s = Math.min(EXPORT_SCALE, EXPORT_MAX_SIDE / b.w, EXPORT_MAX_SIDE / b.h, Math.sqrt(EXPORT_MAX_AREA / (b.w * b.h)));
+    const z = s / dpr, W = Math.ceil(b.w * z), H = Math.ceil(b.h * z); // px CSS a ese zoom
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+    const g = canvas.getContext("2d");
+    const vr = viewport.getBoundingClientRect(), tw = viewport.clientWidth, th = viewport.clientHeight;
+    const prev = view;
+    try {
+      for (let ty = 0; ty < H; ty += th) for (let tx = 0; tx < W; tx += tw) {
+        view = { z, x: Math.round(-b.x * z) - tx, y: Math.round(-b.y * z) - ty };
+        applyView();
+        await frames();
+        const png = await Store.desktop("capture", { x: vr.left, y: vr.top, width: Math.min(tw, W - tx), height: Math.min(th, H - ty) });
+        g.drawImage(await createImageBitmap(new Blob([png], { type: "image/png" })), Math.round(tx * dpr), Math.round(ty * dpr));
+      }
+    } finally { view = prev; applyView(); }
+    const blob = await new Promise(r => canvas.toBlob(r, "image/png"));
+    return { png: new Uint8Array(await blob.arrayBuffer()), w: b.w, h: b.h };
+  }
+  // Oculta la interfaz mientras dura la captura; en el navegador solo avisa
+  async function exporting(fn) {
+    if (!Store.native) return Store.desktop("capture");
     stopEdit();
     document.body.classList.add("exporting");
-    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
-    const r = viewport.getBoundingClientRect();
-    try { return await Store.desktop(fn, { x: r.left, y: r.top, width: r.width, height: r.height }, ...args); }
+    try { await frames(); return await fn(); }
     finally { document.body.classList.remove("exporting"); }
   }
+  const emptySheet = () => toast("La hoja está vacía: no hay nada que exportar");
   async function exportPng() {
-    const file = await captureView("exportPng", `${doc.name} - ${sheet().name}`);
-    if (file) toast("Imagen guardada");
+    const shot = await exporting(captureSheet);
+    if (shot === null) return emptySheet();
+    if (shot && await Store.desktop("exportPng", shot.png, `${doc.name} - ${sheet().name}`)) toast("Imagen guardada");
+  }
+  async function copyPng() {
+    const shot = await exporting(captureSheet);
+    if (shot === null) return emptySheet();
+    if (shot && await Store.desktop("copyPng", shot.png)) toast("Imagen copiada: pégala donde quieras");
+  }
+  // PDF con una página por hoja; las hojas vacías se saltan
+  async function exportPdf(all) {
+    const cur = doc.active;
+    const pages = await exporting(async () => {
+      const out = [];
+      try {
+        for (const i of all ? doc.sheets.map((_, i) => i) : [cur]) {
+          switchSheet(i);
+          const shot = await captureSheet();
+          if (shot) out.push(shot);
+        }
+      } finally { switchSheet(cur); }
+      return out;
+    });
+    if (!pages) return;
+    if (!pages.length) return all ? toast("Las hojas están vacías: no hay nada que exportar") : emptySheet();
+    const name = all ? doc.name : `${doc.name} - ${sheet().name}`;
+    toast("Preparando el PDF…");
+    if (await Store.desktop("exportPdf", pages, name)) toast(`PDF guardado${all ? ` (${pages.length} ${pages.length === 1 ? "página" : "páginas"})` : ""}`);
   }
   $("#exportBtn").onclick = e => {
     const r = e.currentTarget.getBoundingClientRect();
     showMenu(r.left - 160, r.bottom + 6, [
-      { label: "Exportar vista como imagen PNG…", action: exportPng },
-      { label: "Copiar vista como imagen", action: async () => { if (await captureView("copyPng")) toast("Imagen copiada: pégala donde quieras"); } },
+      { label: "Exportar hoja como imagen PNG…", action: exportPng },
+      { label: "Exportar hoja como PDF…", action: () => exportPdf(false) },
+      ...(doc.sheets.length > 1 ? [{ label: "Exportar todas las hojas como PDF…", action: () => exportPdf(true) }] : []),
       "-",
-      { label: "Encuadrar todo antes de exportar", kbd: "Shift+1", action: fit },
+      { label: "Copiar hoja como imagen", action: copyPng },
     ]);
   };
   const THREAD_MODES = [["over", "Encima de todo"], ["dim", "Atenuados (resalta los del elemento seleccionado)"], ["hidden", "Ocultos"]];
@@ -2068,7 +2134,10 @@
       { icon: "🌗", label: "Cambiar tema claro/oscuro", sub: "", run: () => toggleTheme() },
       { icon: "⌨️", label: "Ver atajos de teclado", sub: "?", run: () => showShortcuts(SHORTCUTS) },
       { icon: "🎓", label: "Ver tutorial del tablero", sub: "", run: () => Tour.start("editor") },
-      { icon: "📤", label: "Exportar vista como imagen PNG", sub: "", run: exportPng },
+      { icon: "📤", label: "Exportar hoja como imagen PNG", sub: "", run: exportPng },
+      { icon: "📄", label: "Exportar hoja como PDF", sub: "", run: () => exportPdf(false) },
+      ...(doc.sheets.length > 1 ? [{ icon: "📚", label: "Exportar todas las hojas como PDF", sub: "", run: () => exportPdf(true) }] : []),
+      { icon: "📋", label: "Copiar hoja como imagen", sub: "", run: copyPng },
     ].filter(a => !q || norm(a.label).includes(q));
     const shown = q ? found.slice(0, 30) : found.slice(0, 6);
     cmdkRows = [...shown, ...actions];

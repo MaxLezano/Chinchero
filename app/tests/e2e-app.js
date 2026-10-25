@@ -12,13 +12,15 @@ fs.rmSync(TMP, { recursive: true, force: true });
 fs.rmSync(SHOTS, { recursive: true, force: true });
 fs.mkdirSync(SHOTS, { recursive: true });
 const DATA = path.join(TMP, "data");
+const EXPORT = path.join(TMP, "export");
+fs.mkdirSync(EXPORT, { recursive: true });
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const log = [];
 const ok = (n, c, x = "") => log.push(`${c ? "PASS" : "FAIL"} ${n}${x ? " — " + x : ""}`);
 
 async function launch() {
   const proc = spawn(path.join(APP, "node_modules/electron/dist/electron.exe"), [APP, "--remote-debugging-port=9333"], {
-    env: { ...Object.fromEntries(Object.entries(process.env).filter(([k]) => k !== "ELECTRON_RUN_AS_NODE")), CHINCHERO_USER_DATA: path.join(TMP, "user"), CHINCHERO_DATA_DIR: DATA },
+    env: { ...Object.fromEntries(Object.entries(process.env).filter(([k]) => k !== "ELECTRON_RUN_AS_NODE")), CHINCHERO_USER_DATA: path.join(TMP, "user"), CHINCHERO_DATA_DIR: DATA, CHINCHERO_EXPORT_DIR: EXPORT },
     stdio: "ignore",
   });
   let browser;
@@ -72,6 +74,37 @@ delete process.env.ELECTRON_RUN_AS_NODE;
   ok("la foto usa la copia persistente", /^chinchero-media:/.test(src || ""), src);
   ok("la imagen persistente carga", await page.evaluate(() => { const i = document.querySelector(".t-photo img"); return i && i.complete && i.naturalWidth === 120; }));
   await page.screenshot({ path: `${SHOTS}/a1-editor.png` });
+
+  // 3b) Exportar la hoja entera en alta resolución, aunque no entre en pantalla
+  for (let i = 0; i < 6; i++) await page.click("#zoomOut");
+  for (const [x, y, t] of [[260, 200, "Arriba a la izquierda"], [1000, 560, "Abajo a la derecha"]]) {
+    await page.keyboard.press("n"); await page.mouse.click(x, y); await sleep(250);
+    await page.keyboard.type(t); await page.keyboard.press("Escape"); await sleep(200);
+  }
+  await page.click("#zoomLabel"); await sleep(300);
+  const menuItem = async label => {
+    await page.click("#exportBtn"); await sleep(200);
+    await page.evaluate(l => [...document.querySelectorAll(".menu button")].find(b => b.textContent.includes(l)).click(), label);
+  };
+  const waitFile = async ext => { for (let i = 0; i < 60; i++) { const f = fs.readdirSync(EXPORT).find(n => n.endsWith(ext)); if (f) { await sleep(300); return path.join(EXPORT, f); } await sleep(250); } };
+  await menuItem("Exportar hoja como imagen PNG");
+  const pngFile = await waitFile(".png");
+  const ihdr = pngFile && fs.readFileSync(pngFile);
+  const pw = ihdr ? ihdr.readUInt32BE(16) : 0, ph = ihdr ? ihdr.readUInt32BE(20) : 0;
+  const vw = await page.evaluate(() => document.getElementById("viewport").clientWidth * devicePixelRatio);
+  ok("PNG de la hoja entera a 2x (más grande que la pantalla)", pw > vw * 2, `${pw}×${ph}, lienzo ${vw}px`);
+  ok("la interfaz vuelve a la normalidad tras exportar", await page.evaluate(() => !document.body.classList.contains("exporting")));
+  await page.click("#addSheet"); await sleep(400);
+  await page.keyboard.press("Enter"); await sleep(200); // la hoja nueva empieza renombrándose
+  await page.keyboard.press("n"); await page.mouse.click(700, 400); await sleep(250);
+  await page.keyboard.type("Segunda hoja"); await page.keyboard.press("Escape"); await sleep(200);
+  await menuItem("Exportar todas las hojas como PDF");
+  const pdfFile = await waitFile(".pdf");
+  const pdf = pdfFile ? fs.readFileSync(pdfFile, "latin1") : "";
+  const boxes = [...pdf.matchAll(/\/MediaBox\s*\[\s*0 0 ([\d.]+) ([\d.]+)/g)].map(m => `${Math.round(m[1])}×${Math.round(m[2])}`);
+  ok("PDF con una página por hoja, cada una de su tamaño", boxes.length === 2 && boxes[0] !== boxes[1], boxes.join(", "));
+  ok("vuelve a la hoja en la que estaba", await page.evaluate(() => document.querySelector(".sheet.active")?.textContent.includes("Hoja 2")));
+  await page.click('.sheet[data-i="0"]'); await sleep(800);
 
   // 4) Volver a Tableros: tarjetas reales con miniatura
   await Promise.all([page.waitForNavigation(), page.click(".back")]);

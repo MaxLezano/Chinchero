@@ -1,6 +1,7 @@
-const { app, BrowserWindow, ipcMain, protocol, net, shell, dialog, clipboard, nativeTheme } = require("electron");
+const { app, BrowserWindow, ipcMain, protocol, net, shell, dialog, clipboard, nativeImage, nativeTheme } = require("electron");
 const path = require("path");
 const fs = require("fs");
+const os = require("os");
 const { pathToFileURL } = require("url");
 const store = require("./store");
 const updater = require("./updater");
@@ -129,21 +130,52 @@ ipcMain.handle("open:media", (e, url) => {
   return file ? shell.openPath(file) : "No encontrado";
 });
 
-// Exporta el área visible del tablero (rect en píxeles CSS de la ventana)
-ipcMain.handle("export:png", async (e, rect, name) => {
-  const img = await win.webContents.capturePage(roundRect(rect));
-  const r = await dialog.showSaveDialog(win, {
-    title: "Exportar como imagen",
-    defaultPath: path.join(app.getPath("pictures"), `${name.replace(/[\\/:*?"<>|]/g, "-")}.png`),
-    filters: [{ name: "Imagen PNG", extensions: ["png"] }],
-  });
-  if (r.canceled || !r.filePath) return null;
-  fs.writeFileSync(r.filePath, img.toPNG());
-  return r.filePath;
+// Captura un rectángulo de la ventana (px CSS); el editor la usa por partes para armar la hoja entera
+ipcMain.handle("capture:rect", async (e, rect) => (await win.webContents.capturePage(roundRect(rect))).toPNG());
+
+// Pregunta dónde guardar (en pruebas, CHINCHERO_EXPORT_DIR guarda directo sin diálogo)
+async function savePath(title, name, ext, filter, folder) {
+  const base = `${String(name).replace(/[\\/:*?"<>|]/g, "-")}.${ext}`;
+  if (process.env.CHINCHERO_EXPORT_DIR) return path.join(process.env.CHINCHERO_EXPORT_DIR, base);
+  const r = await dialog.showSaveDialog(win, { title, defaultPath: path.join(app.getPath(folder), base), filters: [{ name: filter, extensions: [ext] }] });
+  return r.canceled || !r.filePath ? null : r.filePath;
+}
+
+ipcMain.handle("export:png", async (e, png, name) => {
+  const file = await savePath("Exportar como imagen", name, "png", "Imagen PNG", "pictures");
+  if (!file) return null;
+  fs.writeFileSync(file, Buffer.from(png));
+  return file;
 });
-ipcMain.handle("copy:png", async (e, rect) => {
-  clipboard.writeImage(await win.webContents.capturePage(roundRect(rect)));
+ipcMain.handle("copy:png", (e, png) => {
+  clipboard.writeImage(nativeImage.createFromBuffer(Buffer.from(png)));
   return true;
+});
+
+// PDF: una página por hoja, del tamaño de su contenido. Se arma una página oculta con las imágenes y se imprime
+const PDF_MAX = 19200; // 200 pulgadas, el máximo de una página PDF, en px CSS
+ipcMain.handle("export:pdf", async (e, pages, name) => {
+  const file = await savePath("Exportar como PDF", name, "pdf", "Documento PDF", "documents");
+  if (!file) return null;
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "chinchero-pdf-"));
+  const pdfWin = new BrowserWindow({ show: false, webPreferences: { sandbox: true, contextIsolation: true } });
+  try {
+    let css = "@page{margin:0}html,body{margin:0}img{display:block}";
+    const imgs = pages.map((p, i) => {
+      fs.writeFileSync(path.join(tmp, `p${i}.png`), Buffer.from(p.png));
+      const k = Math.min(1, PDF_MAX / p.w, PDF_MAX / p.h), w = Math.floor(p.w * k), h = Math.floor(p.h * k);
+      css += `@page p${i}{size:${w}px ${h}px}.p${i}{page:p${i};width:${w}px;height:${h}px}`;
+      return `<img class="p${i}" src="p${i}.png">`;
+    });
+    fs.writeFileSync(path.join(tmp, "index.html"), `<!doctype html><meta charset="utf-8"><style>${css}</style>${imgs.join("")}`);
+    await pdfWin.loadFile(path.join(tmp, "index.html"));
+    const pdf = await pdfWin.webContents.printToPDF({ printBackground: true, preferCSSPageSize: true, margins: { top: 0, bottom: 0, left: 0, right: 0 } });
+    fs.writeFileSync(file, pdf);
+    return file;
+  } finally {
+    pdfWin.destroy();
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
 });
 
 ipcMain.handle("update:check", () => updater.check(true));
