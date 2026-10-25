@@ -116,6 +116,20 @@
 
   window.Store = Store;
 
+  // Avisos que deben verse en la pantalla siguiente (p. ej. tras restaurar) y archivos dañados recuperados de una copia
+  setTimeout(() => {
+    const t = window.toast || (() => {});
+    let aviso = null;
+    try { aviso = sessionStorage.getItem("chinchero-aviso"); sessionStorage.removeItem("chinchero-aviso"); } catch {}
+    if (aviso) t(aviso);
+    if (!native?.takeRecovered) return;
+    for (const r of native.takeRecovered()) {
+      t(r.ok
+        ? `No se pudo leer ${r.label}; lo recuperamos de la copia automática (${relTime(r.when)}).`
+        : `No se pudo leer ${r.label} y no hay copia para recuperarlo. El archivo dañado quedó apartado en la carpeta de datos.`);
+    }
+  }, 600);
+
   window.relTime = function (ts) {
     if (!ts) return "";
     const s = (Date.now() - ts) / 1000;

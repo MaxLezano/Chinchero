@@ -18,7 +18,8 @@
     "test:offline": "node tests/offline-fonts.js"
   },
   "dependencies": {
-    "electron-updater": "^6.8.11"
+    "electron-updater": "^6.8.11",
+    "fflate": "^0.8.3"
   },
   "devDependencies": {
     "electron": "^45.0.0",

@@ -4,6 +4,7 @@ const { spawn } = require("child_process");
 const puppeteer = require("puppeteer-core");
 const fs = require("fs");
 const path = require("path");
+const { unzipSync } = require("fflate");
 
 const APP = path.join(__dirname, "..");
 const TMP = path.join(__dirname, "out", "app-profile");
@@ -13,6 +14,7 @@ fs.rmSync(SHOTS, { recursive: true, force: true });
 fs.mkdirSync(SHOTS, { recursive: true });
 const DATA = path.join(TMP, "data");
 const EXPORT = path.join(TMP, "export");
+const RESTORE = path.join(TMP, "restaurar.zip");
 fs.mkdirSync(EXPORT, { recursive: true });
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const log = [];
@@ -20,7 +22,7 @@ const ok = (n, c, x = "") => log.push(`${c ? "PASS" : "FAIL"} ${n}${x ? " — " 
 
 async function launch() {
   const proc = spawn(path.join(APP, "node_modules/electron/dist/electron.exe"), [APP, "--remote-debugging-port=9333"], {
-    env: { ...Object.fromEntries(Object.entries(process.env).filter(([k]) => k !== "ELECTRON_RUN_AS_NODE")), CHINCHERO_USER_DATA: path.join(TMP, "user"), CHINCHERO_DATA_DIR: DATA, CHINCHERO_EXPORT_DIR: EXPORT },
+    env: { ...Object.fromEntries(Object.entries(process.env).filter(([k]) => k !== "ELECTRON_RUN_AS_NODE")), CHINCHERO_USER_DATA: path.join(TMP, "user"), CHINCHERO_DATA_DIR: DATA, CHINCHERO_EXPORT_DIR: EXPORT, CHINCHERO_RESTORE_FILE: RESTORE },
     stdio: "ignore",
   });
   let browser;
@@ -127,6 +129,41 @@ delete process.env.ELECTRON_RUN_AS_NODE;
   await page.goto(page.url().replace(/01-tableros\.html.*/, "04-papelera.html")); await sleep(700);
   ok("la papelera muestra el tablero eliminado", (await page.$$eval("#list .row", r => r.length)) === 1);
   await page.screenshot({ path: `${SHOTS}/a4-trash.png` });
+
+  // 7) Copias de seguridad: automática al abrir, recuperación de un archivo dañado, copia .zip y restaurar
+  const autos = fs.readdirSync(path.join(DATA, "backups")).filter(n => /^auto-.*\.zip$/.test(n));
+  const autoZip = autos[0] ? Object.keys(unzipSync(fs.readFileSync(path.join(DATA, "backups", autos[0])))) : [];
+  ok("al abrir se guarda una copia automática solo con los JSON", autos.length === 1 && autoZip.includes("library.json") && autoZip.includes(`boards/${boardId}.json`) && !autoZip.some(n => n.startsWith("media/")), autos.join(",") + " → " + autoZip.join(","));
+
+  fs.writeFileSync(file, "{ esto no es JSON");
+  await page.goto(page.url().replace(/04-papelera\.html.*/, "02-tablero.html?board=" + boardId)); await sleep(1200);
+  ok("un tablero dañado se recupera de la copia automática", await page.evaluate(() => document.body.innerText.includes("Nota guardada en disco")));
+  ok("avisa que lo recuperó", await page.evaluate(() => document.querySelector(".toast")?.textContent.includes("lo recuperamos")));
+  ok("el archivo dañado queda apartado", fs.readdirSync(path.join(DATA, "boards")).some(n => n.includes(".corrupto-")));
+
+  await page.goto(page.url().replace(/02-tablero\.html.*/, "03-ajustes.html")); await sleep(800);
+  await page.evaluate(() => document.getElementById("datos").scrollIntoView());
+  await page.screenshot({ path: `${SHOTS}/a5-datos.png` });
+  await page.evaluate(() => document.getElementById("backupBtn").click());
+  const zipFile = await waitFile(".zip");
+  const zipped = zipFile ? Object.keys(unzipSync(fs.readFileSync(zipFile))) : [];
+  ok("«Hacer copia» guarda un solo .zip con tableros e imágenes", zipped.includes("library.json") && zipped.includes(`boards/${boardId}.json`) && zipped.some(n => n.startsWith("media/")) && !zipped.some(n => n.startsWith("backups/")), zipped.join(","));
+
+  fs.copyFileSync(zipFile, RESTORE);
+  await page.evaluate(() => { Store.library().boards.slice().forEach(b => Store.trashBoard(b.id)); });
+  page.once("dialog", d => d.accept());
+  await Promise.all([page.waitForNavigation(), page.evaluate(() => document.getElementById("restoreBtn").click())]);
+  await sleep(900);
+  ok("restaurar vuelve a los tableros de la copia", (await page.$$eval("#grid > a.card", c => c.length)) === 1);
+  ok("avisa que restauró", await page.evaluate(() => document.querySelector(".toast")?.textContent.includes("Copia restaurada")));
+  ok("antes de restaurar guarda el estado actual", fs.readdirSync(path.join(DATA, "backups")).some(n => n.startsWith("antes-de-restaurar-")));
+  await page.screenshot({ path: `${SHOTS}/a5-restored.png` });
+
+  fs.writeFileSync(RESTORE, "no es un zip");
+  await page.goto(page.url().replace(/01-tableros\.html.*/, "03-ajustes.html")); await sleep(800);
+  page.once("dialog", d => d.accept());
+  await page.evaluate(() => document.getElementById("restoreBtn").click()); await sleep(600);
+  ok("un archivo que no es copia se rechaza sin tocar nada", await page.evaluate(() => document.querySelector(".toast")?.textContent.includes("No se pudo restaurar")) && fs.existsSync(file));
 
   await browser.disconnect(); proc.kill();
   fs.writeFileSync(path.join(SHOTS, "log.txt"), log.join("\n"));

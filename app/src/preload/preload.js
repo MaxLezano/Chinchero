@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld("chinchero", {
   saveBoard: (id, doc) => ipcRenderer.invoke("board:save", id, doc),
   deleteBoard: id => ipcRenderer.invoke("board:delete", id),
   info: () => ipcRenderer.sendSync("app:info"),
+  takeRecovered: () => ipcRenderer.sendSync("data:recovered"),
   firstRunDone: () => ipcRenderer.invoke("app:firstRunDone"),
 
   // Archivos arrastrados o elegidos tienen ruta en disco; los pegados del portapapeles no, y se envían como bytes
@@ -22,6 +23,7 @@ contextBridge.exposeInMainWorld("chinchero", {
   openDataDir: () => ipcRenderer.invoke("data:open"),
   chooseDataDir: mode => ipcRenderer.invoke("data:choose", mode),
   backup: () => ipcRenderer.invoke("data:backup"),
+  restoreBackup: () => ipcRenderer.invoke("data:restore"),
   openExternal: url => ipcRenderer.invoke("open:external", url),
   openMedia: url => ipcRenderer.invoke("open:media", url),
   capture: rect => ipcRenderer.invoke("capture:rect", rect),

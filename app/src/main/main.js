@@ -76,6 +76,7 @@ app.whenReady().then(() => {
       ? net.fetch(pathToFileURL(file).toString())
       : new Response("No encontrado", { status: 404 });
   });
+  try { store.autoBackup(); } catch (e) { console.error("Copia automática:", e); }
   createWindow();
   updater.init(() => win);
 });
@@ -87,6 +88,7 @@ app.on("window-all-closed", () => app.quit());
    escrituras y operaciones con archivos, asíncronas. */
 ipcMain.on("lib:get", e => { e.returnValue = store.getLibrary(); });
 ipcMain.on("board:load", (e, id) => { e.returnValue = store.loadBoard(id); });
+ipcMain.on("data:recovered", e => { e.returnValue = store.takeRecovered(); });
 ipcMain.on("app:info", e => {
   e.returnValue = { version: app.getVersion(), dataDir: store.dataDir(), packaged: app.isPackaged, firstRun: !store.config.get().firstRunDone };
 });
@@ -115,11 +117,22 @@ ipcMain.handle("data:choose", async (e, mode) => {
 });
 
 ipcMain.handle("data:backup", async () => {
-  const r = await dialog.showOpenDialog(win, { title: "¿Dónde guardo la copia de seguridad?", properties: ["openDirectory", "createDirectory"] });
-  if (r.canceled || !r.filePaths[0]) return null;
-  const dest = store.backupTo(r.filePaths[0]);
-  shell.showItemInFolder(dest);
-  return dest;
+  const file = await savePath("¿Dónde guardo la copia de seguridad?", `Chinchero-copia-${new Date().toISOString().slice(0, 10)}`, "zip", "Copia de Chinchero (.zip)", "documents");
+  if (!file) return null;
+  store.backupTo(file);
+  if (!process.env.CHINCHERO_EXPORT_DIR) shell.showItemInFolder(file);
+  return file;
+});
+
+// Restaurar: devuelve cuántos tableros trae la copia, o { error } si el archivo no sirve
+ipcMain.handle("data:restore", async () => {
+  let file = process.env.CHINCHERO_RESTORE_FILE;
+  if (!file) {
+    const r = await dialog.showOpenDialog(win, { title: "Elige la copia de seguridad (.zip)", filters: [{ name: "Copia de Chinchero (.zip)", extensions: ["zip"] }], properties: ["openFile"] });
+    if (r.canceled || !r.filePaths[0]) return null;
+    file = r.filePaths[0];
+  }
+  try { return { boards: store.restoreFrom(file) }; } catch (e) { return { error: e.message }; }
 });
 
 ipcMain.handle("open:external", (e, url) => {

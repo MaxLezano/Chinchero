@@ -2,10 +2,12 @@
 //   library.json        grupos, metadatos de tableros, papelera y stickers propios
 //   boards/<id>.json    contenido de cada tablero (hojas, elementos, hilos)
 //   media/<hash>.<ext>  imágenes y archivos copiados al tablero (la app no depende de los originales)
+//   backups/auto-*.zip  copias automáticas al abrir la app (solo los JSON, las 5 últimas)
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 const { app } = require("electron");
+const { zipSync, unzipSync } = require("fflate");
 
 const CONFIG = () => path.join(app.getPath("userData"), "config.json");
 
@@ -34,6 +36,7 @@ const paths = {
   library: () => path.join(dataDir(), "library.json"),
   board: id => path.join(dataDir(), "boards", safeName(id) + ".json"),
   media: () => path.join(dataDir(), "media"),
+  backups: () => path.join(dataDir(), "backups"),
 };
 
 function safeName(s) {
@@ -53,7 +56,7 @@ const DEFAULT_LIBRARY = () => ({
 });
 
 function getLibrary() {
-  const lib = readJSON(paths.library(), null);
+  const lib = readOrRecover(paths.library(), "library.json", "la biblioteca de tableros");
   return lib || DEFAULT_LIBRARY();
 }
 
@@ -62,7 +65,8 @@ function saveLibrary(lib) {
 }
 
 function loadBoard(id) {
-  return readJSON(paths.board(id), null);
+  const name = safeName(id);
+  return readOrRecover(paths.board(id), `boards/${name}.json`, "un tablero");
 }
 
 function saveBoard(id, doc) {
@@ -119,14 +123,129 @@ function dirStats() {
   return { bytes, images };
 }
 
-function backupTo(destDir) {
-  const stamp = new Date().toISOString().slice(0, 10);
-  const dest = path.join(destDir, `Chinchero-copia-${stamp}`);
-  fs.cpSync(dataDir(), dest, { recursive: true });
-  return dest;
+/* ---------- Copias de seguridad (.zip) ---------- */
+
+// Archivos de la carpeta de datos como { "ruta/relativa": bytes }. Sin backups/ ni temporales.
+function dataFiles({ onlyJSON = false } = {}) {
+  const root = dataDir(), files = {};
+  const walk = rel => {
+    let entries = [];
+    try { entries = fs.readdirSync(path.join(root, rel), { withFileTypes: true }); } catch { return; }
+    for (const e of entries) {
+      const r = rel ? `${rel}/${e.name}` : e.name;
+      if (e.isDirectory()) { if (r !== "backups" && !(onlyJSON && r === "media")) walk(r); }
+      else if (!e.name.endsWith(".tmp") && !e.name.includes(".corrupto-") && (!onlyJSON || e.name.endsWith(".json"))) files[r] = fs.readFileSync(path.join(root, r));
+    }
+  };
+  walk("");
+  return files;
+}
+
+// Las imágenes ya vienen comprimidas: se guardan tal cual; los JSON sí se comprimen
+function zipFiles(files) {
+  const entries = {};
+  for (const [r, buf] of Object.entries(files)) entries[r] = [new Uint8Array(buf), { level: r.endsWith(".json") ? 6 : 0 }];
+  return Buffer.from(zipSync(entries));
+}
+
+function backupTo(file) {
+  fs.writeFileSync(file, zipFiles(dataFiles()));
+  return file;
+}
+
+// Copia automática al abrir: solo los JSON (las imágenes no cambian nunca, se guardan por contenido).
+// No se copia si algún JSON está dañado ni si nada cambió desde la última.
+const AUTO_KEEP = 5;
+function autoBackup() {
+  const files = dataFiles({ onlyJSON: true });
+  if (!files["library.json"]) return null;
+  for (const buf of Object.values(files)) { try { JSON.parse(buf.toString("utf8")); } catch { return null; } }
+  const hash = crypto.createHash("sha1");
+  for (const r of Object.keys(files).sort()) hash.update(r).update(files[r]);
+  const sum = hash.digest("hex").slice(0, 10);
+  const list = autoBackups();
+  if (list[0]?.endsWith(`-${sum}.zip`)) return null;
+  const stamp = new Date().toISOString().slice(0, 19).replace(/:/g, "-");
+  fs.mkdirSync(paths.backups(), { recursive: true });
+  const file = path.join(paths.backups(), `auto-${stamp}-${sum}.zip`);
+  fs.writeFileSync(file, zipFiles(files));
+  for (const old of [file, ...list].slice(AUTO_KEEP)) fs.rmSync(old, { force: true });
+  return file;
+}
+
+// Copias automáticas, de la más nueva a la más vieja
+function autoBackups() {
+  let names = [];
+  try { names = fs.readdirSync(paths.backups()); } catch {}
+  return names.filter(n => /^auto-.*\.zip$/.test(n)).sort().reverse().map(n => path.join(paths.backups(), n));
+}
+
+// Lee un .zip y devuelve sus entradas válidas. Admite que todo venga dentro de una carpeta (p. ej. «Chinchero/»).
+// Solo se aceptan library.json, boards/<id>.json y media/<archivo>: nada puede escribirse fuera de la carpeta de datos.
+function readZip(buf) {
+  const raw = unzipSync(new Uint8Array(buf));
+  const lib = Object.keys(raw).find(r => r === "library.json" || r.endsWith("/library.json"));
+  if (!lib) throw new Error("La copia no contiene library.json");
+  const prefix = lib.slice(0, -"library.json".length), files = {};
+  for (const [r, data] of Object.entries(raw)) {
+    if (!r.startsWith(prefix)) continue;
+    const rel = r.slice(prefix.length);
+    if (rel === "library.json" || /^boards\/[a-zA-Z0-9_-]+\.json$/.test(rel) || /^media\/[a-zA-Z0-9][a-zA-Z0-9_.-]*$/.test(rel)) files[rel] = data;
+  }
+  JSON.parse(Buffer.from(files["library.json"]).toString("utf8"));
+  return files;
+}
+
+// Restaura una copia .zip: antes guarda el estado actual en backups/ por si hay que volver atrás.
+// Los tableros se reemplazan; las imágenes se suman (las que ya existen son idénticas, el nombre es su hash).
+function restoreFrom(file) {
+  const files = readZip(fs.readFileSync(file));
+  const current = dataFiles({ onlyJSON: true });
+  if (current["library.json"]) {
+    fs.mkdirSync(paths.backups(), { recursive: true });
+    const stamp = new Date().toISOString().slice(0, 19).replace(/:/g, "-");
+    fs.writeFileSync(path.join(paths.backups(), `antes-de-restaurar-${stamp}.zip`), zipFiles(current));
+  }
+  fs.rmSync(path.join(dataDir(), "boards"), { recursive: true, force: true });
+  for (const [rel, data] of Object.entries(files)) {
+    const dest = path.join(dataDir(), ...rel.split("/"));
+    if (rel.startsWith("media/") && fs.existsSync(dest)) continue;
+    fs.mkdirSync(path.dirname(dest), { recursive: true });
+    if (rel.endsWith(".json")) writeJSON(dest, JSON.parse(Buffer.from(data).toString("utf8")));
+    else fs.writeFileSync(dest, data);
+  }
+  return Object.keys(files).filter(r => r.startsWith("boards/")).length;
+}
+
+/* ---------- Recuperación de archivos dañados ---------- */
+
+// Avisos pendientes para la interfaz («Recuperamos … desde la copia del …»)
+const recovered = [];
+function takeRecovered() { return recovered.splice(0); }
+
+// Si el archivo existe pero no se puede leer, se aparta (.corrupto-<fecha>) y se recupera de la copia automática más nueva que lo tenga
+function readOrRecover(file, rel, label) {
+  let text;
+  try { text = fs.readFileSync(file, "utf8"); } catch { return null; }
+  try { return JSON.parse(text); } catch {}
+  const stamp = new Date().toISOString().slice(0, 19).replace(/:/g, "-");
+  try { fs.renameSync(file, `${file}.corrupto-${stamp}`); } catch {}
+  for (const zip of autoBackups()) {
+    try {
+      const entry = unzipSync(new Uint8Array(fs.readFileSync(zip)), { filter: f => f.name === rel })[rel];
+      if (!entry) continue;
+      const data = JSON.parse(Buffer.from(entry).toString("utf8"));
+      writeJSON(file, data);
+      const when = fs.statSync(zip).mtime;
+      recovered.push({ ok: true, label, when: when.getTime() });
+      return data;
+    } catch {}
+  }
+  recovered.push({ ok: false, label });
+  return null;
 }
 
 module.exports = {
   config, dataDir, getLibrary, saveLibrary, loadBoard, saveBoard, deleteBoard,
-  importPath, importBuffer, mediaFile, dirStats, backupTo,
+  importPath, importBuffer, mediaFile, dirStats, backupTo, autoBackup, restoreFrom, takeRecovered,
 };

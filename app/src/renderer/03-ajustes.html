@@ -134,8 +134,12 @@
         <label class="switch"><input type="checkbox" checked disabled aria-label="Guardado automático"><span></span></label>
       </div>
       <div class="row">
-        <div class="txt"><b>Copia de seguridad</b><small id="lastBackup">Copia la carpeta de datos completa a donde elijas (un USB, OneDrive…).</small></div>
-        <div class="btns"><button class="btn" id="backupBtn">Hacer copia…</button><button class="btn" id="importData">Abrir datos existentes…</button></div>
+        <div class="txt"><b>Copia de seguridad</b><small id="lastBackup">Guarda todo en un solo archivo .zip donde elijas (un USB, OneDrive…). Además, Chinchero guarda una copia de tus tableros cada vez que lo abres.</small></div>
+        <div class="btns"><button class="btn" id="backupBtn">Hacer copia…</button><button class="btn" id="restoreBtn">Restaurar copia…</button></div>
+      </div>
+      <div class="row">
+        <div class="txt"><b>Abrir datos existentes</b><small>Usa una carpeta de Chinchero que ya tengas, por ejemplo de otro equipo.</small></div>
+        <div class="btns"><button class="btn" id="importData">Elegir carpeta…</button></div>
       </div>
     </section>
 
@@ -215,7 +219,7 @@
   const nb = lib.boards.length;
   if (Store.native) window.chinchero.dataStats().then(st => { usage.textContent = `${mb(st.bytes)} · ${nb} tablero${nb === 1 ? "" : "s"} · ${st.images} imágenes`; });
   else usage.textContent = `${nb} tablero${nb === 1 ? "" : "s"} (modo de prueba en el navegador)`;
-  if (lib.lastBackup) document.getElementById("lastBackup").textContent = `Última copia: ${relTime(lib.lastBackup)}. Copia la carpeta de datos completa a donde elijas.`;
+  if (lib.lastBackup) document.getElementById("lastBackup").textContent = `Última copia: ${relTime(lib.lastBackup)}. Guarda todo en un solo archivo .zip donde elijas.`;
 
   document.getElementById("openData").onclick = () => Store.desktop("openDataDir");
   document.getElementById("changeData").onclick = async () => {
@@ -233,6 +237,14 @@
     document.getElementById("lastBackup").textContent = "Última copia: ahora.";
     toast("Copia de seguridad creada");
   };
+  document.getElementById("restoreBtn").onclick = async () => {
+    if (Store.native && !confirm("Tus tableros actuales se reemplazarán por los de la copia. Antes se guarda una copia del estado actual en la carpeta «backups». ¿Continuar?")) return;
+    const r = await Store.desktop("restoreBackup");
+    if (!r) return;
+    if (r.error) return toast("No se pudo restaurar: el archivo no es una copia de Chinchero");
+    sessionStorage.setItem("chinchero-aviso", `Copia restaurada: ${r.boards} tablero${r.boards === 1 ? "" : "s"}`);
+    location.href = "01-tableros.html";
+  };
   document.getElementById("checkUpdates").onclick = () => { toast("Buscando actualizaciones…"); Store.desktop("checkUpdates"); };
 
   window.HELP = { tour: "settings" };
@@ -241,7 +253,7 @@
     { el: null, title: "Ajustes", text: "Aquí personalizas Chinchero. Todo se guarda al instante, no hay botón Guardar." },
     { el: "#apariencia", before: scrollTo("#apariencia"), place: "right", title: "Apariencia", text: "Tema claro u oscuro, color de los hilos y letra de las notas. La vista previa cambia mientras eliges." },
     { el: "#tablero", before: scrollTo("#tablero"), place: "right", title: "Comportamiento del tablero", text: "El fondo para hojas nuevas, si los elementos aparecen un poco girados y si se alinean a la cuadrícula." },
-    { el: "#datos", before: scrollTo("#datos"), place: "right", title: "Tus datos son tuyos", text: "Todo vive en esta carpeta, imágenes incluidas. Haz una <b>copia de seguridad</b> de vez en cuando, o ábrela desde otro equipo con <b>Abrir datos existentes</b>." },
+    { el: "#datos", before: scrollTo("#datos"), place: "right", title: "Tus datos son tuyos", text: "Todo vive en esta carpeta, imágenes incluidas. Haz una <b>copia de seguridad</b> (.zip) de vez en cuando y recupérala con <b>Restaurar copia</b>, o abre la carpeta desde otro equipo con <b>Abrir datos existentes</b>." },
     { el: "#ayuda", before: scrollTo("#ayuda"), place: "right", title: "Tutoriales y sugerencias", text: "Si ya conoces la app, desactívalos. Si quieres repasar, reinícialos." },
   ]);
   Tour.auto("settings");
