@@ -324,6 +324,38 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   await shot(p, "e15-cork-dark");
   await p.close();
 
+  // Sonidos: apagados por defecto, se encienden en Ajustes; suenan al tachar y no al deshacer en ráfaga
+  {
+    const q = await open("03-ajustes.html", { prefs: NO_TOURS });
+    const st0 = await q.evaluate(() => ({ on: document.getElementById("sounds").checked, vol: document.getElementById("soundVol").disabled }));
+    ok("sonidos: apagados por defecto y volumen deshabilitado", !st0.on && st0.vol, JSON.stringify(st0));
+    await q.click('label.switch:has(#sounds) span'); await sleep(150);
+    const st1 = await q.evaluate(() => ({ pref: localStorage.getItem("chinchero-sounds"), vol: document.getElementById("soundVol").disabled }));
+    ok("sonidos: el interruptor guarda y habilita el volumen", st1.pref === "1" && !st1.vol, JSON.stringify(st1));
+    await shot(q, "e03-sonidos");
+    await q.close();
+  }
+  for (const on of [true, false]) {
+    const q = await open("02-tablero.html", { prefs: { ...NO_TOURS, sounds: on ? "1" : "0" } });
+    // Cuenta los sonidos que llegan a los altavoces
+    await q.evaluate(() => {
+      window.__sonidos = 0;
+      const orig = AudioNode.prototype.connect;
+      AudioNode.prototype.connect = function (dest, ...r) { if (dest instanceof AudioDestinationNode) window.__sonidos++; return orig.call(this, dest, ...r); };
+    });
+    const cb = await q.$('.t-list li:not(.done) input[type="checkbox"]');
+    await cb.click(); await sleep(150);
+    const n1 = await q.evaluate(() => window.__sonidos);
+    if (!on) { ok("sonidos apagados: tachar no suena", n1 === 0, `sonidos=${n1}`); await q.close(); continue; }
+    ok("sonidos: tachar una tarea suena", n1 === 1, `sonidos=${n1}`);
+    for (let i = 0; i < 6; i++) { await q.keyboard.down("Control"); await q.keyboard.press("z"); await q.keyboard.up("Control"); }
+    for (let i = 0; i < 6; i++) { await q.keyboard.down("Control"); await q.keyboard.press("y"); await q.keyboard.up("Control"); }
+    await sleep(150);
+    const n2 = await q.evaluate(() => { for (let i = 0; i < 10; i++) Sound.play("pin"); return window.__sonidos; });
+    ok("sonidos: deshacer/rehacer no suena y una ráfaga suena una vez", n2 === n1 + 1, `sonidos=${n2}`);
+    await q.close();
+  }
+
   // 4) Claro + tableros + ajustes
   for (const [f, n] of [["01-tableros.html", "v01"], ["03-ajustes.html", "v03"], ["04-papelera.html", "v04"], ["02-tablero.html", "v02"], ["00-bienvenida.html", "v00"]]) {
     const q = await open(f, { theme: "light", prefs: NO_TOURS });

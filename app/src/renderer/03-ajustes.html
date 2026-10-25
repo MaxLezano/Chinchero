@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="assets/shell.css">
 <script src="assets/theme.js"></script>
 <script src="assets/store.js"></script>
+<script src="assets/sound.js"></script>
 <style>
   .content { max-width: 760px; padding: 0 32px 60px; }
   .tabs { display: flex; gap: 4px; padding: 0 32px 20px; flex-wrap: wrap; }
@@ -44,6 +45,10 @@
   tr:last-child td { border-bottom: 0; }
   td:last-child { text-align: right; }
   kbd { font: 600 11px var(--font); background: var(--surface-2); border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 5px; padding: 2px 6px; margin-left: 2px; }
+  .vol { display: flex; align-items: center; gap: 10px; flex: none; }
+  .vol input { width: 160px; accent-color: var(--accent); }
+  .vol output { width: 34px; text-align: right; font-size: 12px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+  .row.off { opacity: .5; }
   .about { display: flex; gap: 16px; align-items: center; padding: 20px; }
   .about .brand-mark { width: 48px; height: 48px; border-radius: 12px; position: relative; flex: none; }
   .about small { color: var(--text-muted); }
@@ -86,6 +91,14 @@
       <div class="row">
         <div class="txt"><b>Letra de las notas</b><small>Manuscrita da el aspecto de papel; normal se lee mejor en notas largas.</small></div>
         <div class="seg" id="notefont"><button data-v="hand">Manuscrita</button><button data-v="sans">Normal</button></div>
+      </div>
+      <div class="row">
+        <div class="txt"><b>Sonidos de interacción</b><small>Un clic de chinche al clavar, roce de papel al soltar, cinta al fijar y un «tic» al tachar una tarea.</small></div>
+        <label class="switch"><input type="checkbox" id="sounds" data-pref="sounds" data-default="0" aria-label="Sonidos de interacción"><span></span></label>
+      </div>
+      <div class="row" id="volRow">
+        <div class="txt"><b>Volumen</b><small>Se suma al volumen de Windows.</small></div>
+        <div class="vol"><input type="range" id="soundVol" min="0" max="100" step="5" aria-label="Volumen de los sonidos"><output id="soundVolOut"></output></div>
       </div>
       <div class="preview surface-dots" id="preview">
         <svg><path d="M95 30 Q 200 80 300 36" style="stroke:var(--thread)" stroke-width="2.4" fill="none"/></svg>
@@ -203,6 +216,18 @@
     input.checked = cur === null ? input.dataset.default === "1" : cur === onV;
     input.onchange = () => { setPref(k, input.checked ? onV : offV); toast("Guardado"); };
   });
+  // Sonidos: al encenderlos o mover el volumen se escucha una muestra
+  const sounds = document.getElementById("sounds"), vol = document.getElementById("soundVol"), volOut = document.getElementById("soundVolOut");
+  const markVol = () => {
+    document.getElementById("volRow").classList.toggle("off", !sounds.checked);
+    vol.disabled = !sounds.checked;
+    volOut.textContent = vol.value + " %";
+  };
+  vol.value = Math.round(Sound.volume() * 100);
+  markVol();
+  sounds.addEventListener("change", () => { markVol(); if (sounds.checked) Sound.play("pin"); });
+  vol.oninput = () => { volOut.textContent = vol.value + " %"; };
+  vol.onchange = () => { setPref("soundVol", vol.value); Sound.play("pin"); };
   document.getElementById("resetTours").onclick = () => {
     Tour.resetAll(); setPref("tours", "on"); setPref("tips", "on");
     document.querySelector('[data-pref="tours"]').checked = true;
@@ -251,7 +276,7 @@
   const scrollTo = sel => () => document.querySelector(sel).scrollIntoView({ block: "start" });
   Tour.define("settings", [
     { el: null, title: "Ajustes", text: "Aquí personalizas Chinchero. Todo se guarda al instante, no hay botón Guardar." },
-    { el: "#apariencia", before: scrollTo("#apariencia"), place: "right", title: "Apariencia", text: "Tema claro u oscuro, color de los hilos y letra de las notas. La vista previa cambia mientras eliges." },
+    { el: "#apariencia", before: scrollTo("#apariencia"), place: "right", title: "Apariencia", text: "Tema claro u oscuro, color de los hilos, letra de las notas y sonidos. La vista previa cambia mientras eliges." },
     { el: "#tablero", before: scrollTo("#tablero"), place: "right", title: "Comportamiento del tablero", text: "El fondo para hojas nuevas, si los elementos aparecen un poco girados y si se alinean a la cuadrícula." },
     { el: "#datos", before: scrollTo("#datos"), place: "right", title: "Tus datos son tuyos", text: "Todo vive en esta carpeta, imágenes incluidas. Haz una <b>copia de seguridad</b> (.zip) de vez en cuando y recupérala con <b>Restaurar copia</b>, o abre la carpeta desde otro equipo con <b>Abrir datos existentes</b>." },
     { el: "#ayuda", before: scrollTo("#ayuda"), place: "right", title: "Tutoriales y sugerencias", text: "Si ya conoces la app, desactívalos. Si quieres repasar, reinícialos." },

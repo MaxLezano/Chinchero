@@ -703,6 +703,7 @@
         if (moved === true) {
           if (getPref("snap") === "1") movers.forEach(m => { m.o.x = Math.round(m.o.x / 22) * 22; m.o.y = Math.round(m.o.y / 22) * 22; });
           render(); saved();
+          Sound.play("paper");
           Tour.emit("move");
         } else if (!moved && !shift && wasSel && selection.length > unit.length) setSel(unit);
         else buildCtx();
@@ -939,6 +940,7 @@
     styleItem(el, it);
     setSel([it.id]);
     saved();
+    if (it.type !== "zone" && it.type !== "draw") Sound.play(it.fix || "paper");
     Tour.emit("create:" + it.type);
     setTimeout(() => checkTips(), 300);
     return it;
@@ -1263,6 +1265,7 @@
     if (!cb) return;
     const it = byId(cb.closest(".item").dataset.id);
     mutate(() => { it.tasks[+cb.dataset.i].done = cb.checked; });
+    if (cb.checked) Sound.play("tick");
     if (it.tasks.every(t => t.done)) toast(`¡Lista «${it.title}» completada! 🎉`);
   });
 
@@ -1428,6 +1431,7 @@
   function setFix(it, v) {
     const n = v === "pin" ? 0 : linkedCount(it);
     mutate(() => { it.fix = v === "none" ? null : v; });
+    if (v !== "none") Sound.play(v);
     if (n) toast(`Se quitó ${n === 1 ? "1 hilo" : n + " hilos"}: solo las chinches admiten hilos`, "Deshacer", undo);
   }
   function groupSel() {
