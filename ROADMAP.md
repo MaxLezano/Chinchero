@@ -7,7 +7,7 @@ Lista de tareas para avanzar de a una. Cada tarea se hace en una sesión de chat
 1. Tomar la **primera tarea pendiente** (la de más arriba en «Pendientes»).
 2. Implementarla en `app/` (o `web/`), siguiendo el estilo del código existente.
 3. Probar: `cd app && npm test` (más pruebas nuevas si la tarea lo pide). Si toca la interfaz, revisar capturas en `app/tests/out/`.
-4. Actualizar este archivo: mover la tarea a «Hecho» con la fecha y una línea de qué se hizo. Anotar decisiones o pendientes que surjan.
+4. Actualizar este archivo: mover la tarea a «Hecho» con la fecha y una línea de qué se hizo. Anotar decisiones o pendientes que surjan. Actualizar también `dashboard/tasks.json` (estado, subtareas, horas, registro): se ve en vivo con `node dashboard/server.js` → http://localhost:5179.
 5. Commit con mensaje convencional (`feat: …`, `fix: …`, `docs: …`) y `git push`.
 6. Avisar al usuario que puede hacer `/clear` y decir «seguí con el Roadmap».
 

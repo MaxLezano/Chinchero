@@ -6,6 +6,7 @@ App de escritorio para Windows (Electron) tipo tablero de corcho: notas, fotos, 
 
 - Si el usuario dice «seguí con el Roadmap» (o similar): leer `ROADMAP.md`, tomar la primera tarea de «Pendientes» y seguir los pasos de «Cómo trabajar una tarea».
 - Al terminar una tarea: actualizar `ROADMAP.md`, commit convencional y `git push`, y avisar que puede hacer `/clear`.
+- Dashboard del roadmap (`dashboard/`, **solo local**, está en `.gitignore`; `node dashboard/server.js` → http://localhost:5179): mantener `dashboard/tasks.json` al día durante la tarea. Al empezar, `estado: "en-proceso"` e `inicio`; al cumplir cada subtarea, `hecha: true`; al terminar, `estado: "hecha"`, `fin` y `horasReales`. Añadir una línea a `registro` y actualizar `actualizado` (ISO) en cada cambio. Si el servidor está corriendo, la página se refresca sola. Tareas nuevas del ROADMAP también van aquí, con `horasEstimadas`.
 
 ## Estructura
 
