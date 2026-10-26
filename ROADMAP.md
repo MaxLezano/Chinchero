@@ -34,7 +34,12 @@ Lista de tareas para avanzar de a una. Cada tarea se hace en una sesión de chat
 - Anunciar con `aria-live` lo que pasa en el lienzo (creado, movido, eliminado).
 - Revisar contraste en ambos temas y navegación completa con teclado.
 
-### 4. QA y revisión de UX/UI de toda la app
+### 4. QA y revisión de UX/UI de la app y la web
+- Bugs reportados:
+  - El nombre de la foto sobresale del marco polaroid cuando es largo (p. ej. `Gemini_Generated_Image_usc7f…`): recortar con «…» o ajustar en varias líneas; reproducir con una captura.
+  - Falta una **goma** para borrar trazos a mano alzada (borrar trazos enteros o partes al pasar por encima).
+  - Los **atajos de teclado no se pueden cambiar**: permitir personalizarlos en Ajustes (con detección de conflictos y «restablecer»).
+- Web (`web/`): cambiar las referencias a «corcho» por «tablero» (p. ej. «Tus ideas merecen un buen corcho», «Todo lo de un corcho… y lo que un corcho no puede hacer»), revisar lo roto (QA) y mejorar lo que se ve mal (UX/UI) en claro/oscuro y en móvil.
 - Recorrer todas las pantallas (bienvenida, tableros, editor, ajustes, papelera, modales, menús, Ctrl+K, tutoriales) en tema claro y oscuro, y a distintos tamaños de ventana.
 - Buscar fallos de funcionamiento: acciones que no responden, estados sin feedback, errores en consola, datos que no se guardan.
 - Buscar errores visuales: alineaciones, espaciados irregulares, textos cortados o desbordados, iconos desalineados.
