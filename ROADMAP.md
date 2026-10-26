@@ -21,6 +21,9 @@ Lista de tareas para avanzar de a una. Cada tarea se hace en una sesión de chat
 
 ## Pendientes
 
+### 1. QA de la web
+- Recorrer `web/` en escritorio y móvil, claro y oscuro: textos, enlaces, descargas (API de GitHub), capturas y animaciones; arreglar lo roto y anotar mejoras.
+
 ### Opcionales (sin orden)
 - Firma de código para evitar el aviso de SmartScreen (de pago: certificado OV/EV o Azure Trusted Signing).
 - Dominio propio para la web.
