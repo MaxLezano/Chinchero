@@ -23,9 +23,8 @@ electronFuses:
   enableNodeCliInspectArguments: false
   enableEmbeddedAsarIntegrityValidation: true
   onlyLoadAppFromAsar: true
-  # Las pantallas ya se sirven con chinchero://app (main.js). Sigue activo una versión más para que se puedan copiar las
-  # preferencias que la 0.2 dejó en el localStorage de file:// (sin él no se pueden leer): se desactiva en la versión siguiente
-  grantFileProtocolExtraPrivileges: true
+  # Las pantallas se sirven con chinchero://app (main.js), así que file:// no necesita privilegios extra
+  grantFileProtocolExtraPrivileges: false
 
 win:
   target:

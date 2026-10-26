@@ -83,38 +83,6 @@ function createWindow() {
   win.loadURL(screen(cfg.firstRunDone ? "01-tableros.html" : "00-bienvenida.html"));
 }
 
-// Hasta la 0.2 las pantallas eran file:// y las preferencias (tema, atajos, tutoriales…) quedaron en el localStorage
-// de ese origen. La primera vez se copian al de chinchero://app: una ventana oculta carga una página file:// vacía,
-// las lee con el protocolo de DevTools y luego las escribe en la raíz del esquema propio (una página vacía, sin scripts).
-// Necesita el fuse grantFileProtocolExtraPrivileges (sin él, file:// no tiene localStorage): ver electron-builder.yml
-async function migrateFileStorage() {
-  if (store.config.get().storageMigrated) return;
-  if (fs.existsSync(path.join(app.getPath("userData"), "Local Storage"))) {
-    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "chinchero-prefs-"));
-    const w = new BrowserWindow({ show: false, webPreferences: { sandbox: true, contextIsolation: true } });
-    try {
-      fs.writeFileSync(path.join(tmp, "leer.html"), `<!doctype html><meta http-equiv="Content-Security-Policy" content="default-src 'none'"><title>Chinchero</title>`);
-      await w.loadFile(path.join(tmp, "leer.html"));
-      const dbg = w.webContents.debugger;
-      dbg.attach("1.3");
-      let entries = [];
-      try {
-        await dbg.sendCommand("DOMStorage.enable");
-        ({ entries } = await dbg.sendCommand("DOMStorage.getDOMStorageItems", { storageId: { storageKey: "file:///", isLocalStorage: true } }));
-      } finally { dbg.detach(); }
-      const prefs = entries.filter(([k, v]) => typeof k === "string" && typeof v === "string" && k.startsWith("chinchero-"));
-      if (prefs.length) {
-        await w.loadURL(RENDERER_URL);
-        await w.webContents.executeJavaScript(`${JSON.stringify(prefs)}.forEach(([k, v]) => { if (localStorage.getItem(k) === null) localStorage.setItem(k, v); }); true`);
-      }
-    } finally {
-      w.destroy();
-      fs.rmSync(tmp, { recursive: true, force: true });
-    }
-  }
-  store.config.set({ storageMigrated: true });
-}
-
 app.whenReady().then(async () => {
   // La app no usa cámara, micrófono, notificaciones ni nada que pida permiso: se niega todo
   session.defaultSession.setPermissionRequestHandler((wc, permission, cb) => cb(false));
@@ -137,7 +105,6 @@ app.whenReady().then(async () => {
       : new Response("No encontrado", { status: 404 });
   });
   try { store.autoBackup(); } catch (e) { console.error("Copia automática:", e); }
-  try { await migrateFileStorage(); } catch (e) { console.error("Migrar preferencias:", e); }
   createWindow();
   started = true;
   updater.init(() => win);

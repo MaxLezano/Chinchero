@@ -129,25 +129,10 @@ delete process.env.ELECTRON_RUN_AS_NODE;
   const nCards = await page.$$eval("#grid > a.card", c => c.length); ok("la pantalla de tableros lista 2 tarjetas", nCards === 2, "tarjetas=" + nCards);
   await page.screenshot({ path: `${SHOTS}/a2-boards.png` });
 
-  // 5) Cerrar y reabrir: vuelve al último tablero con el contenido.
-  // Antes, una preferencia en el localStorage de file:// (donde las guardaba la 0.2) debe pasar a chinchero://app
-  const appUrl = page.url();
-  await page.evaluate(() => localStorage.setItem("chinchero-theme", "light"));
-  const viejas = { "chinchero-migracion": "de file://", "chinchero-theme": "no-pisa" };
-  const OLD = path.join(TMP, "viejo.html");
-  fs.writeFileSync(OLD, "<!doctype html><title>viejo</title>");
-  await page.goto(require("url").pathToFileURL(OLD).href);
-  // Como la 0.2: la página file:// escribe en su localStorage
-  await page.evaluate(v => Object.entries(v).forEach(([k, x]) => localStorage.setItem(k, x)), viejas);
-  await page.goto(appUrl);
-  await sleep(1500);
-  const CONFIG = path.join(TMP, "user", "config.json");
-  const cfg = JSON.parse(fs.readFileSync(CONFIG, "utf8")); delete cfg.storageMigrated;
+  // 5) Cerrar y reabrir: vuelve al último tablero con el contenido
   await browser.disconnect(); proc.kill(); await sleep(1500);
-  fs.writeFileSync(CONFIG, JSON.stringify(cfg));
   ({ proc, browser, page } = await launch());
   await sleep(1800);
-  ok("las preferencias de file:// pasan a chinchero://app sin pisar las nuevas", await page.evaluate(() => localStorage.getItem("chinchero-migracion") === "de file://" && localStorage.getItem("chinchero-theme") !== "no-pisa") && JSON.parse(fs.readFileSync(CONFIG, "utf8")).storageMigrated === true);
   const beforeFetch = log.length; // los 404 de esta prueba son esperados
   ok("chinchero://app solo sirve archivos de las pantallas", await page.evaluate(async () => {
     const st = async u => { try { return (await fetch(u)).status; } catch { return 0; } };
