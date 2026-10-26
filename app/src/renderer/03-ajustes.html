@@ -46,6 +46,12 @@
   td { padding: 9px 20px; border-bottom: 1px solid var(--border); }
   tr:last-child td { border-bottom: 0; }
   td:last-child { text-align: right; }
+  tr.grp td { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--text-muted); padding-top: 16px; }
+  .keybtn { font: 600 12px var(--font); min-width: 70px; background: var(--surface-2); border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 6px; padding: 4px 10px; color: var(--text); }
+  .keybtn.none { color: var(--text-muted); font-weight: 400; }
+  .keybtn.rec { border-color: var(--accent); color: var(--accent); }
+  .keyreset { width: 26px; height: 26px; margin-left: 6px; vertical-align: middle; }
+  .keyreset[hidden] { display: inline-grid; visibility: hidden; }
   kbd { font: 600 11px var(--font); background: var(--surface-2); border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 5px; padding: 2px 6px; margin-left: 2px; }
   .vol { display: flex; align-items: center; gap: 10px; flex: none; }
   .vol input { width: 160px; accent-color: var(--accent); }
@@ -54,6 +60,7 @@
   .about { display: flex; gap: 16px; align-items: center; padding: 20px; }
   .about .brand-mark { width: 48px; height: 48px; border-radius: 12px; position: relative; flex: none; }
   .about small { color: var(--text-muted); }
+  .about .btn { margin-left: auto; flex: none; white-space: nowrap; }
   @media (max-width: 720px) {
     .tip { left: 16px; }
     .content, .tabs { padding-left: 16px; padding-right: 16px; }
@@ -180,23 +187,21 @@
 
     <section id="atajos">
       <h2>Atajos de teclado</h2>
+      <div class="row">
+        <div class="txt"><b>Personaliza los atajos</b><small>Haz clic en un atajo y pulsa la nueva combinación. <kbd>Esc</kbd> cancela y <kbd>Supr</kbd> lo deja sin atajo.</small></div>
+        <button class="btn" id="resetKeys">Restablecer todos</button>
+      </div>
+      <table id="keyTable"></table>
       <table>
-        <tr><td>Nota / Ficha / Lista / Texto</td><td><kbd>N</kbd> <kbd>F</kbd> <kbd>C</kbd> <kbd>T</kbd></td></tr>
-        <tr><td>Imagen / Enlace / Archivo</td><td><kbd>I</kbd> <kbd>K</kbd> <kbd>A</kbd></td></tr>
-        <tr><td>Stickers / Zona / Dibujo</td><td><kbd>S</kbd> <kbd>Z</kbd> <kbd>D</kbd></td></tr>
-        <tr><td>Hilo entre chinches</td><td><kbd>L</kbd></td></tr>
-        <tr><td>Deshacer / Rehacer</td><td><kbd>Ctrl</kbd> <kbd>Z</kbd> · <kbd>Ctrl</kbd> <kbd>Y</kbd></td></tr>
-        <tr><td>Copiar / Cortar / Pegar / Duplicar</td><td><kbd>Ctrl</kbd> + <kbd>C</kbd> <kbd>X</kbd> <kbd>V</kbd> <kbd>D</kbd></td></tr>
-        <tr><td>Seleccionar todo</td><td><kbd>Ctrl</kbd> <kbd>A</kbd></td></tr>
-        <tr><td>Editar el elemento seleccionado</td><td><kbd>Enter</kbd></td></tr>
+        <tr class="grp"><td colspan="2">Fijos</td></tr>
+        <tr><td>Copiar / Cortar / Pegar</td><td><kbd>Ctrl</kbd> + <kbd>C</kbd> <kbd>X</kbd> <kbd>V</kbd></td></tr>
+        <tr><td>Pegar imagen sin marco</td><td><kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>V</kbd></td></tr>
+        <tr><td>Editar el elemento seleccionado</td><td><kbd>Enter</kbd> · <kbd>F2</kbd></td></tr>
         <tr><td>Mover selección (de 10 en 10 con Shift)</td><td><kbd>←</kbd> <kbd>↑</kbd> <kbd>→</kbd> <kbd>↓</kbd></td></tr>
-        <tr><td>Buscar en el tablero y acciones</td><td><kbd>Ctrl</kbd> <kbd>K</kbd></td></tr>
+        <tr><td>Siguiente / anterior elemento</td><td><kbd>Tab</kbd> · <kbd>Shift</kbd> <kbd>Tab</kbd></td></tr>
+        <tr><td>Opciones del elemento</td><td><kbd>Shift</kbd> <kbd>F10</kbd></td></tr>
         <tr><td>Mover el lienzo / seleccionar con recuadro</td><td>arrastrar el fondo · <kbd>Shift</kbd> + arrastrar</td></tr>
-        <tr><td>Zoom / 100% / Ajustar</td><td>rueda · <kbd>Ctrl</kbd> <kbd>0</kbd> · <kbd>Shift</kbd> <kbd>1</kbd></td></tr>
-        <tr><td>Hoja anterior / siguiente</td><td><kbd>Ctrl</kbd> <kbd>PgUp</kbd> <kbd>PgDn</kbd></td></tr>
-        <tr><td>Nuevo tablero</td><td><kbd>Ctrl</kbd> <kbd>N</kbd></td></tr>
         <tr><td>Eliminar</td><td><kbd>Supr</kbd></td></tr>
-        <tr><td>Ver todos los atajos</td><td><kbd>?</kbd></td></tr>
       </table>
     </section>
 
@@ -205,16 +210,18 @@
       <div class="about">
         <div class="brand-mark surface-cork"><span class="pin"></span></div>
         <div><b>Chinchero</b> <span id="version"></span><br><small>Tu tablero de corcho digital, sin conexión. Se actualiza solo cuando hay una versión nueva.</small></div>
-        <button class="btn" style="margin-left:auto" id="checkUpdates">Buscar actualizaciones</button>
+        <button class="btn" id="checkUpdates">Buscar actualizaciones</button>
       </div>
     </section>
   </div>
 </main>
 
+<script src="assets/keys.js"></script>
 <script src="assets/ui.js"></script>
 <script src="assets/guide.js"></script>
 <script src="assets/sidebar.js"></script>
 <script src="assets/pantallas/ajustes.js"></script>
 <script src="assets/pantallas/ajustes-opciones.js"></script>
+<script src="assets/pantallas/ajustes-atajos.js"></script>
 </body>
 </html>

@@ -58,11 +58,11 @@
   </div>
   <div class="top-right">
     <span id="undoGroup" style="display:flex;gap:2px">
-      <button class="icon-btn" id="undoBtn" aria-label="Deshacer" data-tip="Deshacer · Ctrl+Z" data-tip-pos="bottom"><svg class="icon"><use href="#i-undo"/></svg></button>
-      <button class="icon-btn" id="redoBtn" aria-label="Rehacer" data-tip="Rehacer · Ctrl+Y" data-tip-pos="bottom"><svg class="icon"><use href="#i-redo"/></svg></button>
+      <button class="icon-btn" id="undoBtn" data-key="undo" aria-label="Deshacer" data-tip="Deshacer · Ctrl+Z" data-tip-pos="bottom"><svg class="icon"><use href="#i-undo"/></svg></button>
+      <button class="icon-btn" id="redoBtn" data-key="redo" aria-label="Rehacer" data-tip="Rehacer · Ctrl+Y" data-tip-pos="bottom"><svg class="icon"><use href="#i-redo"/></svg></button>
     </span>
     <span class="sep"></span>
-    <button class="icon-btn" id="searchBtn" aria-label="Buscar y acciones" data-tip="Buscar y acciones · Ctrl+K" data-tip-pos="bottom"><svg class="icon"><use href="#i-search"/></svg></button>
+    <button class="icon-btn" id="searchBtn" data-key="search" aria-label="Buscar y acciones" data-tip="Buscar y acciones · Ctrl+K" data-tip-pos="bottom"><svg class="icon"><use href="#i-search"/></svg></button>
     <button class="icon-btn" id="threadsBtn" aria-label="Mostrar hilos" data-tip="Hilos: encima, atenuados u ocultos" data-tip-pos="bottom"><svg class="icon"><use href="#i-thread"/></svg></button>
     <button class="icon-btn" id="exportBtn" aria-label="Exportar" data-tip="Exportar" data-tip-pos="bottom"><svg class="icon"><use href="#i-share"/></svg></button>
     <span class="sep"></span>
@@ -121,6 +121,10 @@
   <h5 style="margin-top:10px">Grosor</h5>
   <div class="seg">
     <button data-dw="2">Fino</button><button data-dw="3" class="on">Medio</button><button data-dw="6">Grueso</button>
+  </div>
+  <h5 style="margin-top:10px">Goma</h5>
+  <div class="seg">
+    <button data-de="part">Borrar partes</button><button data-de="stroke">Trazos enteros</button>
   </div>
 </div>
 
@@ -188,12 +192,13 @@
   <div class="zoom">
     <button class="icon-btn" id="mmToggle" aria-label="Minimapa" data-tip="Minimapa" data-tip-pos="top"><svg class="icon"><use href="#i-map"/></svg></button>
     <button class="icon-btn" id="zoomOut" aria-label="Alejar" data-tip="Alejar" data-tip-pos="top"><svg class="icon"><use href="#i-minus"/></svg></button>
-    <button class="icon-btn" id="zoomLabel" style="width:52px;font-size:12px" aria-label="Zoom al 100%" data-tip="Volver al 100% · Ctrl+0" data-tip-pos="top">100%</button>
+    <button class="icon-btn" id="zoomLabel" data-key="zoom100" style="width:52px;font-size:12px" aria-label="Zoom al 100%" data-tip="Volver al 100% · Ctrl+0" data-tip-pos="top">100%</button>
     <button class="icon-btn" id="zoomIn" aria-label="Acercar" data-tip="Acercar" data-tip-pos="top"><svg class="icon"><use href="#i-plus"/></svg></button>
-    <button class="icon-btn" id="zoomFit" aria-label="Ajustar a la vista" data-tip="Ajustar a la vista · Shift+1" data-tip-pos="left"><svg class="icon"><use href="#i-fit"/></svg></button>
+    <button class="icon-btn" id="zoomFit" data-key="fit" aria-label="Ajustar a la vista" data-tip="Ajustar a la vista · Shift+1" data-tip-pos="left"><svg class="icon"><use href="#i-fit"/></svg></button>
   </div>
 </footer>
 
+<script src="assets/keys.js"></script>
 <script src="assets/ui.js"></script>
 <script src="assets/guide.js"></script>
 <script src="assets/sound.js"></script>

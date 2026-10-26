@@ -258,7 +258,7 @@
   let spaceDown = false, mouseInside = false, lastMouse = { x: 0, y: 0 };
   let pendingSticker = null, stickerReplace = null, threadFrom = null, internalClip = null;
   let createStreak = { type: null, n: 0 }, lastNudge = 0;
-  const drawOpts = { color: "#e03131", sw: 3 };
+  const drawOpts = { color: "#e03131", sw: 3, erase: null };
   const myStickers = lib.stickers;
   const undoStack = [], redoStack = [];
 
@@ -659,7 +659,7 @@
       drawThreads();
       return;
     }
-    if (tool === "draw") return startDraw(e);
+    if (tool === "draw") return drawOpts.erase ? startErase(e) : startDraw(e);
     if (tool === "zone") return startZoneDraw(e);
     // preventDefault: evita que el foco vuelva al lienzo y corte la edición del elemento recién creado
     if (CREATE.has(tool)) { e.preventDefault(); return create(tool, pt, e); }
@@ -950,6 +950,91 @@
         Tour.emit("create:draw");
       },
     });
+  }
+
+  // Goma: al pasar por encima borra la parte de los trazos que toca («part») o el trazo entero («stroke»).
+  // Los dibujos sin `strokes` (solo `d`, como los de las plantillas) se borran enteros al tocarlos.
+  function startErase(e) {
+    const r = 9 / view.z, step = r / 2; // radio de la goma en el mundo: 9 px en pantalla
+    const dense = new Map(), touched = new Set();
+    let changed = false, last = toWorld(e);
+    // Del mundo al viewBox del dibujo: deshace el giro (alrededor del centro) y el estirado
+    const local = (it, p) => {
+      const a = -(it.rot || 0) * Math.PI / 180, dx = p.x - it.x - it.w / 2, dy = p.y - it.y - it.h / 2;
+      return { x: (dx * Math.cos(a) - dy * Math.sin(a) + it.w / 2) * it.vw / it.w, y: (dx * Math.sin(a) + dy * Math.cos(a) + it.h / 2) * it.vh / it.h };
+    };
+    // Puntos cada `gap` como mucho, para no saltarse un trazo hecho con el ratón rápido
+    const densify = (s, gap) => s.flatMap((p, i) => {
+      if (!i) return [p];
+      const q = s[i - 1], n = Math.ceil(Math.hypot(p.x - q.x, p.y - q.y) / gap);
+      return Array.from({ length: n }, (_, k) => ({ x: q.x + (p.x - q.x) * (k + 1) / n, y: q.y + (p.y - q.y) * (k + 1) / n }));
+    });
+    const eraseAt = p => {
+      for (const it of [...sheet().items]) {
+        if (it.type !== "draw" || it.locked) continue;
+        const m = Math.hypot(it.w, it.h) / 2 + r;
+        if (Math.abs(p.x - it.x - it.w / 2) > m || Math.abs(p.y - it.y - it.h / 2) > m) continue;
+        const q = local(it, p), rx = r * it.vw / it.w + it.sw / 2, ry = r * it.vh / it.h + it.sw / 2;
+        const hit = s => ((s.x - q.x) / rx) ** 2 + ((s.y - q.y) / ry) ** 2 <= 1;
+        let strokes = null;
+        if (it.strokes) {
+          if (!dense.has(it.id)) dense.set(it.id, it.strokes.map(s => densify(s, Math.min(rx, ry) / 2)));
+          const all = dense.get(it.id);
+          if (!all.some(s => s.some(hit))) continue;
+          strokes = erase.mode === "stroke" ? all.filter(s => !s.some(hit))
+            : all.flatMap(s => s.reduce((runs, pt) => { if (hit(pt)) runs.push([]); else runs.at(-1).push(pt); return runs; }, [[]]))
+              .filter(s => s.length > 1);
+        } else if (!elOf(it.id)?.querySelector(".dh")?.isPointInStroke(new DOMPoint(q.x, q.y))) continue;
+        if (!changed) { checkpoint(); changed = true; }
+        if (strokes?.length) {
+          dense.set(it.id, strokes);
+          it.strokes = strokes.map(s => s.map(pt => ({ x: Math.round(pt.x * 10) / 10, y: Math.round(pt.y * 10) / 10 })));
+          it.d = it.strokes.map(smoothPath).join(" ");
+          touched.add(it.id);
+        } else {
+          sheet().items = sheet().items.filter(o => o !== it);
+          sheet().threads = sheet().threads.filter(t => t.a !== it.id && t.b !== it.id);
+          setSel(selection.filter(id => id !== it.id));
+        }
+      }
+    };
+    const erase = { mode: drawOpts.erase };
+    eraseAt(last);
+    render();
+    beginDrag({
+      move: ev => {
+        const p = toWorld(ev), n = Math.ceil(Math.hypot(p.x - last.x, p.y - last.y) / step);
+        for (let k = 1; k <= n; k++) eraseAt({ x: last.x + (p.x - last.x) * k / n, y: last.y + (p.y - last.y) * k / n });
+        last = p;
+        render();
+      },
+      up: () => {
+        if (!changed) return;
+        // Ajusta el recuadro a lo que queda (si el dibujo no está girado ni estirado)
+        for (const id of touched) {
+          const it = byId(id);
+          if (!it || it.rot || it.w !== it.vw || it.h !== it.vh) continue;
+          const flat = it.strokes.flat(), pad = it.sw + 4;
+          const x0 = Math.min(...flat.map(p => p.x)) - pad, y0 = Math.min(...flat.map(p => p.y)) - pad;
+          const dx = Math.round(x0), dy = Math.round(y0);
+          it.strokes = it.strokes.map(s => s.map(p => ({ x: Math.round((p.x - dx) * 10) / 10, y: Math.round((p.y - dy) * 10) / 10 })));
+          it.x += dx; it.y += dy;
+          it.w = it.vw = Math.round(Math.max(...flat.map(p => p.x)) - dx + pad);
+          it.h = it.vh = Math.round(Math.max(...flat.map(p => p.y)) - dy + pad);
+          it.d = it.strokes.map(smoothPath).join(" ");
+        }
+        drawSession = null;
+        render(); saved();
+        announce("Trazos borrados");
+      },
+    });
+  }
+  function setEraser(mode) {
+    drawOpts.erase = mode;
+    $$("[data-de]", drawPop).forEach(x => { x.classList.toggle("on", x.dataset.de === mode); x.setAttribute("aria-pressed", x.dataset.de === mode); });
+    $$("[data-dc], [data-dw]", drawPop).forEach(x => x.classList.toggle("off", !!mode));
+    viewport.classList.toggle("erasing", tool === "draw" && !!mode);
+    showHint();
   }
 
   function startZoneDraw(e) {
@@ -1628,9 +1713,9 @@
     m.push({ label: "Copiar", kbd: "Ctrl+C", action: copySel },
       { label: "Cortar", kbd: "Ctrl+X", action: () => { copySel(); deleteSel(true); } });
     if (internalClip) m.push({ label: "Pegar", kbd: "Ctrl+V", action: () => pasteItems(internalClip, null) });
-    m.push({ label: "Duplicar", kbd: "Ctrl+D", action: duplicateSel }, "-",
-      { label: "Traer al frente", kbd: "Ctrl+]", action: () => restack(1) },
-      { label: "Enviar al fondo", kbd: "Ctrl+[", action: () => restack(-1) });
+    m.push({ label: "Duplicar", kbd: Keys.label("duplicate"), action: duplicateSel }, "-",
+      { label: "Traer al frente", kbd: Keys.label("front"), action: () => restack(1) },
+      { label: "Enviar al fondo", kbd: Keys.label("back"), action: () => restack(-1) });
     if (its.some(o => o.rot)) m.push({ label: "Enderezar", action: () => mutate(() => its.forEach(o => o.rot = 0)) });
     if (it && PINNABLE.has(it.type)) {
       const toPin = it.fix !== "pin";
@@ -1638,7 +1723,7 @@
       if (!toPin) m.push({ label: "Unir con hilo…", kbd: "Arrastra la chinche", action: () => { setTool("thread"); threadFrom = it; elOf(it.id).classList.add("thread-target"); } });
     }
     if (its.length > 1) m.push("-",
-      selGroup() ? { label: "Desagrupar", kbd: "Ctrl+U", action: ungroupSel } : { label: "Agrupar", kbd: "Ctrl+G", action: groupSel },
+      selGroup() ? { label: "Desagrupar", kbd: Keys.label("ungroup"), action: ungroupSel } : { label: "Agrupar", kbd: Keys.label("group"), action: groupSel },
       { label: "Alinear a la izquierda", action: () => align("left") },
       { label: "Alinear arriba", action: () => align("top") },
       { label: "Ordenar en cuadrícula", action: tidy },
@@ -1649,7 +1734,7 @@
     }) });
     if (it?.group) m.push({ label: "Sacar del grupo", action: ungroupSel });
     const allLocked = its.every(o => o.locked);
-    m.push("-", { label: allLocked ? "Desbloquear" : "Bloquear", kbd: "Ctrl+Shift+L", action: toggleLock },
+    m.push("-", { label: allLocked ? "Desbloquear" : "Bloquear", kbd: Keys.label("lock"), action: toggleLock },
       { label: "Eliminar", kbd: "Supr", danger: true, action: () => deleteSel() });
     showMenu(x, y, m);
   }
@@ -1658,18 +1743,18 @@
     const ev = { clientX: x, clientY: y };
     const here = k => () => create(k, pt, ev);
     showMenu(x, y, [
-      { label: "Nota aquí", kbd: "N", action: here("note") },
-      { label: "Ficha", kbd: "F", action: here("card") },
-      { label: "Lista", kbd: "C", action: here("list") },
-      { label: "Texto", kbd: "T", action: here("text") },
-      { label: "Imagen…", kbd: "I", action: here("image") },
-      { label: "Enlace…", kbd: "K", action: here("link") },
-      { label: "Archivo…", kbd: "A", action: here("file") },
-      { label: "Zona", kbd: "Z", action: () => { edit(add(mk("zone", 0, 0), pt), null, null, { continues: true }); } },
+      { label: "Nota aquí", kbd: Keys.label("tool.note"), action: here("note") },
+      { label: "Ficha", kbd: Keys.label("tool.card"), action: here("card") },
+      { label: "Lista", kbd: Keys.label("tool.list"), action: here("list") },
+      { label: "Texto", kbd: Keys.label("tool.text"), action: here("text") },
+      { label: "Imagen…", kbd: Keys.label("tool.image"), action: here("image") },
+      { label: "Enlace…", kbd: Keys.label("tool.link"), action: here("link") },
+      { label: "Archivo…", kbd: Keys.label("tool.file"), action: here("file") },
+      { label: "Zona", kbd: Keys.label("tool.zone"), action: () => { edit(add(mk("zone", 0, 0), pt), null, null, { continues: true }); } },
       "-",
       internalClip && { label: "Pegar", kbd: "Ctrl+V", action: () => pasteItems(internalClip, pt) },
-      { label: "Seleccionar todo", kbd: "Ctrl+A", action: selectAll },
-      { label: "Ajustar a la vista", kbd: "Shift+1", action: fit },
+      { label: "Seleccionar todo", kbd: Keys.label("selectAll"), action: selectAll },
+      { label: "Ajustar a la vista", kbd: Keys.label("fit"), action: fit },
     ].filter(Boolean));
   }
 
@@ -1738,11 +1823,11 @@
     file: "Haz clic donde quieras el archivo · o arrástralo desde el Explorador",
     sticker: "Haz clic para pegar el sticker",
     zone: "Arrastra para dibujar la zona · o haz clic para una de tamaño estándar",
-    draw: "Dibuja con el ratón · los trazos seguidos forman un solo dibujo · color y grosor en el panel",
+    draw: "Dibuja con el ratón · los trazos seguidos forman un solo dibujo · color, grosor y goma en el panel",
     thread: "Haz clic en dos elementos con chinche · o arrastra directamente de una chinche a otra",
   };
   function showHint() {
-    const h = HINTS[tool];
+    const h = tool === "draw" && drawOpts.erase ? "Pasa la goma por encima de los trazos · " + (drawOpts.erase === "part" ? "borra solo lo que toca" : "borra cada trazo entero") : HINTS[tool];
     hint.innerHTML = h ? `${h}${toolLocked ? " · <b>herramienta fija</b>" : ""} · <kbd>Esc</kbd> para salir` : "";
     hint.classList.toggle("open", !!h);
   }
@@ -1764,6 +1849,7 @@
     viewport.classList.toggle("creating", CREATE.has(t) || t === "zone" || t === "draw");
     viewport.classList.toggle("tool-thread", t === "thread");
     drawPop.classList.toggle("open", t === "draw");
+    viewport.classList.toggle("erasing", t === "draw" && !!drawOpts.erase);
     if (t !== "sticker") stickerPop.classList.remove("open");
     showHint();
     drawThreads();
@@ -1843,8 +1929,10 @@
   });
 
   drawPop.addEventListener("click", e => {
-    const b = e.target.closest("[data-dc], [data-dw]");
+    const b = e.target.closest("[data-dc], [data-dw], [data-de]");
     if (!b) return;
+    if (b.dataset.de) return setEraser(drawOpts.erase === b.dataset.de ? null : b.dataset.de);
+    setEraser(null);
     if (b.dataset.dc) drawOpts.color = b.dataset.dc;
     if (b.dataset.dw) drawOpts.sw = +b.dataset.dw;
     $$("[data-dc]", drawPop).forEach(x => x.classList.toggle("on", x.dataset.dc === drawOpts.color));
@@ -2108,7 +2196,7 @@
     const r = e.currentTarget.getBoundingClientRect(), cur = getPref("threads") || "over";
     showMenu(r.left - 200, r.bottom + 6, THREAD_MODES.map(([v, l]) => ({ label: (v === cur ? "✓ " : "   ") + l, action: () => { setPref("threads", v); applyThreadMode(); } })));
   };
-  $("#helpBtn").onclick = e => showHelp(e.currentTarget, "editor", SHORTCUTS);
+  $("#helpBtn").onclick = e => showHelp(e.currentTarget, "editor", shortcutGroups());
 
   $("#zoomIn").onclick = () => zoomBy(1.2);
   $("#zoomOut").onclick = () => zoomBy(1 / 1.2);
@@ -2230,18 +2318,18 @@
       if (txt && (!q || norm(txt).includes(q))) found.push({ icon: TYPE_ICON[o.type], label: txt, sub: `${TYPE_NAMES[o.type]} · ${s.name}`, run: () => goToItem(si, o.id) });
     }));
     const actions = [
-      { icon: "📝", label: "Nueva nota", sub: "N", run: () => createCenter("note") },
-      { icon: "🗒️", label: "Nueva ficha", sub: "F", run: () => createCenter("card") },
-      { icon: "☑️", label: "Nueva lista", sub: "C", run: () => createCenter("list") },
-      { icon: "🗂️", label: "Nueva zona", sub: "Z", run: () => edit(add(mk("zone", 0, 0), viewCenter()), null, null, { continues: true }) },
-      { icon: "🖼️", label: "Añadir imagen…", sub: "I", run: () => createCenter("image") },
-      { icon: "🔗", label: "Añadir enlace…", sub: "K", run: () => createCenter("link") },
+      { icon: "📝", label: "Nueva nota", sub: Keys.label("tool.note"), run: () => createCenter("note") },
+      { icon: "🗒️", label: "Nueva ficha", sub: Keys.label("tool.card"), run: () => createCenter("card") },
+      { icon: "☑️", label: "Nueva lista", sub: Keys.label("tool.list"), run: () => createCenter("list") },
+      { icon: "🗂️", label: "Nueva zona", sub: Keys.label("tool.zone"), run: () => edit(add(mk("zone", 0, 0), viewCenter()), null, null, { continues: true }) },
+      { icon: "🖼️", label: "Añadir imagen…", sub: Keys.label("tool.image"), run: () => createCenter("image") },
+      { icon: "🔗", label: "Añadir enlace…", sub: Keys.label("tool.link"), run: () => createCenter("link") },
       ...doc.sheets.map((s, i) => ({ icon: "📄", label: `Ir a la hoja «${s.name}»`, sub: i === doc.active ? "actual" : "", run: () => switchSheet(i) })),
       { icon: "➕", label: "Nueva hoja", sub: "", run: addSheet },
       { icon: "📅", label: "Nueva hoja con plantilla Semana", sub: "", run: addWeekSheet },
-      { icon: "🔍", label: "Ajustar a la vista", sub: "Shift+1", run: fit },
+      { icon: "🔍", label: "Ajustar a la vista", sub: Keys.label("fit"), run: fit },
       { icon: "🌗", label: "Cambiar tema claro/oscuro", sub: "", run: () => toggleTheme() },
-      { icon: "⌨️", label: "Ver atajos de teclado", sub: "?", run: () => showShortcuts(SHORTCUTS) },
+      { icon: "⌨️", label: "Ver atajos de teclado", sub: Keys.label("shortcuts"), run: () => showShortcuts(shortcutGroups()) },
       { icon: "🎓", label: "Ver tutorial del tablero", sub: "", run: () => Tour.start("editor") },
       { icon: "📤", label: "Exportar hoja como imagen PNG", sub: "", run: exportPng },
       { icon: "📄", label: "Exportar hoja como PDF", sub: "", run: () => exportPdf(false) },
@@ -2296,7 +2384,18 @@
   });
 
   /* ---------- Teclado ---------- */
-  const TOOL_KEYS = { v: "select", n: "note", f: "card", c: "list", t: "text", i: "image", k: "link", a: "file", s: "sticker", z: "zone", d: "draw", l: "thread" };
+  const KEY_ACTIONS = {
+    undo, redo, selectAll, search: openCmdk, duplicate: duplicateSel, group: groupSel, ungroup: ungroupSel, lock: toggleLock, fit,
+    front: () => restack(1), back: () => restack(-1),
+    zoom100: () => zoomAt(viewport.clientWidth / 2, viewport.clientHeight / 2, 1),
+    prevSheet: () => switchSheet(doc.active - 1), nextSheet: () => switchSheet(doc.active + 1),
+    shortcuts: () => showShortcuts(shortcutGroups()),
+    eraser: () => { toolLocked = false; if (tool !== "draw") setTool("draw"); setEraser(drawOpts.erase ? null : "part"); },
+  };
+  function runKey(act) {
+    if (act.startsWith("tool.")) { toolLocked = false; return setTool(act.slice(5)); }
+    KEY_ACTIONS[act]?.();
+  }
   const NATIVE_KEYS = new Set([" ", "Enter", "Tab", "Delete", "Backspace", "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "F2"]);
   let nudgeTimer;
   function nudge(dx, dy) {
@@ -2353,24 +2452,15 @@
     if (onControl && !mod && NATIVE_KEYS.has(e.key)) return;
 
     if (e.key === " ") { e.preventDefault(); if (!spaceDown) { spaceDown = true; viewport.classList.add("space"); } return; }
-    if (mod && k === "z") { e.preventDefault(); return e.shiftKey ? redo() : undo(); }
-    if (mod && k === "y") { e.preventDefault(); return redo(); }
-    if (mod && k === "k") { e.preventDefault(); return openCmdk(); }
-    if (mod && k === "a") { e.preventDefault(); return selectAll(); }
-    if (mod && k === "d") { e.preventDefault(); return duplicateSel(); }
-    if (mod && k === "g") { e.preventDefault(); return e.shiftKey ? ungroupSel() : groupSel(); }
-    if (mod && k === "u") { e.preventDefault(); return ungroupSel(); }
+    // Fijas (ver Keys.RESERVED); las demás se pueden cambiar en Ajustes
+    if (mod && e.shiftKey && k === "z") { e.preventDefault(); return redo(); }
+    if (mod && e.shiftKey && k === "g") { e.preventDefault(); return ungroupSel(); }
     if (mod && k === "v") pasteBare = e.shiftKey;
-    if (mod && e.key === "]") { e.preventDefault(); return restack(1); }
-    if (mod && e.key === "[") { e.preventDefault(); return restack(-1); }
-    if (mod && e.shiftKey && k === "l") { e.preventDefault(); return toggleLock(); }
-    if (mod && k === "0") { e.preventDefault(); return zoomAt(viewport.clientWidth / 2, viewport.clientHeight / 2, 1); }
-    if (mod && (e.key === "PageUp" || e.key === "PageDown")) { e.preventDefault(); return switchSheet(doc.active + (e.key === "PageUp" ? -1 : 1)); }
     if (e.key === "ContextMenu" || (e.shiftKey && e.key === "F10")) { e.preventDefault(); return keyMenu(); }
+    const act = Keys.match(e);
+    if (act) { e.preventDefault(); return runKey(act); }
     if (mod || e.altKey) return;
 
-    if (e.key === "?") return showShortcuts(SHORTCUTS);
-    if (e.shiftKey && e.code === "Digit1") return fit();
     if (e.key === "Escape") {
       $(".inpop")?.remove();
       if (stickerPop.classList.contains("open")) return stickerPop.classList.remove("open");
@@ -2382,7 +2472,6 @@
     if (e.key === "Tab") { if (cycleSelection(e.shiftKey)) e.preventDefault(); return; }
     const arrows = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
     if (arrows[e.key] && selection.length) { e.preventDefault(); const [dx, dy] = arrows[e.key], f = e.shiftKey ? 10 : 1; return nudge(dx * f, dy * f); }
-    if (TOOL_KEYS[k] && !e.shiftKey) { toolLocked = false; setTool(TOOL_KEYS[k]); }
   });
   document.addEventListener("keyup", e => {
     if (e.key === " ") { spaceDown = false; viewport.classList.remove("space"); }
@@ -2411,25 +2500,27 @@
   }
 
   /* ---------- Atajos y tutorial ---------- */
-  const SHORTCUTS = [
-    { title: "Herramientas", rows: [["Seleccionar", "V"], ["Nota / Ficha / Lista / Texto", "N F C T"], ["Imagen / Enlace / Archivo", "I K A"], ["Stickers / Zona / Dibujo", "S Z D"], ["Hilo", "L"], ["Dejar herramienta fija", "Doble-clic"]] },
-    { title: "Edición", rows: [["Deshacer / Rehacer", "Ctrl+Z Ctrl+Y"], ["Copiar / Cortar / Pegar", "Ctrl+C Ctrl+X Ctrl+V"], ["Duplicar", "Ctrl+D"], ["Duplicar arrastrando", "Alt+arrastrar"], ["Editar seleccionado", "Enter"], ["Seleccionar todo", "Ctrl+A"], ["Seleccionar con recuadro", "Shift+arrastrar"], ["Agrupar / Desagrupar", "Ctrl+G Ctrl+U"], ["Pegar imagen sin marco", "Ctrl+Shift+V"], ["Elegir uno dentro de un grupo", "Ctrl+clic"], ["Añadir a la selección", "Shift+clic"], ["Mover 1 px / 10 px", "Flechas Shift+Flechas"], ["Siguiente / anterior elemento", "Tab Shift+Tab"], ["Opciones del elemento", "Shift+F10"], ["Al frente / al fondo", "Ctrl+] Ctrl+["], ["Bloquear", "Ctrl+Shift+L"], ["Eliminar", "Supr"]] },
-    { title: "Vista", rows: [["Buscar y acciones", "Ctrl+K"], ["Mover lienzo", "Arrastrar-fondo"], ["Zoom", "Rueda"], ["Desplazar en horizontal", "Shift+rueda"], ["Zoom 100% / Ajustar", "Ctrl+0 Shift+1"], ["Hoja anterior / siguiente", "Ctrl+PgUp Ctrl+PgDn"]] },
+  // Con las combinaciones actuales (se pueden cambiar en Ajustes); «—» = sin atajo
+  const ks = (...ids) => ids.map(id => Keys.label(id) || "—").join(" ");
+  const shortcutGroups = () => [
+    { title: "Herramientas", rows: [["Seleccionar", ks("tool.select")], ["Nota / Ficha / Lista / Texto", ks("tool.note", "tool.card", "tool.list", "tool.text")], ["Imagen / Enlace / Archivo", ks("tool.image", "tool.link", "tool.file")], ["Stickers / Zona / Dibujo", ks("tool.sticker", "tool.zone", "tool.draw")], ["Goma (dentro del dibujo)", ks("eraser")], ["Hilo", ks("tool.thread")], ["Dejar herramienta fija", "Doble-clic"]] },
+    { title: "Edición", rows: [["Deshacer / Rehacer", ks("undo", "redo")], ["Copiar / Cortar / Pegar", "Ctrl+C Ctrl+X Ctrl+V"], ["Duplicar", ks("duplicate")], ["Duplicar arrastrando", "Alt+arrastrar"], ["Editar seleccionado", "Enter"], ["Seleccionar todo", ks("selectAll")], ["Seleccionar con recuadro", "Shift+arrastrar"], ["Agrupar / Desagrupar", ks("group", "ungroup")], ["Pegar imagen sin marco", "Ctrl+Shift+V"], ["Elegir uno dentro de un grupo", "Ctrl+clic"], ["Añadir a la selección", "Shift+clic"], ["Mover 1 px / 10 px", "Flechas Shift+Flechas"], ["Siguiente / anterior elemento", "Tab Shift+Tab"], ["Opciones del elemento", "Shift+F10"], ["Al frente / al fondo", ks("front", "back")], ["Bloquear", ks("lock")], ["Eliminar", "Supr"], ["Ver los atajos", ks("shortcuts")]] },
+    { title: "Vista", rows: [["Buscar y acciones", ks("search")], ["Mover lienzo", "Arrastrar-fondo"], ["Zoom", "Rueda"], ["Desplazar en horizontal", "Shift+rueda"], ["Zoom 100% / Ajustar", ks("zoom100", "fit")], ["Hoja anterior / siguiente", ks("prevSheet", "nextSheet")]] },
     { title: "Chinches e hilos", rows: [["Tender un hilo", "Arrastrar-chinche"], ["Mover la chinche", "Shift+arrastrar"], ["Etiqueta del hilo", "Doble-clic"], ["Girar", "Arrastrar-junto-a-una-esquina"], ["Girar de 15° en 15°", "Shift+girar"]] },
   ];
 
   Tour.define("editor", [
     { el: null, title: "¡Bienvenido a tu tablero!", text: "Te enseño lo básico en 2 minutos. Algunos pasos te pedirán que hagas algo; si prefieres, puedes saltarlos. Este tutorial siempre está en el botón <b>?</b> de arriba." },
     { el: "#toolbar", place: "right", title: "Todo lo que puedes pinchar", text: "Notas, fichas, listas, texto, imágenes, enlaces, archivos, stickers, zonas, dibujo e hilos. Pasa el ratón por encima para ver el <b>atajo</b> de cada uno." },
-    { el: "#viewport", await: "create:note", task: "Pulsa N y haz clic en un hueco", title: "Crea una nota", text: "Elige la <b>nota</b> en la barra de la izquierda (o pulsa <b>N</b>) y haz clic donde quieras ponerla." },
+    { el: "#viewport", await: "create:note", task: `Pulsa ${Keys.label("tool.note") || "la nota"} y haz clic en un hueco`, title: "Crea una nota", text: `Elige la <b>nota</b> en la barra de la izquierda${Keys.get("tool.note") ? ` (o pulsa <b>${Keys.label("tool.note")}</b>)` : ""} y haz clic donde quieras ponerla.` },
     { el: "#viewport", await: "edit-end", task: "Escribe algo y haz clic fuera", title: "Escribe tu idea", text: "Mientras escribes aparece una barra para <b>negrita</b>, listas y tamaño de letra. Para editar después, <b>doble clic</b> sobre el elemento." },
     { el: () => $(".item.sel") || $("#viewport"), await: "move", task: "Arrastra la nota a otro sitio", title: "Mueve, ajusta y gira", text: "Arrastra para mover. Los <b>cuadraditos</b> de las esquinas cambian el tamaño y, si acercas el ratón <b>justo por fuera</b> de una esquina, puedes girarla. La barra flotante cambia color, chinche o la bloquea." },
     { el: "#viewport", await: "thread", task: "Arrastra de una chinche a otra", title: "Une ideas con hilos", text: "Arrastra desde la <b>chinche</b> de un elemento hasta la de otro. Haz clic en un hilo para cambiar su color o ponerle una <b>etiqueta</b>. Mayús + arrastrar mueve la chinche." },
     { el: '[data-tool="zone"]', place: "right", title: "Agrupa con zonas", text: "Dibuja una zona y todo lo que pongas dentro se moverá con ella. Ideal para categorías o columnas tipo Kanban." },
     { el: "#viewport", await: "pan", task: "Arrastra el fondo del tablero", title: "Muévete y haz zoom", text: "Arrastra el <b>fondo</b> para moverte y usa la <b>rueda</b> para acercar o alejar. Para seleccionar varios, mantén <b>Shift</b> y arrastra un recuadro." },
     { el: ".bottombar .sheets", place: "top", title: "Hojas", text: "Cada tablero tiene hojas, como Excel. <b>Doble clic</b> para renombrar, arrástralas para ordenarlas y clic derecho para duplicar o cambiar su color." },
-    { el: "#undoGroup", place: "bottom", title: "Sin miedo a equivocarte", text: "Todo se <b>guarda solo</b>. Si algo sale mal, <b>Ctrl+Z</b> lo deshace." },
-    { el: "#searchBtn", place: "bottom", title: "Encuentra cualquier cosa", text: "<b>Ctrl+K</b> busca notas, fotos y listas en todas las hojas, y te da acceso rápido a todas las acciones." },
+    { el: "#undoGroup", place: "bottom", title: "Sin miedo a equivocarte", text: `Todo se <b>guarda solo</b>. Si algo sale mal, <b>${Keys.label("undo")}</b> lo deshace.` },
+    { el: "#searchBtn", place: "bottom", title: "Encuentra cualquier cosa", text: `<b>${Keys.label("search")}</b> busca notas, fotos y listas en todas las hojas, y te da acceso rápido a todas las acciones.` },
     { el: "#helpBtn", place: "bottom", title: "¡Listo!", text: "Aquí tienes los atajos, este tutorial y las opciones de sugerencias. ¡A pinchar ideas! 📌" },
   ]);
 
@@ -2443,6 +2534,8 @@
   minimap.hidden = getPref("minimap") === "off";
   $("#mmToggle").classList.toggle("active", !minimap.hidden);
   applyThreadMode();
+  // Pistas de la barra con los atajos actuales
+  $$("[data-tool], [data-key]").forEach(b => { const k = Keys.label(b.dataset.key || "tool." + b.dataset.tool); b.dataset.tip = b.dataset.tip.replace(/ · [^·]*$/, "") + (k ? " · " + k : ""); });
   renderAll();
   renderMyStickers();
   updateUndoButtons();

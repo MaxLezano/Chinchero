@@ -131,9 +131,35 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     for (const [x0, y0] of [[1150, 120], [1170, 160]]) { await p.mouse.move(x0, y0); await p.mouse.down(); for (let i = 1; i < 12; i++) await p.mouse.move(x0 + i * 5, y0 + Math.sin(i) * 10); await p.mouse.up(); }
     await sleep(150);
     ok("trazos seguidos forman un dibujo", (await p.evaluate(() => document.querySelectorAll(".t-draw").length)) === d0 + 1);
+    // Goma: E la activa; «partes» corta los trazos por donde pasa, «trazos enteros» los quita y Ctrl+Z lo devuelve
+    const strokes = () => p.evaluate(() => { const e = [...document.querySelectorAll(".t-draw")].at(-1); return (e?.querySelector("path:not(.dh)").getAttribute("d").match(/M/g) || []).length; });
+    const rub = async pts => { await p.mouse.move(...pts[0]); await p.mouse.down(); for (const q of pts.slice(1)) await p.mouse.move(...q, { steps: 4 }); await p.mouse.up(); await sleep(150); };
+    const s0 = await strokes();
+    await p.keyboard.press("e"); await sleep(100);
+    ok("E activa la goma", await p.evaluate(() => document.querySelector('#drawPop [data-de="part"]').classList.contains("on") && document.querySelector("#viewport").classList.contains("erasing")));
+    await rub([[1185, 90], [1185, 190]]);
+    const s1 = await strokes();
+    ok("goma: borrar partes corta los trazos", s0 === 2 && s1 === 4, `${s0} → ${s1}`);
+    await p.click('#drawPop [data-de="stroke"]'); await sleep(50);
+    await rub([[1158, 90], [1158, 140]]);
+    ok("goma: trazos enteros quita solo el trazo tocado", (await strokes()) === s1 - 1);
+    const pass = []; for (let y = 100; y <= 180; y += 8) pass.push([1140, y], [1240, y]);
+    await rub(pass);
+    ok("goma: sin trazos el dibujo desaparece", (await p.evaluate(() => document.querySelectorAll(".t-draw").length)) === d0);
+    await p.keyboard.down("Control"); await p.keyboard.press("z"); await p.keyboard.up("Control"); await sleep(150);
+    ok("goma: Ctrl+Z devuelve el dibujo", (await p.evaluate(() => document.querySelectorAll(".t-draw").length)) === d0 + 1);
+    await p.keyboard.press("e"); await sleep(50);
+    ok("E de nuevo vuelve al rotulador", await p.evaluate(() => !document.querySelector("#drawPop [data-de].on") && !document.querySelector("#viewport").classList.contains("erasing")));
     await p.keyboard.press("v"); await sleep(100);
     ok("V vuelve a seleccionar", await p.evaluate(() => document.querySelector('[data-tool="select"]').classList.contains("active")));
   }
+  // Nombre largo de una foto: se recorta con «…» dentro del marco polaroid
+  ok("foto: el nombre largo no sale del marco", await p.evaluate(() => {
+    const c = document.querySelector("#items .t-photo:not(.noframe) .caption");
+    c.textContent = "Gemini_Generated_Image_usc7fusc7fusc7fusc7f";
+    const r = c.getBoundingClientRect(), f = c.closest(".item").getBoundingClientRect(), ok = getComputedStyle(c).textOverflow === "ellipsis" && r.right <= f.right + 1;
+    c.textContent = "Inspiración"; return ok;
+  }));
   // Sticker arrastrado desde la paleta (incluido uno propio) se pega como sticker, no como foto
   {
     const n0 = await count();
@@ -445,6 +471,40 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     });
     ok("a11y: contraste AA en tema claro y oscuro", ratios.light >= 4.5 && ratios.dark >= 4.5, JSON.stringify(ratios));
     await q.close();
+  }
+
+  // Atajos personalizados: el editor usa los de la preferencia y Ajustes los cambia con detección de conflictos
+  {
+    const q = await open("02-tablero.html", { prefs: { ...NO_TOURS, keys: JSON.stringify({ "tool.note": "Shift+N", duplicate: "" }) } });
+    const active = () => q.evaluate(() => document.querySelector("[data-tool].active")?.dataset.tool);
+    await q.keyboard.press("n"); await sleep(50);
+    ok("atajos: la tecla original ya no actúa", (await active()) === "select");
+    await q.keyboard.down("Shift"); await q.keyboard.press("N"); await q.keyboard.up("Shift"); await sleep(50);
+    ok("atajos: la combinación nueva elige la herramienta", (await active()) === "note");
+    ok("atajos: la pista de la barra muestra el atajo nuevo", await q.$eval('[data-tool="note"]', e => e.dataset.tip.endsWith("· Shift+N")));
+    await q.keyboard.press("Escape");
+    await q.keyboard.press("?"); await sleep(100);
+    ok("atajos: el panel muestra los atajos actuales", await q.evaluate(() => /Shift\+N/.test(document.querySelector(".g-modal").textContent) && [...document.querySelectorAll(".kb-row")].some(r => r.textContent.startsWith("Duplicar") && r.textContent.includes("—"))));
+    await q.close();
+
+    const a = await open("03-ajustes.html", { prefs: NO_TOURS });
+    const dialogs = [];
+    a.on("dialog", d => { dialogs.push(d.message()); d.accept(); });
+    const label = id => a.$eval(`[data-key="${id}"]`, e => e.textContent.trim());
+    await a.click('[data-key="tool.note"]'); await a.keyboard.press("q"); await sleep(100);
+    ok("ajustes: cambiar un atajo", (await label("tool.note")) === "Q" && await a.evaluate(() => JSON.parse(localStorage.getItem("chinchero-keys"))["tool.note"] === "Q"));
+    await a.click('[data-key="tool.card"]');
+    await a.keyboard.down("Control"); await a.keyboard.press("c"); await a.keyboard.up("Control"); await sleep(100);
+    ok("ajustes: una combinación reservada no se acepta", (await label("tool.card")) === "Pulsa la combinación…" && await a.evaluate(() => /reservado/.test(document.body.textContent)));
+    await a.keyboard.press("q"); await sleep(100);
+    ok("ajustes: conflicto avisa y deja la otra acción sin atajo", dialogs.length === 1 && (await label("tool.card")) === "Q" && (await label("tool.note")) === "Sin atajo");
+    await a.click('[data-reset="tool.card"]'); await sleep(100);
+    ok("ajustes: restablecer un atajo", (await label("tool.card")) === "F");
+    await a.click('[data-key="tool.text"]'); await a.keyboard.press("Escape"); await sleep(50);
+    ok("ajustes: Esc cancela sin cambiar", (await label("tool.text")) === "T");
+    await a.click("#resetKeys"); await sleep(100);
+    ok("ajustes: restablecer todos", (await label("tool.note")) === "N" && await a.evaluate(() => localStorage.getItem("chinchero-keys") === "{}"));
+    await a.close();
   }
 
   // Seguridad: CSP en cada pantalla y valores del modelo escapados (colores, ids, trazos, emoji) aunque no vengan de un .chinchero

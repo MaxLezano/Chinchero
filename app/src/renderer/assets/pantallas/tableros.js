@@ -65,6 +65,8 @@ function render() {
 }
 
 $("#search").oninput = render;
+$(".search kbd").textContent = Keys.label("findBoard").replace("+", " ");
+$(".search kbd").hidden = !Keys.get("findBoard");
 $("#sort").onchange = render;
 $("#chips").onclick = e => {
   const b = e.target.closest(".chip"); if (!b) return;
@@ -239,16 +241,19 @@ $("#newForm").onsubmit = e => {
 
 document.addEventListener("keydown", e => {
   if (e.key === "Escape") closeModal();
-  if (e.ctrlKey && e.key.toLowerCase() === "n") { e.preventDefault(); openModal(); }
-  if (e.ctrlKey && e.key.toLowerCase() === "f") { e.preventDefault(); $("#search").focus(); }
-  if (e.key === "?" && !e.target.matches("input, [contenteditable=true]")) showShortcuts(HELP.shortcuts);
+  // Mientras se escribe, solo cuentan los atajos con Ctrl o Alt
+  const typing = e.target.matches("input, textarea, select, [contenteditable=true]");
+  const act = typing && !e.ctrlKey && !e.altKey ? null : Keys.match(e);
+  if (act === "newBoard") { e.preventDefault(); openModal(); }
+  if (act === "findBoard") { e.preventDefault(); $("#search").focus(); }
+  if (act === "shortcuts") showShortcuts(HELP.shortcuts);
 });
 
 /* ---------- Ayuda y tutorial ---------- */
 window.HELP = {
   tour: "boards",
   shortcuts: [
-    { title: "Tableros", rows: [["Nuevo tablero", "Ctrl+N"], ["Buscar", "Ctrl+F"], ["Abrir tablero enfocado", "Enter"], ["Renombrar", "F2"], ["Eliminar", "Supr"], ["Ver atajos", "?"]] },
+    { title: "Tableros", rows: [["Nuevo tablero", Keys.label("newBoard")], ["Buscar", Keys.label("findBoard")], ["Abrir tablero enfocado", "Enter"], ["Renombrar", "F2"], ["Eliminar", "Supr"], ["Ver atajos", Keys.label("shortcuts")]] },
   ],
 };
 Tour.define("boards", [
@@ -256,8 +261,8 @@ Tour.define("boards", [
   { el: "#groupList", place: "right", title: "Grupos", text: "Organiza tus tableros en grupos como <b>Trabajo</b> o <b>Personal</b>. Usa <b>+</b> para crear uno y clic derecho para renombrarlo o cambiar su color." },
   { el: () => document.querySelector('.sidebar a[href*="view=fav"]'), place: "right", title: "Favoritos y recientes", text: "Marca un tablero con la ⭐ y lo tendrás siempre en <b>Favoritos</b>. <b>Recientes</b> muestra lo último que editaste." },
   { el: () => grid.querySelector(".card"), title: "Cada tarjeta es un tablero", text: "Haz clic para abrirlo. Con <b>clic derecho</b> lo renombras, duplicas, mueves o exportas para compartirlo. También puedes <b>arrastrarlo</b> sobre un grupo de la izquierda." },
-  { el: ".search", title: "Busca y filtra", text: "Escribe parte del nombre (atajo <b>Ctrl+F</b>) o usa los filtros de abajo." },
-  { el: "#newBtn", place: "bottom", title: "Crea un tablero", text: "Elige nombre, grupo, fondo y, si quieres, una <b>plantilla</b> para no empezar de cero. Atajo: <b>Ctrl+N</b>." },
+  { el: ".search", title: "Busca y filtra", text: `Escribe parte del nombre (atajo <b>${Keys.label("findBoard")}</b>) o usa los filtros de abajo.` },
+  { el: "#newBtn", place: "bottom", title: "Crea un tablero", text: `Elige nombre, grupo, fondo y, si quieres, una <b>plantilla</b> para no empezar de cero. Atajo: <b>${Keys.label("newBoard")}</b>.` },
   { el: "#helpBtn", place: "right", title: "¿Dudas?", text: "Desde aquí vuelves a ver este tutorial, consultas los atajos o activas y desactivas las sugerencias." },
 ]);
 
