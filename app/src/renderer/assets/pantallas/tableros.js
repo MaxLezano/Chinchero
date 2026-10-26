@@ -14,16 +14,28 @@ if (view === "recent") $("#sort").closest(".sort").hidden = true;
 // Miniatura: coordenadas ya normalizadas por el editor (0..1 dentro del recuadro de la tarjeta)
 function miniHTML(p) {
   const st = esc(`left:${p.x * 100}%;top:${p.y * 100}%;width:${Math.max(2, p.w * 100)}%;height:${Math.max(3, p.h * 100)}%;transform:rotate(${p.r || 0}deg)`);
-  const pin = p.pin ? `<span class="pin" style="--pin:${esc(p.pc || "#e03131")}"></span>` : "";
+  const pinAt = p.px != null ? `;left:${+p.px * 100}%;top:${+p.py * 100}%` : "";
+  const pin = p.pin ? `<span class="pin" style="--pin:${esc(p.pc || "#e03131")}${esc(pinAt)}"></span>` : "";
   switch (p.t) {
     case "zone": return `<i class="pv zone" style="${st};--zc:${esc(p.c)}"></i>`;
     case "note": return `<i class="pv note" style="${st};background:${esc(NOTE[p.c] || NOTE.yellow)}">${pin}</i>`;
     case "photo": return `<i class="pv photo" style="${st}">${pin}</i>`;
-    case "sticker": case "stamp": return `<i class="pv dot" style="${st};background:${esc(p.c || "#fab005")}"></i>`;
+    case "stamp": return `<i class="pv stamp" style="${st};background:${esc(p.c || "#e03131")}"></i>`;
+    case "sticker": return `<i class="pv dot" style="${st};background:${esc(p.c || "#fab005")}"></i>`;
     case "text": return `<i class="pv text" style="${st}"></i>`;
     case "draw": return `<i class="pv draw" style="${st};border-color:${esc(p.c)}"></i>`;
-    default: return `<i class="pv card" style="${st}">${pin}</i>`;
+    default: return `<i class="pv paper" style="${st}">${pin}</i>`;
   }
+}
+// Hilos de la miniatura: SVG de 0..100 estirado sobre el recuadro (el trazo no se deforma) y chinches encima
+function threadsHTML(ts) {
+  if (!ts?.length) return "";
+  const n = v => Number.isFinite(+v) ? +v * 100 : 0;
+  const pt = ([x, y]) => `${n(x).toFixed(1)} ${n(y).toFixed(1)}`;
+  const head = ([x, y], c) => `<span class="pin th-pin" style="${esc(`left:${n(x)}%;top:${n(y)}%;--pin:${c || "#e03131"}`)}"></span>`;
+  return `<svg class="th" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">${ts.map(t =>
+    `<path d="M${pt(t.a)} Q${pt(t.m)} ${pt(t.b)}" style="stroke:${esc(t.c || "var(--thread)")}"/>`).join("")}</svg>`
+    + ts.map(t => head(t.a, t.ac) + head(t.b, t.bc)).join("");
 }
 
 function cardHTML(b) {
@@ -31,7 +43,7 @@ function cardHTML(b) {
   const n = b.sheets || 1;
   return `<a class="card${b.fav ? " fav" : ""}" href="02-tablero.html?board=${encodeURIComponent(b.id)}" data-id="${esc(b.id)}">
     <button class="fav-btn" aria-label="${b.fav ? "Quitar de favoritos" : "Añadir a favoritos"}"><svg class="icon"><use href="#i-star"/></svg></button>
-    <div class="thumb surface-${esc(b.surface || "dots")}"><div class="pv-box">${(b.preview || []).map(miniHTML).join("")}</div>
+    <div class="thumb surface-${esc(b.surface || "dots")}"><div class="pv-box">${(b.preview || []).map(miniHTML).join("")}${threadsHTML(b.previewThreads)}</div>
       ${!group && g ? `<span class="gchip"><span class="group-dot" style="background:${esc(g.color)}"></span>${esc(g.name)}</span>` : ""}</div>
     <div class="card-body"><div class="card-title">${esc(b.name)}</div>
       <div class="card-meta">${n} hoja${n > 1 ? "s" : ""} · ${esc(b.items || 0)} elemento${b.items === 1 ? "" : "s"} · ${relTime(b.updatedAt)}</div></div></a>`;

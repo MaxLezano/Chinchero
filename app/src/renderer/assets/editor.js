@@ -177,7 +177,7 @@
   function demoSheets() {
     const t1 = mk("text", 160, 30, { text: "Chinchero v1 ✏️", rot: -2 });
     const z1 = mk("zone", 150, 120, { w: 660, h: 340, title: "La idea", color: "#4dabf7" });
-    const n1 = mk("note", 190, 160, { color: "yellow", rot: -3, text: "Un tablero de corcho digital, con hilos como en las pelis de detectives" });
+    const n1 = mk("note", 190, 160, { color: "yellow", rot: -3, text: "Un tablero de ideas digital, con hilos como en las pelis de detectives" });
     const p1 = mk("photo", 520, 150, { rot: 4, art: "sunset", caption: "Inspiración 🌄", pin: pinC("#1c7ed6") });
     const c1 = mk("list", 880, 160, { rot: -1.5, title: "Por hacer", pin: pinC("#2f9e44"), tasks: [
       { text: "Mockups HTML", done: true }, { text: "Cerrar la idea", done: false }, { text: "Elegir stack Windows", done: false }, { text: "Primera versión", done: false }] });
@@ -208,12 +208,13 @@
   const params = new URLSearchParams(location.search);
   const lib = Store.library();
 
-  // Resumen para la tarjeta del tablero en la pantalla de Tableros (miniatura incluida)
+  // Resumen para la tarjeta del tablero en la pantalla de Tableros: elementos (miniatura) e hilos entre sus chinches
   function computePreview(sh) {
-    if (!sh?.items?.length) return [];
+    if (!sh?.items?.length) return { items: [], threads: [] };
     const est = o => ({
-      w: SCALED.has(o.type) ? (o.type === "text" ? Math.max(3, (o.text || "").length) * 26 : 70) * (o.s || 1) : o.w || 200,
-      h: o.type === "photo" ? o.h + (o.frame === "polaroid" ? 60 : 20) : SCALED.has(o.type) ? 64 * (o.s || 1) : o.h || 150,
+      w: o.type === "stamp" ? ((o.text || "").length * 11 + 36) * (o.s || 1)
+        : SCALED.has(o.type) ? (o.type === "text" ? Math.max(3, (o.text || "").length) * 26 : 70) * (o.s || 1) : o.w || 200,
+      h: o.type === "photo" ? o.h + (o.frame === "polaroid" ? 60 : 20) : o.type === "stamp" ? 44 * (o.s || 1) : SCALED.has(o.type) ? 64 * (o.s || 1) : o.h || 150,
     });
     const rank = o => (o.type === "zone" ? -1e6 : 0) + o.z;
     const rs = [...sh.items].sort((a, b) => rank(a) - rank(b)).slice(-24).map(o => ({ o, ...est(o) }));
@@ -222,14 +223,32 @@
     // s: fracción del ancho por unidad del tablero; en vertical se multiplica por A (proporción ancho/alto de la miniatura)
     const A = 1.8, s = Math.min(1 / bw, 1 / (bh * A)), ox = (1 - bw * s) / 2, oy = (1 - bh * s * A) / 2;
     const r3 = n => Math.round(n * 1000) / 1000;
-    return rs.map(({ o, w, h }) => ({
-      t: o.type, x: r3(ox + (o.x - x0) * s), y: r3(oy + (o.y - y0) * s * A), w: r3(w * s), h: r3(h * s * A), r: o.rot || 0,
+    const nx = x => r3(ox + (x - x0) * s), ny = y => r3(oy + (y - y0) * s * A);
+    const pinned = o => o.fix === "pin" && o.pin;
+    const items = rs.map(({ o, w, h }) => ({
+      t: o.type, x: nx(o.x), y: ny(o.y), w: r3(w * s), h: r3(h * s * A), r: o.rot || 0,
       c: o.type === "sticker" ? "#fab005" : o.color, pin: o.fix === "pin", pc: o.pin?.color,
+      ...(pinned(o) && { px: r3(o.pin.x), py: r3(o.pin.y) }),
     }));
+    // Hilos: mismos extremos (chinche girada con el elemento) y misma curva que drawThreads, en coordenadas de la miniatura
+    const byIdP = new Map(rs.map(r => [r.o.id, r]));
+    const pinAt = ({ o, w, h }) => {
+      const lx = o.pin.x * w - w / 2, ly = o.pin.y * h - h / 2;
+      const a = (o.rot || 0) * Math.PI / 180, c = Math.cos(a), si = Math.sin(a);
+      return { x: o.x + w / 2 + lx * c - ly * si, y: o.y + h / 2 + lx * si + ly * c };
+    };
+    const threads = (sh.threads || []).flatMap(t => {
+      const ra = byIdP.get(t.a), rb = byIdP.get(t.b);
+      if (!ra || !rb || !pinned(ra.o) || !pinned(rb.o)) return [];
+      const a = pinAt(ra), b = pinAt(rb);
+      const sag = Math.min(140, Math.hypot(b.x - a.x, b.y - a.y) * .16) * (t.sag ?? 1);
+      return [{ a: [nx(a.x), ny(a.y)], m: [nx((a.x + b.x) / 2), ny((a.y + b.y) / 2 + sag)], b: [nx(b.x), ny(b.y)], c: t.color || "", ac: ra.o.pin.color, bc: rb.o.pin.color }];
+    });
+    return { items, threads };
   }
   function boardMeta(d) {
-    const items = d.sheets.flatMap(s => s.items);
-    return { sheets: d.sheets.length, items: items.length, hasImages: items.some(o => o.type === "photo" && (o.src || o.art)), surface: d.sheets[0]?.surface || "dots", preview: computePreview(d.sheets[0]) };
+    const items = d.sheets.flatMap(s => s.items), pv = computePreview(d.sheets[0]);
+    return { sheets: d.sheets.length, items: items.length, hasImages: items.some(o => o.type === "photo" && (o.src || o.art)), surface: d.sheets[0]?.surface || "dots", preview: pv.items, previewThreads: pv.threads };
   }
   function createBoard(tpl, name, group, surface) {
     const sheets = (TEMPLATES[tpl] || TEMPLATES.blank)();
@@ -953,7 +972,7 @@
   }
 
   // Goma: al pasar por encima borra la parte de los trazos que toca («part») o el trazo entero («stroke»).
-  // Los dibujos sin `strokes` (solo `d`, como los de las plantillas) se borran enteros al tocarlos.
+  // Los dibujos sin `strokes` (solo `d`, como los de las plantillas) se pasan a puntos recorriendo cada subtrazo.
   function startErase(e) {
     const r = 9 / view.z, step = r / 2; // radio de la goma en el mundo: 9 px en pantalla
     const dense = new Map(), touched = new Set();
@@ -969,6 +988,25 @@
       const q = s[i - 1], n = Math.ceil(Math.hypot(p.x - q.x, p.y - q.y) / gap);
       return Array.from({ length: n }, (_, k) => ({ x: q.x + (p.x - q.x) * (k + 1) / n, y: q.y + (p.y - q.y) * (k + 1) / n }));
     });
+    // `d` antiguo → trazos de puntos cada 2 unidades (un subtrazo por cada M); null si no se puede medir
+    const legacy = new Map();
+    const fromD = it => {
+      if (legacy.has(it.id)) return legacy.get(it.id);
+      const svg = elOf(it.id)?.querySelector("svg");
+      let out = null;
+      if (svg && it.d) {
+        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        svg.append(path);
+        out = it.d.split(/(?=M)/).map(sub => {
+          path.setAttribute("d", sub);
+          const len = path.getTotalLength(), n = Math.max(1, Math.ceil(len / 2));
+          return Array.from({ length: n + 1 }, (_, k) => { const p = path.getPointAtLength(len * k / n); return { x: p.x, y: p.y }; });
+        }).filter(st => st.length > 1);
+        path.remove();
+      }
+      legacy.set(it.id, out?.length ? out : null);
+      return legacy.get(it.id);
+    };
     const eraseAt = p => {
       for (const it of [...sheet().items]) {
         if (it.type !== "draw" || it.locked) continue;
@@ -977,8 +1015,9 @@
         const q = local(it, p), rx = r * it.vw / it.w + it.sw / 2, ry = r * it.vh / it.h + it.sw / 2;
         const hit = s => ((s.x - q.x) / rx) ** 2 + ((s.y - q.y) / ry) ** 2 <= 1;
         let strokes = null;
-        if (it.strokes) {
-          if (!dense.has(it.id)) dense.set(it.id, it.strokes.map(s => densify(s, Math.min(rx, ry) / 2)));
+        const base = it.strokes || fromD(it);
+        if (base) {
+          if (!dense.has(it.id)) dense.set(it.id, base.map(s => densify(s, Math.min(rx, ry) / 2)));
           const all = dense.get(it.id);
           if (!all.some(s => s.some(hit))) continue;
           strokes = erase.mode === "stroke" ? all.filter(s => !s.some(hit))

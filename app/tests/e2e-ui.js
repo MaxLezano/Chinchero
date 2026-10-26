@@ -507,6 +507,55 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     await a.close();
   }
 
+  // Pulido: Ajustes a lo ancho con la sección visible marcada; miniaturas con hilos y sellos; goma en dibujos antiguos (solo `d`)
+  {
+    const a = await open("03-ajustes.html", { prefs: NO_TOURS, vp: { width: 1920, height: 1080 } });
+    const active = () => a.evaluate(() => [...document.querySelectorAll(".tabs a.active")].map(x => x.hash).join());
+    const lay = await a.evaluate(() => ({ dir: getComputedStyle(document.querySelector(".tabs")).flexDirection, left: document.querySelector(".content").getBoundingClientRect().left }));
+    ok("ajustes: índice a la izquierda y contenido centrado a 1920 px", lay.dir === "column" && lay.left > 600, JSON.stringify(lay));
+    ok("ajustes: al abrir marca Apariencia", (await active()) === "#apariencia");
+    await a.evaluate(() => document.querySelector("#datos").scrollIntoView({ block: "start" })); await sleep(150);
+    ok("ajustes: al desplazarse marca la sección visible", (await active()) === "#datos", await active());
+    await a.evaluate(() => { const m = document.querySelector("main"); m.scrollTop = m.scrollHeight; }); await sleep(150);
+    ok("ajustes: al final marca Acerca de", (await active()) === "#acerca", await active());
+    ok("ajustes: «tablero de ideas digital» en Acerca de", await a.evaluate(() => /tablero de ideas digital/.test(document.querySelector("#acerca").textContent)));
+    await shot(a, "e03-ajustes-1920");
+    await a.goto(BASE + "00-bienvenida.html", { waitUntil: "networkidle0" });
+    ok("bienvenida: «tablero de ideas digital»", await a.evaluate(() => /tablero de ideas digital/.test(document.body.textContent) && !/corcho digital/.test(document.body.textContent)));
+
+    await a.evaluate(() => {
+      const lib = Store.library();
+      lib.boards.push({ id: "pulido", name: "Pulido", group: lib.groups[0].id, updatedAt: Date.now() });
+      Store.saveLibrary();
+      const item = (id, type, x, y, extra) => ({ id, type, x, y, w: 200, h: 120, rot: 0, z: 1, s: 1, ...extra });
+      const pin = { x: .5, y: .1, color: "#1c7ed6" };
+      localStorage.setItem("chinchero-data-board-pulido", JSON.stringify({ name: "Pulido", active: 0, sheets: [{ id: "s1", name: "Hoja 1", surface: "dots", view: { x: 0, y: 0, z: 1 },
+        threads: [{ id: "t1", a: "n1", b: "c1" }, { id: "t2", a: "c1", b: "p1" }], items: [
+          item("n1", "note", 100, 100, { text: "A", color: "yellow", fs: "m", fix: "pin", pin }),
+          item("c1", "card", 500, 120, { title: "Ficha", body: "", fix: "pin", pin }),
+          item("p1", "stamp", 300, 400, { text: "HECHO", color: "#2f9e44", fix: "pin", pin }),
+          item("d1", "draw", 100, 300, { w: 200, h: 80, vw: 200, vh: 80, d: "M10 40 L190 40", color: "#e03131", sw: 4 }),
+        ] }] }));
+    });
+    await a.goto(BASE + "02-tablero.html?board=pulido", { waitUntil: "networkidle0" }); await sleep(400);
+    const r = await a.evaluate(() => { const b = document.querySelector('[data-id="d1"]').getBoundingClientRect(); return { x: b.x + b.width / 2, y: b.y + b.height / 2 }; });
+    await a.keyboard.press("d"); await a.keyboard.press("e"); await sleep(100);
+    await a.mouse.move(r.x, r.y - 40); await a.mouse.down(); await a.mouse.move(r.x, r.y + 40, { steps: 8 }); await a.mouse.up(); await sleep(200);
+    const parts = await a.evaluate(() => { const e = document.querySelector('[data-id="d1"] path:not(.dh)'); return e ? (e.getAttribute("d").match(/M/g) || []).length : -1; });
+    ok("goma: un dibujo antiguo (solo d) se corta en partes", parts === 2, "partes: " + parts);
+    await a.goto(BASE + "01-tableros.html?view=recent", { waitUntil: "networkidle0" }); await sleep(300);
+    const pv = await a.evaluate(() => {
+      const c = document.querySelector('[data-id="pulido"]');
+      return { threads: c.querySelectorAll("svg.th path").length, stamp: !!c.querySelector(".pv.stamp"), paper: !!c.querySelector(".pv.paper"),
+        cardClass: document.querySelectorAll(".pv.card").length, radius: getComputedStyle(c.querySelector(".pv.paper")).borderRadius };
+    });
+    ok("tableros: la miniatura dibuja hilos, sellos y fichas", pv.threads === 2 && pv.stamp && pv.paper && !pv.cardClass && pv.radius === "0px", JSON.stringify(pv));
+    const cw = await a.evaluate(() => document.querySelector(".card").getBoundingClientRect().width);
+    ok("tableros: tarjetas más grandes a 1920 px", cw >= 300, "ancho " + Math.round(cw));
+    await shot(a, "e01-tableros-1920");
+    await a.close();
+  }
+
   // Seguridad: CSP en cada pantalla y valores del modelo escapados (colores, ids, trazos, emoji) aunque no vengan de un .chinchero
   {
     const q = await open("01-tableros.html", { prefs: NO_TOURS });
@@ -515,7 +564,8 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
       const lib = Store.library();
       lib.groups[0].color = evil;
       lib.boards.push({ id: "malo", name: "Malo", group: lib.groups[0].id, surface: evil, items: evil, updatedAt: Date.now(),
-        preview: [{ t: "zone", x: 0, y: 0, w: .5, h: .5, c: evil }, { t: "note", x: evil, y: 0, w: .2, h: .2, pin: 1, pc: evil }] });
+        preview: [{ t: "zone", x: 0, y: 0, w: .5, h: .5, c: evil }, { t: "note", x: evil, y: 0, w: .2, h: .2, pin: 1, pc: evil, px: evil, py: 0 }],
+        previewThreads: [{ a: [evil, 0], m: [0, evil], b: [1, 1], c: evil, ac: evil, bc: evil }] });
       Store.saveLibrary();
       const item = (id, type, extra) => ({ id, type, x: 100, y: 100, w: 200, h: 120, rot: 0, z: 1, s: 1, ...extra });
       localStorage.setItem("chinchero-data-board-malo", JSON.stringify({ name: "Malo", active: 0, sheets: [{ id: "s1", name: "Hoja 1", surface: "dots", view: { x: 0, y: 0, z: 1 }, threads: [{ id: "t1", a: "e1", b: "e2", color: evil }], items: [

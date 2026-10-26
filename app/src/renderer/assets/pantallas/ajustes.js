@@ -84,6 +84,23 @@ document.getElementById("restoreBtn").onclick = async () => {
 };
 document.getElementById("checkUpdates").onclick = () => { toast("Buscando actualizaciones…"); Store.desktop("checkUpdates"); };
 
+// Índice de secciones: marca la que se está viendo (la última cuyo título pasó bajo la barra superior;
+// al llegar al final, la última aunque sea corta)
+const main = document.querySelector("main"), tabs = [...document.querySelectorAll(".tabs a")];
+const spy = () => {
+  const top = main.getBoundingClientRect().top + 100;
+  const atEnd = main.scrollTop + main.clientHeight >= main.scrollHeight - 4;
+  let cur = tabs[0];
+  for (const a of tabs) if (atEnd || document.querySelector(a.hash).getBoundingClientRect().top <= top) cur = a;
+  tabs.forEach(a => {
+    a.classList.toggle("active", a === cur);
+    if (a === cur) a.setAttribute("aria-current", "location"); else a.removeAttribute("aria-current");
+  });
+};
+main.addEventListener("scroll", spy, { passive: true });
+addEventListener("resize", spy);
+spy();
+
 window.HELP = { tour: "settings" };
 const scrollTo = sel => () => document.querySelector(sel).scrollIntoView({ block: "start" });
 Tour.define("settings", [

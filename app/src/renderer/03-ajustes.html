@@ -17,6 +17,14 @@
   .tabs { display: flex; gap: 4px; padding: 0 32px 20px; flex-wrap: wrap; }
   .tabs a { padding: 6px 12px; border-radius: 8px; color: var(--text-muted); text-decoration: none; font-size: 13px; }
   .tabs a:hover { background: var(--surface); color: var(--text); }
+  .tabs a.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+  /* Pantallas anchas: índice fijo a la izquierda y todo centrado, sin dejar media pantalla vacía a un lado */
+  @media (min-width: 1280px) {
+    .layout { display: grid; grid-template-columns: 180px minmax(0, 860px); gap: 32px; justify-content: center; padding: 0 32px; }
+    .tabs { flex-direction: column; flex-wrap: nowrap; padding: 0; position: sticky; top: 80px; align-self: start; }
+    .tabs a { padding: 8px 12px; font-size: 14px; }
+    .content { max-width: none; padding: 0 0 60px; }
+  }
   section { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 20px; scroll-margin-top: 80px; }
   section > h2 { font-size: 15px; margin: 0; padding: 16px 20px; border-bottom: 1px solid var(--border); }
   .row { display: flex; align-items: center; gap: 20px; padding: 14px 20px; border-bottom: 1px solid var(--border); }
@@ -73,7 +81,8 @@
 
 <main>
   <div class="topbar"><h1>Ajustes</h1></div>
-  <nav class="tabs">
+  <div class="layout">
+  <nav class="tabs" aria-label="Secciones">
     <a href="#apariencia">Apariencia</a><a href="#tablero">Tablero</a><a href="#datos">Datos</a><a href="#ayuda">Ayuda</a><a href="#atajos">Atajos</a><a href="#acerca">Acerca de</a>
   </nav>
 
@@ -209,10 +218,11 @@
       <h2>Acerca de</h2>
       <div class="about">
         <div class="brand-mark surface-cork"><span class="pin"></span></div>
-        <div><b>Chinchero</b> <span id="version"></span><br><small>Tu tablero de corcho digital, sin conexión. Se actualiza solo cuando hay una versión nueva.</small></div>
+        <div><b>Chinchero</b> <span id="version"></span><br><small>Tu tablero de ideas digital, sin conexión. Se actualiza solo cuando hay una versión nueva.</small></div>
         <button class="btn" id="checkUpdates">Buscar actualizaciones</button>
       </div>
     </section>
+  </div>
   </div>
 </main>
 
