@@ -130,6 +130,8 @@
 <div class="band" id="band"></div>
 <div class="ghost" id="ghost"></div>
 
+<!-- Foco de teclado del lienzo: va aparte del viewport porque con el foco en un ancestro de los elementos arrastrar es más lento -->
+<div class="sr-only" id="canvasFocus" tabindex="0" role="application" aria-roledescription="lienzo" aria-label="Lienzo de la hoja. Tab recorre los elementos, flechas los mueven, Enter edita, Supr elimina; tecla Menú o Mayús+F10 abre las opciones"></div>
 <div class="viewport" id="viewport">
   <div class="world" id="world">
     <div id="items"></div>
@@ -162,7 +164,7 @@
 </div>
 <div class="dropzone" id="dropzone">Suelta aquí: las imágenes se pinchan como fotos, los archivos como adjuntos y las URL como enlaces</div>
 
-<div class="lightbox" id="lightbox" role="dialog" aria-label="Visor de imagen">
+<div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Visor de imagen">
   <button class="icon-btn lb-btn close" aria-label="Cerrar (Esc)">✕</button>
   <button class="icon-btn lb-btn prev" aria-label="Anterior (←)">‹</button>
   <button class="icon-btn lb-btn next" aria-label="Siguiente (→)">›</button>
@@ -171,7 +173,7 @@
 
 <div class="minimap" id="minimap" aria-label="Minimapa"></div>
 
-<div class="cmdk-back" id="cmdk" role="dialog" aria-label="Buscar y acciones">
+<div class="cmdk-back" id="cmdk" role="dialog" aria-modal="true" aria-label="Buscar y acciones">
   <div class="cmdk">
     <input id="cmdkInput" placeholder="Busca notas, fotos, listas… o escribe una acción" aria-label="Buscar">
     <ul id="cmdkList" role="listbox"></ul>

@@ -157,16 +157,18 @@
     document.querySelector(".g-backdrop")?.remove();
     const b = document.createElement("div");
     b.className = "g-backdrop";
-    b.innerHTML = `<div class="g-modal" role="dialog" aria-label="Atajos de teclado">
+    b.innerHTML = `<div class="g-modal" role="dialog" aria-modal="true" aria-label="Atajos de teclado">
       <div class="g-head"><h3>Atajos de teclado</h3><button class="icon-btn" aria-label="Cerrar">✕</button></div>
       <div class="kb-cols">${groups.map(g => `<div><h5>${g.title}</h5>${g.rows.map(([label, keys]) =>
         `<div class="kb-row"><span>${label}</span><span>${keys.split(" ").map(k => `<kbd>${k}</kbd>`).join("")}</span></div>`).join("")}</div>`).join("")}
       </div></div>`;
-    const close = () => { b.remove(); document.removeEventListener("keydown", esc, true); };
+    let release;
+    const close = () => { b.remove(); document.removeEventListener("keydown", esc, true); release(); };
     const esc = e => { if (e.key === "Escape") { e.stopPropagation(); close(); } };
     b.onclick = e => { if (e.target === b || e.target.closest(".g-head button")) close(); };
     document.addEventListener("keydown", esc, true);
     document.body.appendChild(b);
+    release = trapFocus(b.querySelector(".g-modal"));
   };
 
   window.showHelp = function (anchor, tourId, shortcuts) {

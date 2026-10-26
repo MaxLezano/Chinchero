@@ -35,7 +35,7 @@ body { overflow: hidden; user-select: none; }
 .item.multi { outline-style: dashed; }
 .item.grp { outline: none; }
 #groupBox { position: absolute; display: none; z-index: 1999999; border: calc(2px * var(--inv)) solid var(--accent); border-radius: calc(10px * var(--inv)); background: color-mix(in srgb, var(--accent) 4%, transparent); cursor: grab; }
-#groupBox span { position: absolute; left: -2px; bottom: 100%; margin-bottom: calc(4px * var(--inv)); background: var(--accent); color: #fff; font: 600 calc(11px * var(--inv)) var(--font); padding: calc(3px * var(--inv)) calc(7px * var(--inv)); border-radius: calc(5px * var(--inv)); white-space: nowrap; }
+#groupBox span { position: absolute; left: -2px; bottom: 100%; margin-bottom: calc(4px * var(--inv)); background: var(--accent); color: var(--on-accent); font: 600 calc(11px * var(--inv)) var(--font); padding: calc(3px * var(--inv)) calc(7px * var(--inv)); border-radius: calc(5px * var(--inv)); white-space: nowrap; }
 .item.thread-target { outline: calc(2px * var(--inv)) dashed var(--thread); outline-offset: 6px; }
 .item.drop-target { outline: 3px dashed var(--accent); outline-offset: 6px; }
 .item.locked { cursor: default; }
@@ -89,7 +89,7 @@ body { overflow: hidden; user-select: none; }
 .t-list li.done .task { text-decoration: line-through; color: #999; }
 .t-list .task:empty::before { content: "Nueva tarea"; opacity: .4; }
 .t-list .add-task { border: 0; background: none; color: #868e96; font-size: 12px; padding: 0; line-height: 26px; }
-.t-list .add-task:hover { color: #e8590c; }
+.t-list .add-task:hover { color: #c2410c; }
 
 .t-text { font-family: var(--font-hand); font-weight: 700; font-size: calc(54px * var(--s, 1)); line-height: 1.1; color: var(--ink); white-space: nowrap; }
 
@@ -277,3 +277,4 @@ body.exporting .ctx, body.exporting .minimap, body.exporting .hint, body.exporti
 body.exporting .toast, body.exporting #groupBox, body.exporting .handles, body.exporting .canvas-empty, body.exporting .fmt { display: none !important; }
 body.exporting .item.sel { outline: none !important; }
 body.exporting [data-tip]::after { display: none !important; }
+#canvasFocus:focus-visible + .viewport { outline: 2px solid var(--accent); outline-offset: -3px; }

@@ -39,7 +39,7 @@ document.getElementById("existing").addEventListener("click", async e => {
 document.addEventListener("keydown", e => { if (e.key === "Enter" && !e.target.matches("button")) document.getElementById("next").click(); });
 
 const themeBox = document.getElementById("themeChoices");
-const markTheme = () => themeBox.querySelectorAll(".choice").forEach(c => c.classList.toggle("selected", c.dataset.v === document.documentElement.dataset.theme));
+const markTheme = () => themeBox.querySelectorAll(".choice").forEach(c => { c.classList.toggle("selected", c.dataset.v === document.documentElement.dataset.theme); c.setAttribute("aria-pressed", c.classList.contains("selected")); });
 themeBox.onclick = e => { const c = e.target.closest(".choice"); if (c) { setPref("theme", c.dataset.v); markTheme(); } };
 markTheme();
 

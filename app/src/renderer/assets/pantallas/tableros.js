@@ -68,7 +68,8 @@ $("#search").oninput = render;
 $("#sort").onchange = render;
 $("#chips").onclick = e => {
   const b = e.target.closest(".chip"); if (!b) return;
-  $("#chips .active").classList.remove("active"); b.classList.add("active");
+  $("#chips .active").setAttribute("aria-pressed", "false"); $("#chips .active").classList.remove("active");
+  b.classList.add("active"); b.setAttribute("aria-pressed", "true");
   chip = b.dataset.f; render();
 };
 document.addEventListener("groups-changed", render);
@@ -203,16 +204,22 @@ $("#suggest").onclick = e => {
 
 /* ---------- Nuevo tablero ---------- */
 const modal = $("#modal");
-function pickOpt(box, v) { box.querySelectorAll(".opt").forEach(o => o.classList.toggle("selected", o.dataset.v === v)); }
+function pickOpt(box, v) { box.querySelectorAll(".opt").forEach(o => { o.classList.toggle("selected", o.dataset.v === v); o.setAttribute("aria-pressed", o.dataset.v === v); }); }
+let releaseModal = null;
 function openModal(template = "blank") {
   $("#groupSelect").innerHTML = lib.groups.map(g => `<option value="${g.id}" ${g.id === (groupId || lib.groups[0]?.id) ? "selected" : ""}>${esc(g.name)}</option>`).join("");
   pickOpt($("#templates"), template);
   pickOpt($("#surfaces"), getPref("surface") || "dots");
   modal.classList.add("open");
   $("#boardName").value = "Sin título";
-  $("#boardName").focus(); $("#boardName").select();
+  releaseModal ??= trapFocus($("#newForm"), $("#boardName"));
+  $("#boardName").select();
 }
-function closeModal() { modal.classList.remove("open"); }
+function closeModal() {
+  if (!modal.classList.contains("open")) return;
+  modal.classList.remove("open");
+  releaseModal?.(); releaseModal = null;
+}
 modal.onclick = e => { if (e.target === modal) closeModal(); };
 $("#cancelModal").onclick = () => closeModal();
 $("#newBtn").onclick = $("#emptyBtn").onclick = () => openModal();

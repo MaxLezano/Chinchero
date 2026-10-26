@@ -306,11 +306,13 @@
     stopEdit();
     if (!undoStack.length) return toast("No hay nada que deshacer");
     redoStack.push(snapshot()); restore(undoStack.pop()); updateUndoButtons();
+    announce("Deshecho");
   }
   function redo() {
     stopEdit();
     if (!redoStack.length) return toast("No hay nada que rehacer");
     undoStack.push(snapshot()); restore(redoStack.pop()); updateUndoButtons();
+    announce("Rehecho");
   }
   function updateUndoButtons() {
     $("#undoBtn").disabled = !undoStack.length;
@@ -554,6 +556,7 @@
     checkpoint();
     sh.threads.push(th(a, b));
     drawThreads(); saved();
+    announce(`Hilo creado entre ${describe(a)} y ${describe(b)}`);
     Tour.emit("thread");
   }
 
@@ -751,6 +754,7 @@
         if (moved === true) {
           if (getPref("snap") === "1") movers.forEach(m => { m.o.x = Math.round(m.o.x / 22) * 22; m.o.y = Math.round(m.o.y / 22) * 22; });
           render(); saved();
+          announce(movedMsg(movers.length));
           Sound.play("paper");
           Tour.emit("move");
         } else if (!moved && !shift && wasSel && selection.length > unit.length) setSel(unit);
@@ -988,6 +992,7 @@
     styleItem(el, it);
     setSel([it.id]);
     saved();
+    announce(`Añadido al lienzo: ${TYPE_NAMES[it.type]}`);
     if (it.type !== "zone" && it.type !== "draw") Sound.play(it.fix || "paper");
     Tour.emit("create:" + it.type);
     setTimeout(() => checkTips(), 300);
@@ -1554,6 +1559,7 @@
       selThread = null;
       applySelection(); saved();
       if (!quiet) toast("Hilo eliminado", "Deshacer", undo);
+      else announce("Hilo eliminado");
       return;
     }
     const ids = selection.filter(id => !byId(id)?.locked);
@@ -1562,7 +1568,9 @@
     sheet().items = sheet().items.filter(o => !ids.includes(o.id));
     selection = [];
     render(); saved();
-    if (!quiet) toast(ids.length > 1 ? `${ids.length} elementos eliminados` : "Elemento eliminado", "Deshacer", undo);
+    const msg = ids.length > 1 ? `${ids.length} elementos eliminados` : "Elemento eliminado";
+    if (!quiet) toast(msg, "Deshacer", undo);
+    else announce(msg);
     checkTips("delete");
   }
   function editThreadLabel(t, x, y) {
@@ -1589,6 +1597,7 @@
   /* ---------- Menús contextuales ---------- */
   viewport.addEventListener("contextmenu", e => {
     e.preventDefault();
+    if (Date.now() - keyMenuAt < 1000) return; // ya lo abrió keyMenu
     stopEdit();
     if (e.target.closest("#groupBox")) return itemMenu(e.clientX, e.clientY);
     const tg = e.target.closest("#threads .th");
@@ -1703,6 +1712,7 @@
     lbIdx = Math.max(0, lbList.findIndex(o => o.id === it.id));
     showLightbox();
     $("#lightbox").classList.add("open");
+    releaseLightbox ??= trapFocus($("#lightbox"), $("#lightbox .close"));
   }
   function showLightbox() {
     const o = lbList[lbIdx];
@@ -1712,7 +1722,8 @@
     $$("#lightbox .prev, #lightbox .next").forEach(b => b.hidden = lbList.length < 2);
   }
   const lbStep = d => { lbIdx = (lbIdx + d + lbList.length) % lbList.length; showLightbox(); };
-  const closeLightbox = () => $("#lightbox").classList.remove("open");
+  let releaseLightbox = null;
+  const closeLightbox = () => { $("#lightbox").classList.remove("open"); releaseLightbox?.(); releaseLightbox = null; };
   $("#lightbox").addEventListener("click", e => {
     if (e.target.closest(".prev")) return lbStep(-1);
     if (e.target.closest(".next")) return lbStep(1);
@@ -1765,6 +1776,8 @@
     const t = b.dataset.tool;
     if (t === "sticker") return openStickers();
     toolLocked = false;
+    // detail 0 = activado con teclado: no hay dónde hacer clic, así que se crea en el centro de la vista
+    if (e.detail === 0 && (CREATE.has(t) || t === "zone")) { setTool("select"); return createCenter(t); }
     setTool(t === tool && t !== "select" ? "select" : t);
   });
   $("#toolbar").addEventListener("dblclick", e => {
@@ -1826,6 +1839,7 @@
     pendingSticker = spec;
     ghost.innerHTML = kind === "img" ? `<img src="${b.dataset.src}" alt="">` : b.innerHTML;
     setTool("sticker");
+    if (e.detail === 0) createCenter("sticker"); // con teclado: se pega en el centro de la vista
   });
 
   drawPop.addEventListener("click", e => {
@@ -1840,7 +1854,7 @@
   /* ---------- Hojas ---------- */
   const sheetsEl = $("#sheets");
   function renderSheets() {
-    sheetsEl.innerHTML = doc.sheets.map((s, i) => `<button class="sheet${i === doc.active ? " active" : ""}" data-i="${i}" draggable="true" role="tab" aria-selected="${i === doc.active}" title="Doble clic para renombrar · arrastra para ordenar · clic derecho para más">
+    sheetsEl.innerHTML = doc.sheets.map((s, i) => `<button class="sheet${i === doc.active ? " active" : ""}" data-i="${i}" draggable="true" role="tab" aria-selected="${i === doc.active}" tabindex="${i === doc.active ? 0 : -1}" title="Doble clic para renombrar · arrastra para ordenar · clic derecho para más">
       <span class="sw" style="background:${NOTE_COLORS[s.color]}"></span><span class="name">${esc(s.name)}</span></button>`).join("");
   }
   function switchSheet(i) {
@@ -1852,14 +1866,24 @@
     view = sheet().view ? { ...sheet().view } : { x: 40, y: 20, z: 1 };
     applySurface(); render(); renderSheets();
     sheetsEl.children[i]?.scrollIntoView({ block: "nearest" });
+    const n = sheet().items.length;
+    announce(`Hoja «${sheet().name}», ${n} ${n === 1 ? "elemento" : "elementos"}`);
     Tour.emit("sheet");
   }
+  // Pestañas de hojas con teclado: flechas, Inicio y Fin cambian de hoja; F2 renombra
+  sheetsEl.addEventListener("keydown", e => {
+    const b = e.target.closest(".sheet");
+    if (!b || e.target.isContentEditable) return;
+    const i = { ArrowLeft: doc.active - 1, ArrowRight: doc.active + 1, Home: 0, End: doc.sheets.length - 1 }[e.key];
+    if (i !== undefined) { e.preventDefault(); switchSheet(i); sheetsEl.children[doc.active]?.focus(); }
+    else if (e.key === "F2") { e.preventDefault(); renameSheet(+b.dataset.i); }
+  });
   function renameSheet(i) {
     const n = sheetsEl.children[i]?.querySelector(".name");
     if (!n) return;
     n.contentEditable = "true"; n.focus();
     getSelection().selectAllChildren(n);
-    n.onkeydown = e => { if (e.key === "Enter" || e.key === "Escape") { e.preventDefault(); n.blur(); } };
+    n.onkeydown = e => { if (e.key === "Enter" || e.key === "Escape") { e.preventDefault(); n.blur(); sheetsEl.children[i]?.focus(); } }; // con teclado, el foco sigue en la pestaña
     n.onblur = () => {
       n.contentEditable = "false";
       const v = n.textContent.trim() || "Sin nombre";
@@ -2171,14 +2195,23 @@
       default: return "";
     }
   }
+  // Cómo se nombra un elemento al anunciarlo: tipo y su texto, abreviado
+  function describe(o) {
+    const t = (itemText(o) || "").trim();
+    return TYPE_NAMES[o.type] + (t ? ` «${t.length > 60 ? t.slice(0, 60) + "…" : t}»` : "");
+  }
+  const movedMsg = n => n > 1 ? `${n} elementos movidos` : "Elemento movido";
+
   function openCmdk() {
     stopEdit();
     cmdk.classList.add("open");
     cmdkInput.value = "";
     renderCmdk();
+    releaseCmdk ??= trapFocus(cmdk, cmdkInput);
     cmdkInput.focus();
   }
-  const closeCmdk = () => cmdk.classList.remove("open");
+  let releaseCmdk = null;
+  const closeCmdk = () => { cmdk.classList.remove("open"); releaseCmdk?.(); releaseCmdk = null; };
   function goToItem(si, id) {
     switchSheet(si);
     const it = byId(id);
@@ -2264,6 +2297,8 @@
 
   /* ---------- Teclado ---------- */
   const TOOL_KEYS = { v: "select", n: "note", f: "card", c: "list", t: "text", i: "image", k: "link", a: "file", s: "sticker", z: "zone", d: "draw", l: "thread" };
+  const NATIVE_KEYS = new Set([" ", "Enter", "Tab", "Delete", "Backspace", "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "F2"]);
+  let nudgeTimer;
   function nudge(dx, dy) {
     const its = selection.map(byId).filter(o => o && !o.locked);
     if (!its.length) return;
@@ -2271,15 +2306,37 @@
     lastNudge = Date.now();
     its.forEach(o => { o.x += dx; o.y += dy; });
     render(); saved();
+    clearTimeout(nudgeTimer);
+    nudgeTimer = setTimeout(() => announce(movedMsg(its.length)), 500);
   }
+  // Tab recorre los elementos de arriba abajo; pasado el último (o antes del primero) devuelve false
+  // y el foco sale del lienzo hacia el resto de la interfaz, para no quedar atrapado
   function cycleSelection(back) {
     const its = [...sheet().items].filter(o => o.type !== "zone").sort((a, b) => a.y - b.y || a.x - b.x);
-    if (!its.length) return;
     const cur = its.findIndex(o => o.id === selection[0]);
-    const next = its[(cur + (back ? -1 : 1) + its.length) % its.length];
+    const i = cur < 0 ? (back ? its.length - 1 : 0) : cur + (back ? -1 : 1);
+    const next = its[i];
+    if (!next) { setSel([]); return false; }
     setSel([next.id]);
+    $("#canvasFocus").focus({ preventScroll: true });
     const r = elOf(next.id).getBoundingClientRect(), vr = viewport.getBoundingClientRect();
     if (r.right < vr.left || r.left > vr.right || r.bottom < vr.top || r.top > vr.bottom) centerOn(next);
+    announce(`${describe(next)}, ${i + 1} de ${its.length}${next.locked ? ", bloqueado" : ""}`);
+    return true;
+  }
+
+  // Menú contextual con teclado (tecla Menú o Mayús+F10): junto a lo seleccionado o en el centro de la vista
+  let keyMenuAt = 0;
+  function keyMenu() {
+    keyMenuAt = Date.now();
+    stopEdit();
+    const vr = viewport.getBoundingClientRect(), cx = vr.left + vr.width / 2, cy = vr.top + vr.height / 2;
+    if (selThread) return threadMenu(cx, cy);
+    if (selection.length) {
+      const r = elOf(selection[0]).getBoundingClientRect();
+      return itemMenu(r.left + r.width / 2, r.top + Math.min(r.height / 2, 40));
+    }
+    canvasMenu(cx, cy, viewCenter());
   }
 
   document.addEventListener("keydown", e => {
@@ -2291,6 +2348,9 @@
     }
     if (editing || e.target.isContentEditable || e.target.matches("input, textarea, select") || cmdk.classList.contains("open") || $(".g-backdrop")) return;
     const k = e.key.toLowerCase(), mod = e.ctrlKey || e.metaKey;
+    // Con el foco en un botón, enlace o pestaña, estas teclas hacen lo suyo y no actúan sobre el lienzo
+    const onControl = e.target.id !== "canvasFocus" && e.target.matches("button, a, [tabindex], [role=tab]");
+    if (onControl && !mod && NATIVE_KEYS.has(e.key)) return;
 
     if (e.key === " ") { e.preventDefault(); if (!spaceDown) { spaceDown = true; viewport.classList.add("space"); } return; }
     if (mod && k === "z") { e.preventDefault(); return e.shiftKey ? redo() : undo(); }
@@ -2306,6 +2366,7 @@
     if (mod && e.shiftKey && k === "l") { e.preventDefault(); return toggleLock(); }
     if (mod && k === "0") { e.preventDefault(); return zoomAt(viewport.clientWidth / 2, viewport.clientHeight / 2, 1); }
     if (mod && (e.key === "PageUp" || e.key === "PageDown")) { e.preventDefault(); return switchSheet(doc.active + (e.key === "PageUp" ? -1 : 1)); }
+    if (e.key === "ContextMenu" || (e.shiftKey && e.key === "F10")) { e.preventDefault(); return keyMenu(); }
     if (mod || e.altKey) return;
 
     if (e.key === "?") return showShortcuts(SHORTCUTS);
@@ -2318,7 +2379,7 @@
     }
     if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); return deleteSel(); }
     if ((e.key === "Enter" || e.key === "F2") && selection.length === 1) { e.preventDefault(); return edit(byId(selection[0]), null, "end"); }
-    if (e.key === "Tab") { e.preventDefault(); return cycleSelection(e.shiftKey); }
+    if (e.key === "Tab") { if (cycleSelection(e.shiftKey)) e.preventDefault(); return; }
     const arrows = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
     if (arrows[e.key] && selection.length) { e.preventDefault(); const [dx, dy] = arrows[e.key], f = e.shiftKey ? 10 : 1; return nudge(dx * f, dy * f); }
     if (TOOL_KEYS[k] && !e.shiftKey) { toolLocked = false; setTool(TOOL_KEYS[k]); }
@@ -2352,7 +2413,7 @@
   /* ---------- Atajos y tutorial ---------- */
   const SHORTCUTS = [
     { title: "Herramientas", rows: [["Seleccionar", "V"], ["Nota / Ficha / Lista / Texto", "N F C T"], ["Imagen / Enlace / Archivo", "I K A"], ["Stickers / Zona / Dibujo", "S Z D"], ["Hilo", "L"], ["Dejar herramienta fija", "Doble-clic"]] },
-    { title: "Edición", rows: [["Deshacer / Rehacer", "Ctrl+Z Ctrl+Y"], ["Copiar / Cortar / Pegar", "Ctrl+C Ctrl+X Ctrl+V"], ["Duplicar", "Ctrl+D"], ["Duplicar arrastrando", "Alt+arrastrar"], ["Editar seleccionado", "Enter"], ["Seleccionar todo", "Ctrl+A"], ["Seleccionar con recuadro", "Shift+arrastrar"], ["Agrupar / Desagrupar", "Ctrl+G Ctrl+U"], ["Pegar imagen sin marco", "Ctrl+Shift+V"], ["Elegir uno dentro de un grupo", "Ctrl+clic"], ["Añadir a la selección", "Shift+clic"], ["Mover 1 px / 10 px", "Flechas Shift+Flechas"], ["Siguiente elemento", "Tab"], ["Al frente / al fondo", "Ctrl+] Ctrl+["], ["Bloquear", "Ctrl+Shift+L"], ["Eliminar", "Supr"]] },
+    { title: "Edición", rows: [["Deshacer / Rehacer", "Ctrl+Z Ctrl+Y"], ["Copiar / Cortar / Pegar", "Ctrl+C Ctrl+X Ctrl+V"], ["Duplicar", "Ctrl+D"], ["Duplicar arrastrando", "Alt+arrastrar"], ["Editar seleccionado", "Enter"], ["Seleccionar todo", "Ctrl+A"], ["Seleccionar con recuadro", "Shift+arrastrar"], ["Agrupar / Desagrupar", "Ctrl+G Ctrl+U"], ["Pegar imagen sin marco", "Ctrl+Shift+V"], ["Elegir uno dentro de un grupo", "Ctrl+clic"], ["Añadir a la selección", "Shift+clic"], ["Mover 1 px / 10 px", "Flechas Shift+Flechas"], ["Siguiente / anterior elemento", "Tab Shift+Tab"], ["Opciones del elemento", "Shift+F10"], ["Al frente / al fondo", "Ctrl+] Ctrl+["], ["Bloquear", "Ctrl+Shift+L"], ["Eliminar", "Supr"]] },
     { title: "Vista", rows: [["Buscar y acciones", "Ctrl+K"], ["Mover lienzo", "Arrastrar-fondo"], ["Zoom", "Rueda"], ["Desplazar en horizontal", "Shift+rueda"], ["Zoom 100% / Ajustar", "Ctrl+0 Shift+1"], ["Hoja anterior / siguiente", "Ctrl+PgUp Ctrl+PgDn"]] },
     { title: "Chinches e hilos", rows: [["Tender un hilo", "Arrastrar-chinche"], ["Mover la chinche", "Shift+arrastrar"], ["Etiqueta del hilo", "Doble-clic"], ["Girar", "Arrastrar-junto-a-una-esquina"], ["Girar de 15° en 15°", "Shift+girar"]] },
   ];

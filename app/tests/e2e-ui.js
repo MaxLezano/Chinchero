@@ -374,6 +374,79 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     await q.close();
   }
 
+  // Accesibilidad: anuncios con aria-live, teclado en el lienzo, menús y diálogos, contraste de los tokens
+  {
+    const q = await open("02-tablero.html?template=blank&name=A11y", { prefs: NO_TOURS });
+    const live = () => q.evaluate(() => document.getElementById("srLive")?.textContent || "");
+    ok("a11y: región aria-live presente", await q.evaluate(() => document.getElementById("srLive")?.getAttribute("aria-live") === "polite"));
+    // Enter sobre una herramienta crea en el centro de la vista
+    await q.focus('[data-tool="note"]'); await q.keyboard.press("Enter"); await sleep(250);
+    ok("a11y: Enter en «Nota» crea una nota y se anuncia", await q.evaluate(() => document.querySelectorAll("#items .t-note").length === 1) && (await live()) === "Añadido al lienzo: Nota", await live());
+    await q.keyboard.type("Primera"); await q.keyboard.press("Escape"); await sleep(100);
+    await q.focus('[data-tool="note"]'); await q.keyboard.press(" "); await sleep(250);
+    await q.keyboard.type("Segunda"); await q.keyboard.press("Escape"); await sleep(100);
+    ok("a11y: Espacio en un botón lo activa (no mueve el lienzo)", await q.evaluate(() => document.querySelectorAll("#items .t-note").length === 2 && !document.querySelector("#viewport.space")));
+    // Tab recorre los elementos y, pasado el último, sale del lienzo
+    await q.evaluate(() => { document.querySelector("#canvasFocus").focus(); });
+    await q.keyboard.press("Escape");
+    await q.keyboard.press("Tab"); await sleep(150);
+    ok("a11y: Tab selecciona y anuncia el elemento", /^Nota «(Primera|Segunda)», 1 de 2$/.test(await live()), await live());
+    const x0 = await q.evaluate(() => parseFloat(document.querySelector("#items .item.sel").style.left));
+    await q.keyboard.press("ArrowRight"); await q.keyboard.press("ArrowRight"); await sleep(700);
+    ok("a11y: flechas mueven y se anuncia al terminar", await q.evaluate(() => parseFloat(document.querySelector("#items .item.sel").style.left)) === x0 + 2 && (await live()) === "Elemento movido", await live());
+    // Menú contextual con Mayús+F10: foco en la primera opción, flechas, Esc devuelve el foco al lienzo
+    await q.keyboard.down("Shift"); await q.keyboard.press("F10"); await q.keyboard.up("Shift"); await sleep(150);
+    ok("a11y: Mayús+F10 abre el menú con el foco dentro", await q.evaluate(() => document.activeElement.getAttribute("role") === "menuitem"));
+    const first = await q.evaluate(() => document.activeElement.textContent);
+    await q.keyboard.press("ArrowDown");
+    ok("a11y: flechas recorren el menú", await q.evaluate(f => document.activeElement.getAttribute("role") === "menuitem" && document.activeElement.textContent !== f, first));
+    await q.keyboard.press("Escape"); await sleep(100);
+    ok("a11y: Esc cierra el menú y devuelve el foco", await q.evaluate(() => !document.querySelector(".menu") && document.activeElement.id === "canvasFocus" && !!document.querySelector("#items .item.sel")));
+    await q.keyboard.press("Tab"); await q.keyboard.press("Tab"); await sleep(100);
+    ok("a11y: pasado el último elemento, Tab sale del lienzo", await q.evaluate(() => document.activeElement.id !== "canvasFocus" && !document.querySelector("#items .item.sel")));
+    await q.focus("#canvasFocus"); await q.keyboard.press("Tab"); await q.keyboard.press("Delete"); await sleep(150);
+    ok("a11y: eliminar se anuncia", (await live()) === "Elemento eliminado", await live());
+    await q.keyboard.down("Control"); await q.keyboard.press("z"); await q.keyboard.up("Control"); await sleep(150);
+    ok("a11y: deshacer se anuncia", (await live()) === "Deshecho", await live());
+    // Pestañas de hojas con flechas
+    await q.click("#addSheet"); await sleep(200);
+    await q.keyboard.press("Enter"); await q.keyboard.press("ArrowLeft"); await sleep(150); // Enter termina de renombrar
+    ok("a11y: flechas cambian de hoja y se anuncia", await q.evaluate(() => document.activeElement.matches("#sheets .sheet.active[data-i='0']")) && /^Hoja «.+», 2 elementos$/.test(await live()), await live());
+    // Ctrl+K: Tab no se escapa del diálogo y al cerrar vuelve el foco
+    await q.focus("#canvasFocus");
+    await q.keyboard.down("Control"); await q.keyboard.press("k"); await q.keyboard.up("Control"); await sleep(150);
+    await q.keyboard.press("Tab"); await q.keyboard.press("Tab");
+    ok("a11y: Ctrl+K retiene el foco", await q.evaluate(() => document.getElementById("cmdk").contains(document.activeElement)));
+    await q.keyboard.press("Escape"); await sleep(100);
+    ok("a11y: al cerrar Ctrl+K vuelve el foco al lienzo", await q.evaluate(() => document.activeElement.id === "canvasFocus"));
+    await q.close();
+  }
+  {
+    const q = await open("01-tableros.html", { prefs: NO_TOURS });
+    await q.focus("#newBtn"); await q.keyboard.press("Enter"); await sleep(200);
+    for (let i = 0; i < 3; i++) await q.keyboard.down("Shift"), await q.keyboard.press("Tab"), await q.keyboard.up("Shift");
+    ok("a11y: el modal de nuevo tablero retiene el foco", await q.evaluate(() => document.getElementById("newForm").contains(document.activeElement)));
+    ok("a11y: plantilla elegida marcada con aria-pressed", await q.evaluate(() => document.querySelector("#templates .selected").getAttribute("aria-pressed") === "true"));
+    await q.keyboard.press("Escape"); await sleep(100);
+    ok("a11y: al cerrar el modal vuelve el foco al botón", await q.evaluate(() => document.activeElement.id === "newBtn"));
+    // Contraste WCAG AA (4,5:1) de los tokens de texto en ambos temas
+    const ratios = await q.evaluate(() => {
+      const lum = c => { const [r, g, b] = c.match(/\d+/g).map(v => +v / 255).map(v => v <= .03928 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4); return .2126 * r + .7152 * g + .0722 * b; };
+      const rgb = v => { const d = document.createElement("div"); d.style.color = v; document.body.append(d); const c = getComputedStyle(d).color; d.remove(); return c; };
+      const ratio = (a, b) => { const x = lum(rgb(a)), y = lum(rgb(b)); return (Math.max(x, y) + .05) / (Math.min(x, y) + .05); };
+      const out = {};
+      for (const t of ["light", "dark"]) {
+        document.documentElement.dataset.theme = t;
+        const v = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+        out[t] = Math.min(...[["--text-muted", "--bg"], ["--text-muted", "--surface"], ["--text-muted", "--surface-2"], ["--on-accent", "--accent"], ["--accent", "--surface"], ["--danger", "--surface"], ["--accent-inv", "--text"]]
+          .map(([a, b]) => ratio(v(a), v(b))));
+      }
+      return out;
+    });
+    ok("a11y: contraste AA en tema claro y oscuro", ratios.light >= 4.5 && ratios.dark >= 4.5, JSON.stringify(ratios));
+    await q.close();
+  }
+
   // Seguridad: CSP en cada pantalla y valores del modelo escapados (colores, ids, trazos, emoji) aunque no vengan de un .chinchero
   {
     const q = await open("01-tableros.html", { prefs: NO_TOURS });

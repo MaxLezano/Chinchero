@@ -114,9 +114,9 @@
     <button class="btn btn-primary" id="newBtn"><svg class="icon"><use href="#i-plus"/></svg>Nuevo tablero</button>
   </div>
   <div class="subbar" id="chips">
-    <button class="chip active" data-f="all">Todos</button>
-    <button class="chip" data-f="today">Editados hoy</button>
-    <button class="chip" data-f="img">Con imágenes</button>
+    <button class="chip active" data-f="all" aria-pressed="true">Todos</button>
+    <button class="chip" data-f="today" aria-pressed="false">Editados hoy</button>
+    <button class="chip" data-f="img" aria-pressed="false">Con imágenes</button>
     <label class="sort">Ordenar <select id="sort" aria-label="Ordenar tableros"><option value="date">Última edición</option><option value="name">Nombre</option></select></label>
   </div>
 
@@ -132,7 +132,7 @@
 </main>
 
 <div class="backdrop" id="modal">
-  <form class="modal" id="newForm" role="dialog" aria-labelledby="newTitle">
+  <form class="modal" id="newForm" role="dialog" aria-modal="true" aria-labelledby="newTitle">
     <h2 id="newTitle">Nuevo tablero</h2>
     <div class="field"><label for="boardName">Nombre</label><input id="boardName" value="Sin título" required></div>
     <div class="field"><label for="groupSelect">Grupo</label><select id="groupSelect"></select></div>
