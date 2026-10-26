@@ -7,14 +7,17 @@ const store = require("./store");
 const updater = require("./updater");
 
 const RENDERER = path.join(__dirname, "..", "renderer");
-const RENDERER_URL = pathToFileURL(RENDERER).toString() + "/";
-let win = null;
+// Las pantallas se sirven con un esquema propio (no file://): así file:// no necesita privilegios extra para leer el asar
+const RENDERER_URL = "chinchero://app/";
+const screen = (name, query) => RENDERER_URL + name + (query ? "?" + new URLSearchParams(query) : "");
+let win = null, started = false;
 
 // Desarrollo y pruebas: perfil aislado (no toca la instalación real del usuario)
 if (process.env.CHINCHERO_USER_DATA) app.setPath("userData", process.env.CHINCHERO_USER_DATA);
 
 // Imágenes y archivos guardados en la carpeta de datos se sirven con un esquema propio (nunca file:// arbitrario)
 protocol.registerSchemesAsPrivileged([
+  { scheme: "chinchero", privileges: { standard: true, secure: true, supportFetchAPI: true } },
   { scheme: "chinchero-media", privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } },
 ]);
 
@@ -32,7 +35,7 @@ app.on("second-instance", (e, argv) => {
   if (!win) return;
   if (win.isMinimized()) win.restore();
   win.focus();
-  if (queueOpen(argv)) win.loadFile(path.join(RENDERER, "01-tableros.html"), { query: { abrir: "1" } });
+  if (queueOpen(argv)) win.loadURL(screen("01-tableros.html", { abrir: "1" }));
 });
 
 function createWindow() {
@@ -76,15 +79,56 @@ function createWindow() {
     return { action: "deny" };
   });
 
-  if (opened.length) return win.loadFile(path.join(RENDERER, "01-tableros.html"), { query: { abrir: "1" } });
-  const start = cfg.firstRunDone ? "01-tableros.html" : "00-bienvenida.html";
-  win.loadFile(path.join(RENDERER, start));
+  if (opened.length) return win.loadURL(screen("01-tableros.html", { abrir: "1" }));
+  win.loadURL(screen(cfg.firstRunDone ? "01-tableros.html" : "00-bienvenida.html"));
 }
 
-app.whenReady().then(() => {
+// Hasta la 0.2 las pantallas eran file:// y las preferencias (tema, atajos, tutoriales…) quedaron en el localStorage
+// de ese origen. La primera vez se copian al de chinchero://app: una ventana oculta carga una página file:// vacía,
+// las lee con el protocolo de DevTools y luego las escribe en la raíz del esquema propio (una página vacía, sin scripts).
+// Necesita el fuse grantFileProtocolExtraPrivileges (sin él, file:// no tiene localStorage): ver electron-builder.yml
+async function migrateFileStorage() {
+  if (store.config.get().storageMigrated) return;
+  if (fs.existsSync(path.join(app.getPath("userData"), "Local Storage"))) {
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "chinchero-prefs-"));
+    const w = new BrowserWindow({ show: false, webPreferences: { sandbox: true, contextIsolation: true } });
+    try {
+      fs.writeFileSync(path.join(tmp, "leer.html"), `<!doctype html><meta http-equiv="Content-Security-Policy" content="default-src 'none'"><title>Chinchero</title>`);
+      await w.loadFile(path.join(tmp, "leer.html"));
+      const dbg = w.webContents.debugger;
+      dbg.attach("1.3");
+      let entries = [];
+      try {
+        await dbg.sendCommand("DOMStorage.enable");
+        ({ entries } = await dbg.sendCommand("DOMStorage.getDOMStorageItems", { storageId: { storageKey: "file:///", isLocalStorage: true } }));
+      } finally { dbg.detach(); }
+      const prefs = entries.filter(([k, v]) => typeof k === "string" && typeof v === "string" && k.startsWith("chinchero-"));
+      if (prefs.length) {
+        await w.loadURL(RENDERER_URL);
+        await w.webContents.executeJavaScript(`${JSON.stringify(prefs)}.forEach(([k, v]) => { if (localStorage.getItem(k) === null) localStorage.setItem(k, v); }); true`);
+      }
+    } finally {
+      w.destroy();
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  }
+  store.config.set({ storageMigrated: true });
+}
+
+app.whenReady().then(async () => {
   // La app no usa cámara, micrófono, notificaciones ni nada que pida permiso: se niega todo
   session.defaultSession.setPermissionRequestHandler((wc, permission, cb) => cb(false));
   session.defaultSession.setPermissionCheckHandler(() => false);
+  // chinchero://app/<pantalla o recurso>: solo archivos dentro de renderer/; la raíz es una página vacía (la usa la migración)
+  protocol.handle("chinchero", req => {
+    const u = new URL(req.url);
+    const rel = decodeURIComponent(u.pathname).replace(/^\/+/, "");
+    if (u.host === "app" && !rel) return new Response(`<!doctype html><meta http-equiv="Content-Security-Policy" content="default-src 'none'"><title>Chinchero</title>`, { headers: { "content-type": "text/html; charset=utf-8" } });
+    const file = path.join(RENDERER, rel);
+    return u.host === "app" && file.startsWith(RENDERER + path.sep) && fs.existsSync(file)
+      ? net.fetch(pathToFileURL(file).toString())
+      : new Response("No encontrado", { status: 404 });
+  });
   protocol.handle("chinchero-media", req => {
     const u = new URL(req.url);
     const file = u.host === "thumbs" ? store.thumbFile(decodeURIComponent(u.pathname)) : store.mediaFile(req.url);
@@ -93,11 +137,14 @@ app.whenReady().then(() => {
       : new Response("No encontrado", { status: 404 });
   });
   try { store.autoBackup(); } catch (e) { console.error("Copia automática:", e); }
+  try { await migrateFileStorage(); } catch (e) { console.error("Migrar preferencias:", e); }
   createWindow();
+  started = true;
   updater.init(() => win);
 });
 
-app.on("window-all-closed", () => app.quit());
+// Solo cuenta la ventana principal: las ocultas (migración, PDF) se cierran antes de que exista
+app.on("window-all-closed", () => { if (started) app.quit(); });
 
 /* ---------- IPC ----------
    Lecturas síncronas (la app las necesita al cargar cada pantalla y son JSON pequeños);
@@ -216,6 +263,23 @@ handle("open:media", url => is.str(url) && url.startsWith("chinchero-media://"),
 
 // Captura un rectángulo de la ventana (px CSS); el editor la usa por partes para armar la hoja entera
 handle("capture:rect", is.rect, async (e, rect) => (await win.webContents.capturePage(roundRect(rect))).toPNG());
+// Mientras el editor recorre la hoja por partes, una ventana hija sin marco tapa el contenido con una imagen
+// fija de cómo se veía, así no se ve el lienzo moverse. capturePage lee la página, no lo que hay encima
+let cover = null;
+handle("capture:cover", v => typeof v === "boolean", async (e, on) => {
+  if (cover) { cover.destroy(); cover = null; }
+  if (!on) return true;
+  const shot = (await win.webContents.capturePage()).toDataURL();
+  const b = win.getContentBounds();
+  cover = new BrowserWindow({
+    parent: win, ...b, frame: false, resizable: false, movable: false, minimizable: false, maximizable: false,
+    focusable: false, skipTaskbar: true, show: false, webPreferences: { sandbox: true, contextIsolation: true, javascript: false },
+  });
+  cover.webContents.on("will-navigate", ev => ev.preventDefault());
+  await cover.loadURL("data:text/html;charset=utf-8," + encodeURIComponent(`<!doctype html><style>html,body{margin:0;height:100%;overflow:hidden;background:url(${shot}) 0 0/100% 100%}b{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);font:600 14px "Segoe UI",sans-serif;color:#fff;background:rgba(20,20,20,.85);padding:10px 18px;border-radius:99px}</style><b>Exportando…</b>`));
+  cover.showInactive();
+  return true;
+});
 
 // Pregunta dónde guardar (en pruebas, CHINCHERO_EXPORT_DIR guarda directo sin diálogo)
 async function savePath(title, name, ext, filter, folder) {

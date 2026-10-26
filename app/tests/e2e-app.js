@@ -33,7 +33,7 @@ async function launch() {
     try { browser = await puppeteer.connect({ browserURL: "http://127.0.0.1:9333", defaultViewport: null }); } catch (e) {}
   }
   let page;
-  for (let i = 0; i < 20 && !page; i++) { page = (await browser.pages()).find(p => p.url().startsWith("file:")); if (!page) await sleep(300); }
+  for (let i = 0; i < 20 && !page; i++) { page = (await browser.pages()).find(p => p.url().startsWith("chinchero:")); if (!page) await sleep(300); }
   page.on("pageerror", e => log.push("PAGEERROR " + e.message));
   page.on("console", m => { if (m.type() === "error") log.push("console.error " + m.text()); });
   return { proc, browser, page };
@@ -43,6 +43,8 @@ delete process.env.ELECTRON_RUN_AS_NODE;
 (async () => {
   // 1) Primer inicio → Bienvenida
   let { proc, browser, page } = await launch();
+  // Espera (hasta 4 s) un toast con ese texto: leerlo una sola vez fallaba a veces si tardaba un poco más
+  const toast = text => page.waitForFunction(t => [...document.querySelectorAll(".toast")].some(e => e.textContent.includes(t)), { timeout: 4000 }, text).then(() => true, () => false);
   await sleep(1200);
   ok("primer inicio abre la bienvenida", page.url().includes("00-bienvenida"), page.url());
   ok("API nativa disponible", await page.evaluate(() => !!window.chinchero && Store.native));
@@ -97,6 +99,17 @@ delete process.env.ELECTRON_RUN_AS_NODE;
   const pw = ihdr ? ihdr.readUInt32BE(16) : 0, ph = ihdr ? ihdr.readUInt32BE(20) : 0;
   const vw = await page.evaluate(() => document.getElementById("viewport").clientWidth * devicePixelRatio);
   ok("PNG de la hoja entera a 2x (más grande que la pantalla)", pw > vw * 2, `${pw}×${ph}, lienzo ${vw}px`);
+  // Cada mosaico se captura con su parte de la hoja aunque la ventana que tapa el lienzo esté encima:
+  // la nota de arriba a la izquierda y la de abajo a la derecha salen en su cuarto del PNG
+  const notas = ihdr ? await page.evaluate(async b64 => {
+    const bmp = await createImageBitmap(new Blob([Uint8Array.from(atob(b64), c => c.charCodeAt(0))], { type: "image/png" }));
+    const c = new OffscreenCanvas(bmp.width, bmp.height), g = c.getContext("2d");
+    g.drawImage(bmp, 0, 0);
+    const amarillo = (x, y, w, h) => { const d = g.getImageData(x, y, w, h).data; let n = 0; for (let i = 0; i < d.length; i += 4) if (d[i] > 230 && d[i + 1] > 200 && d[i + 2] < 140) n++; return n; };
+    const W = bmp.width, H = bmp.height;
+    return [amarillo(0, 0, W / 2, H / 2), amarillo(W / 2, H / 2, W / 2, H / 2)];
+  }, ihdr.toString("base64")) : [0, 0];
+  ok("el PNG tiene la nota de cada esquina (los mosaicos no se repiten)", notas[0] > 5000 && notas[1] > 5000, notas.join(" / "));
   ok("la interfaz vuelve a la normalidad tras exportar", await page.evaluate(() => !document.body.classList.contains("exporting")));
   await page.click("#addSheet"); await sleep(400);
   await page.keyboard.press("Enter"); await sleep(200); // la hoja nueva empieza renombrándose
@@ -116,10 +129,31 @@ delete process.env.ELECTRON_RUN_AS_NODE;
   const nCards = await page.$$eval("#grid > a.card", c => c.length); ok("la pantalla de tableros lista 2 tarjetas", nCards === 2, "tarjetas=" + nCards);
   await page.screenshot({ path: `${SHOTS}/a2-boards.png` });
 
-  // 5) Cerrar y reabrir: vuelve al último tablero con el contenido
+  // 5) Cerrar y reabrir: vuelve al último tablero con el contenido.
+  // Antes, una preferencia en el localStorage de file:// (donde las guardaba la 0.2) debe pasar a chinchero://app
+  const appUrl = page.url();
+  await page.evaluate(() => localStorage.setItem("chinchero-theme", "light"));
+  const viejas = { "chinchero-migracion": "de file://", "chinchero-theme": "no-pisa" };
+  const OLD = path.join(TMP, "viejo.html");
+  fs.writeFileSync(OLD, "<!doctype html><title>viejo</title>");
+  await page.goto(require("url").pathToFileURL(OLD).href);
+  // Como la 0.2: la página file:// escribe en su localStorage
+  await page.evaluate(v => Object.entries(v).forEach(([k, x]) => localStorage.setItem(k, x)), viejas);
+  await page.goto(appUrl);
+  await sleep(1500);
+  const CONFIG = path.join(TMP, "user", "config.json");
+  const cfg = JSON.parse(fs.readFileSync(CONFIG, "utf8")); delete cfg.storageMigrated;
   await browser.disconnect(); proc.kill(); await sleep(1500);
+  fs.writeFileSync(CONFIG, JSON.stringify(cfg));
   ({ proc, browser, page } = await launch());
   await sleep(1800);
+  ok("las preferencias de file:// pasan a chinchero://app sin pisar las nuevas", await page.evaluate(() => localStorage.getItem("chinchero-migracion") === "de file://" && localStorage.getItem("chinchero-theme") !== "no-pisa") && JSON.parse(fs.readFileSync(CONFIG, "utf8")).storageMigrated === true);
+  const beforeFetch = log.length; // los 404 de esta prueba son esperados
+  ok("chinchero://app solo sirve archivos de las pantallas", await page.evaluate(async () => {
+    const st = async u => { try { return (await fetch(u)).status; } catch { return 0; } };
+    return [await st("chinchero://app/assets/theme.css"), await st("chinchero://app/%2e%2e/main/main.js"), await st("chinchero://app/..%2fmain%2fmain.js")];
+  }).then(r => r[0] === 200 && r[1] === 404 && r[2] === 404));
+  for (let i = log.length - 1; i >= beforeFetch; i--) if (log[i].includes("404 (Not Found)")) log.splice(i, 1);
   ok("al reabrir vuelve al último tablero", page.url().includes("02-tablero.html?board=" + boardId), page.url());
   ok("el contenido persiste tras reiniciar", await page.evaluate(() => document.body.innerText.includes("Nota guardada en disco")));
   await page.screenshot({ path: `${SHOTS}/a3-reopen.png` });
@@ -140,7 +174,7 @@ delete process.env.ELECTRON_RUN_AS_NODE;
   fs.writeFileSync(file, "{ esto no es JSON");
   await page.goto(page.url().replace(/04-papelera\.html.*/, "02-tablero.html?board=" + boardId)); await sleep(1200);
   ok("un tablero dañado se recupera de la copia automática", await page.evaluate(() => document.body.innerText.includes("Nota guardada en disco")));
-  ok("avisa que lo recuperó", await page.evaluate(() => document.querySelector(".toast")?.textContent.includes("lo recuperamos")));
+  ok("avisa que lo recuperó", await toast("lo recuperamos"));
   ok("el archivo dañado queda apartado", fs.readdirSync(path.join(DATA, "boards")).some(n => n.includes(".corrupto-")));
 
   // Liberar espacio: un archivo sin usar y su miniatura se borran; lo que usa un tablero o una copia de backups/ se conserva
@@ -158,7 +192,7 @@ delete process.env.ELECTRON_RUN_AS_NODE;
   page.once("dialog", d => d.accept());
   await page.evaluate(() => document.getElementById("cleanBtn").click()); await sleep(800);
   const left = fs.readdirSync(MEDIA);
-  ok("«Liberar espacio» borra el archivo sin usar y su miniatura", !left.includes("sinusar0001.png") && !fs.existsSync(path.join(MEDIA, "thumbs", "sinusar0001.jpg")) && await page.evaluate(() => document.querySelector(".toast")?.textContent.includes("Espacio liberado: 301 KB")), left.join(","));
+  ok("«Liberar espacio» borra el archivo sin usar y su miniatura", !left.includes("sinusar0001.png") && !fs.existsSync(path.join(MEDIA, "thumbs", "sinusar0001.jpg")) && await toast("Espacio liberado: 301 KB"), left.join(","));
   ok("«Liberar espacio» conserva lo que usan los tableros y las copias", inUse.length > 0 && inUse.every(n => left.includes(n)) && left.includes("encopia0001.pdf") && await page.evaluate(() => document.getElementById("cleanBtn").disabled && document.getElementById("unused").textContent.startsWith("No hay nada que borrar")));
   fs.rmSync(path.join(DATA, "backups", "prueba-copia.zip"));
   await page.evaluate(() => document.getElementById("backupBtn").click());
@@ -172,7 +206,7 @@ delete process.env.ELECTRON_RUN_AS_NODE;
   await Promise.all([page.waitForNavigation(), page.evaluate(() => document.getElementById("restoreBtn").click())]);
   await sleep(900);
   ok("restaurar vuelve a los tableros de la copia", (await page.$$eval("#grid > a.card", c => c.length)) === 1);
-  ok("avisa que restauró", await page.evaluate(() => document.querySelector(".toast")?.textContent.includes("Copia restaurada")));
+  ok("avisa que restauró", await toast("Copia restaurada"));
   ok("antes de restaurar guarda el estado actual", fs.readdirSync(path.join(DATA, "backups")).some(n => n.startsWith("antes-de-restaurar-")));
   await page.screenshot({ path: `${SHOTS}/a5-restored.png` });
 
@@ -180,7 +214,7 @@ delete process.env.ELECTRON_RUN_AS_NODE;
   await page.goto(page.url().replace(/01-tableros\.html.*/, "03-ajustes.html")); await sleep(800);
   page.once("dialog", d => d.accept());
   await page.evaluate(() => document.getElementById("restoreBtn").click()); await sleep(600);
-  ok("un archivo que no es copia se rechaza sin tocar nada", await page.evaluate(() => document.querySelector(".toast")?.textContent.includes("No se pudo restaurar")) && fs.existsSync(file));
+  ok("un archivo que no es copia se rechaza sin tocar nada", await toast("No se pudo restaurar") && fs.existsSync(file));
 
   // 8) Compartir un tablero: exportar a .chinchero e importarlo (botón, archivo dañado, contenido peligroso, doble clic)
   await page.goto(page.url().replace(/03-ajustes\.html.*/, "01-tableros.html?view=recent")); await sleep(800);
@@ -198,7 +232,7 @@ delete process.env.ELECTRON_RUN_AS_NODE;
   const libImp = JSON.parse(fs.readFileSync(path.join(DATA, "library.json"), "utf8"));
   const imported = libImp.boards.find(b => b.id !== boardId);
   ok("«Importar tablero» crea un tablero nuevo con otro id", libImp.boards.length === 2 && imported?.name === sharedPkg.board.name && fs.existsSync(path.join(DATA, "boards", imported.id + ".json")), libImp.boards.map(b => b.id).join(","));
-  ok("avisa que lo importó y ofrece abrirlo", await page.evaluate(() => document.querySelector(".toast")?.textContent.includes("importadoAbrir")));
+  ok("avisa que lo importó y ofrece abrirlo", await toast("importadoAbrir"));
   ok("las imágenes del tablero importado se copian a media/", fs.existsSync(path.join(DATA, "media")) && fs.readdirSync(path.join(DATA, "media")).length === sharedMedia.length);
   await page.screenshot({ path: `${SHOTS}/a6-imported.png` });
   await Promise.all([page.waitForNavigation(), page.evaluate(() => document.querySelector(".toast button").click())]);
@@ -208,7 +242,7 @@ delete process.env.ELECTRON_RUN_AS_NODE;
   fs.writeFileSync(IMPORT, "no es un tablero");
   await page.goto(page.url().replace(/02-tablero\.html.*/, "01-tableros.html?view=recent")); await sleep(800);
   await page.click("#importBtn"); await sleep(600);
-  ok("un archivo que no es un tablero se rechaza", await page.evaluate(() => document.querySelector(".toast")?.textContent.includes("No se pudo importar")) && JSON.parse(fs.readFileSync(path.join(DATA, "library.json"), "utf8")).boards.length === 2);
+  ok("un archivo que no es un tablero se rechaza", await toast("No se pudo importar") && JSON.parse(fs.readFileSync(path.join(DATA, "library.json"), "utf8")).boards.length === 2);
 
   const evil = '<img src=x onerror="window.__xss=1">';
   const evilDoc = { name: "Ajeno", active: 0, sheets: [{ name: `Hoja${evil}`, color: "yellow", threads: [], items: [
@@ -216,10 +250,10 @@ delete process.env.ELECTRON_RUN_AS_NODE;
     { id: "s1", type: "stamp", x: 400, y: 100, rot: 0, z: 2, s: 1, text: "SELLO", color: `red">${evil}` },
   ] }] };
   fs.writeFileSync(IMPORT, zipSync({ "tablero.json": strToU8(JSON.stringify({ formato: "chinchero-tablero", version: 1, board: { name: `Ajeno${evil}` }, doc: evilDoc })) }));
-  // Al limpiar el texto con formato, Chromium avisa de la CSP aunque la plantilla sea inerte y nada se ejecute
+  // Los atributos on… se renombran antes de analizar el texto con formato: Chromium ni siquiera avisa de la CSP
   const beforeEvil = log.length;
   await page.click("#importBtn"); await sleep(800);
-  for (let i = log.length - 1; i >= beforeEvil; i--) if (log[i].includes("Content Security Policy")) log.splice(i, 1);
+  ok("importar un tablero con atributos on… no da avisos de CSP", !log.slice(beforeEvil).some(l => l.includes("Content Security Policy")));
   const evilId = JSON.parse(fs.readFileSync(path.join(DATA, "library.json"), "utf8")).boards.find(b => b.name.startsWith("Ajeno"))?.id;
   await page.goto(page.url().replace(/01-tableros\.html.*/, "02-tablero.html?board=" + evilId)); await sleep(1200);
   ok("un tablero importado no puede ejecutar código", await page.evaluate(() => !window.__xss && document.querySelector(".t-note .txt")?.innerHTML === "<b>Hola</b>" && !document.querySelector("#items img")),
@@ -239,6 +273,7 @@ delete process.env.ELECTRON_RUN_AS_NODE;
       ext: await rejects(c.openExternal(["https://x.com"])),
       media: await rejects(c.openMedia("file:///C:/Windows/notepad.exe")),
       rect: await rejects(c.capture({ x: 0, y: 0, width: -5, height: "a" })),
+      cover: await rejects(c.coverWindow("sí")),
       png: await rejects(c.exportPng("no son bytes", "x")),
       pdf: await rejects(c.exportPdf([{ png: new Uint8Array(1), w: 1 }], "x")),
       imp: await rejects(c.importBoard("C:\\Windows\\win.ini")),

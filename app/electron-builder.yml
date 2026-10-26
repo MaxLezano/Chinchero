@@ -23,7 +23,8 @@ electronFuses:
   enableNodeCliInspectArguments: false
   enableEmbeddedAsarIntegrityValidation: true
   onlyLoadAppFromAsar: true
-  # Sin este, file:// no puede leer las pantallas dentro de app.asar (haría falta servirlas con un protocolo propio)
+  # Las pantallas ya se sirven con chinchero://app (main.js). Sigue activo una versión más para que se puedan copiar las
+  # preferencias que la 0.2 dejó en el localStorage de file:// (sin él no se pueden leer): se desactiva en la versión siguiente
   grantFileProtocolExtraPrivileges: true
 
 win:

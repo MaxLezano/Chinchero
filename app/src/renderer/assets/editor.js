@@ -579,6 +579,20 @@
     Tour.emit("thread");
   }
 
+  // Herramienta Hilo: el primer elemento elegido (clic, o Tab y Enter) es el origen y el segundo el otro extremo
+  function threadPick(it, byKey) {
+    if (it.fix !== "pin") return noPinMsg(it);
+    if (!threadFrom) {
+      threadFrom = it; elOf(it.id).classList.add("thread-target");
+      if (byKey) announce(`Hilo desde ${describe(it)}. Elige el otro extremo con Tab y pulsa Enter`);
+      return;
+    }
+    if (it !== threadFrom) addThread(threadFrom, it);
+    elOf(threadFrom.id)?.classList.remove("thread-target");
+    threadFrom = null;
+    drawThreads();
+  }
+
   function noPinMsg(it) {
     toast(SCALED.has(it.type) && it.type !== "text" || it.type === "zone" || it.type === "draw"
       ? `${TYPE_NAMES[it.type]}: no lleva chinche, así que no admite hilos`
@@ -668,16 +682,7 @@
     if (t.classList.contains("pin") && (tool === "select" || tool === "thread") && !it.locked)
       return e.shiftKey ? startPinMove(e, it) : startThreadDrag(e, it);
 
-    if (tool === "thread") {
-      if (!it) return;
-      if (it.fix !== "pin") return noPinMsg(it);
-      if (!threadFrom) { threadFrom = it; elOf(it.id).classList.add("thread-target"); return; }
-      if (it !== threadFrom) addThread(threadFrom, it);
-      elOf(threadFrom.id)?.classList.remove("thread-target");
-      threadFrom = null;
-      drawThreads();
-      return;
-    }
+    if (tool === "thread") return it && threadPick(it);
     if (tool === "draw") return drawOpts.erase ? startErase(e) : startDraw(e);
     if (tool === "zone") return startZoneDraw(e);
     // preventDefault: evita que el foco vuelva al lienzo y corte la edición del elemento recién creado
@@ -1863,7 +1868,7 @@
     sticker: "Haz clic para pegar el sticker",
     zone: "Arrastra para dibujar la zona · o haz clic para una de tamaño estándar",
     draw: "Dibuja con el ratón · los trazos seguidos forman un solo dibujo · color, grosor y goma en el panel",
-    thread: "Haz clic en dos elementos con chinche · o arrastra directamente de una chinche a otra",
+    thread: "Haz clic en dos elementos con chinche · o arrastra de una chinche a otra · con teclado: Tab y Enter en cada extremo",
   };
   function showHint() {
     const h = tool === "draw" && drawOpts.erase ? "Pasa la goma por encima de los trazos · " + (drawOpts.erase === "part" ? "borra solo lo que toca" : "borra cada trazo entero") : HINTS[tool];
@@ -2138,11 +2143,19 @@
   }
   // Recorre la hoja en mosaicos del tamaño del lienzo, captura cada uno y los une en un PNG
   async function captureSheet() {
-    await Promise.all($$("img", itemsEl).map(i => i.decode().catch(() => {})));
     const b = sheetBounds();
     if (!b) return null;
     const dpr = devicePixelRatio;
     const s = Math.min(EXPORT_SCALE, EXPORT_MAX_SIDE / b.w, EXPORT_MAX_SIDE / b.h, Math.sqrt(EXPORT_MAX_AREA / (b.w * b.h)));
+    // Las fotos que a esta escala necesitan más píxeles que su miniatura (1280 px) se exportan con la original
+    const swapped = $$('img[src^="chinchero-media://thumbs/"]', itemsEl)
+      .filter(i => i.naturalWidth && Math.max(i.offsetWidth / i.naturalWidth, i.offsetHeight / i.naturalHeight) * s > 1);
+    for (const i of swapped) i.src = i.src.replace("chinchero-media://thumbs/", "chinchero-media://media/");
+    await Promise.all($$("img", itemsEl).map(i => i.decode().catch(() => {})));
+    try { return await tileSheet(b, s, dpr); }
+    finally { for (const i of swapped) i.src = thumb(i.src); }
+  }
+  async function tileSheet(b, s, dpr) {
     const z = s / dpr, W = Math.ceil(b.w * z), H = Math.ceil(b.h * z); // px CSS a ese zoom
     const canvas = document.createElement("canvas");
     canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
@@ -2165,9 +2178,10 @@
   async function exporting(fn) {
     if (!Store.native) return Store.desktop("capture");
     stopEdit();
+    await Store.desktop("coverWindow", true);
     document.body.classList.add("exporting");
     try { await frames(); return await fn(); }
-    finally { document.body.classList.remove("exporting"); }
+    finally { document.body.classList.remove("exporting"); await frames(); Store.desktop("coverWindow", false); }
   }
   const emptySheet = () => toast("La hoja está vacía: no hay nada que exportar");
   async function exportPng() {
@@ -2507,6 +2521,7 @@
       return setSel([]);
     }
     if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); return deleteSel(); }
+    if (e.key === "Enter" && tool === "thread" && selection.length === 1) { e.preventDefault(); return threadPick(byId(selection[0]), true); }
     if ((e.key === "Enter" || e.key === "F2") && selection.length === 1) { e.preventDefault(); return edit(byId(selection[0]), null, "end"); }
     if (e.key === "Tab") { if (cycleSelection(e.shiftKey)) e.preventDefault(); return; }
     const arrows = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
@@ -2542,7 +2557,7 @@
   // Con las combinaciones actuales (se pueden cambiar en Ajustes); «—» = sin atajo
   const ks = (...ids) => ids.map(id => Keys.label(id) || "—").join(" ");
   const shortcutGroups = () => [
-    { title: "Herramientas", rows: [["Seleccionar", ks("tool.select")], ["Nota / Ficha / Lista / Texto", ks("tool.note", "tool.card", "tool.list", "tool.text")], ["Imagen / Enlace / Archivo", ks("tool.image", "tool.link", "tool.file")], ["Stickers / Zona / Dibujo", ks("tool.sticker", "tool.zone", "tool.draw")], ["Goma (dentro del dibujo)", ks("eraser")], ["Hilo", ks("tool.thread")], ["Dejar herramienta fija", "Doble-clic"]] },
+    { title: "Herramientas", rows: [["Seleccionar", ks("tool.select")], ["Nota / Ficha / Lista / Texto", ks("tool.note", "tool.card", "tool.list", "tool.text")], ["Imagen / Enlace / Archivo", ks("tool.image", "tool.link", "tool.file")], ["Stickers / Zona / Dibujo", ks("tool.sticker", "tool.zone", "tool.draw")], ["Goma (dentro del dibujo)", ks("eraser")], ["Hilo", ks("tool.thread")], ["Hilo con teclado: elegir cada extremo", "Tab Enter"], ["Dejar herramienta fija", "Doble-clic"]] },
     { title: "Edición", rows: [["Deshacer / Rehacer", ks("undo", "redo")], ["Copiar / Cortar / Pegar", "Ctrl+C Ctrl+X Ctrl+V"], ["Duplicar", ks("duplicate")], ["Duplicar arrastrando", "Alt+arrastrar"], ["Editar seleccionado", "Enter"], ["Seleccionar todo", ks("selectAll")], ["Seleccionar con recuadro", "Shift+arrastrar"], ["Agrupar / Desagrupar", ks("group", "ungroup")], ["Pegar imagen sin marco", "Ctrl+Shift+V"], ["Elegir uno dentro de un grupo", "Ctrl+clic"], ["Añadir a la selección", "Shift+clic"], ["Mover 1 px / 10 px", "Flechas Shift+Flechas"], ["Siguiente / anterior elemento", "Tab Shift+Tab"], ["Opciones del elemento", "Shift+F10"], ["Al frente / al fondo", ks("front", "back")], ["Bloquear", ks("lock")], ["Eliminar", "Supr"], ["Ver los atajos", ks("shortcuts")]] },
     { title: "Vista", rows: [["Buscar y acciones", ks("search")], ["Mover lienzo", "Arrastrar-fondo"], ["Zoom", "Rueda"], ["Desplazar en horizontal", "Shift+rueda"], ["Zoom 100% / Ajustar", ks("zoom100", "fit")], ["Hoja anterior / siguiente", ks("prevSheet", "nextSheet")]] },
     { title: "Chinches e hilos", rows: [["Tender un hilo", "Arrastrar-chinche"], ["Mover la chinche", "Shift+arrastrar"], ["Etiqueta del hilo", "Doble-clic"], ["Girar", "Arrastrar-junto-a-una-esquina"], ["Girar de 15° en 15°", "Shift+girar"]] },

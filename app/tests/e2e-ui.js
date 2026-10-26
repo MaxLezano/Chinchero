@@ -434,6 +434,14 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     ok("a11y: eliminar se anuncia", (await live()) === "Elemento eliminado", await live());
     await q.keyboard.down("Control"); await q.keyboard.press("z"); await q.keyboard.up("Control"); await sleep(150);
     ok("a11y: deshacer se anuncia", (await live()) === "Deshecho", await live());
+    // Hilo con teclado: herramienta Hilo, Tab y Enter en cada extremo
+    await q.focus("#canvasFocus"); await q.keyboard.press("Escape");
+    await q.keyboard.press("l"); await q.keyboard.press("Tab"); await q.keyboard.press("Enter"); await sleep(100);
+    ok("a11y: Enter con la herramienta Hilo marca el origen", /^Hilo desde Nota «.+»\. Elige el otro extremo/.test(await live()), await live());
+    await q.keyboard.press("Tab"); await q.keyboard.press("Enter"); await sleep(150);
+    ok("a11y: Tab y Enter en el otro extremo tienden el hilo", await q.evaluate(() => document.querySelectorAll("#threads .th").length === 1) && /^Hilo creado entre Nota «.+» y Nota «.+»$/.test(await live()), await live());
+    await q.keyboard.press("Escape");
+    await q.keyboard.down("Control"); await q.keyboard.press("z"); await q.keyboard.up("Control"); await sleep(150);
     // Pestañas de hojas con flechas
     await q.click("#addSheet"); await sleep(200);
     await q.keyboard.press("Enter"); await q.keyboard.press("ArrowLeft"); await sleep(150); // Enter termina de renombrar

@@ -8,7 +8,7 @@
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
-const { app, nativeImage } = require("electron");
+const { app, nativeImage, clipboard } = require("electron");
 const { zipSync, unzipSync } = require("fflate");
 
 const CONFIG = () => path.join(app.getPath("userData"), "config.json");
@@ -153,11 +153,13 @@ function dirStats() {
 
 /* ---------- Liberar espacio ----------
    Un archivo de media/ está en uso si su URL aparece en library.json (stickers, papelera), en algún tablero
-   (también los de la papelera, que conservan su archivo) o en alguna copia de backups/: restaurarla no debe dejar fotos rotas. */
+   (también los de la papelera, que conservan su archivo), en alguna copia de backups/ (restaurarla no debe dejar fotos rotas)
+   o en el portapapeles (un elemento copiado con Ctrl+C se pega con su imagen). */
 const USED_URL = /chinchero-media:\/\/media\/([a-zA-Z0-9][a-zA-Z0-9_.-]*)/g;
 function usedMedia() {
   const used = new Set(), scan = buf => { for (const m of buf.toString("utf8").matchAll(USED_URL)) used.add(m[1]); };
   for (const buf of Object.values(dataFiles({ onlyJSON: true }))) scan(buf);
+  try { scan(Buffer.from(clipboard.readText())); } catch {}
   let zips = [];
   try { zips = fs.readdirSync(paths.backups()).filter(n => n.endsWith(".zip")); } catch {}
   for (const n of zips) {

@@ -34,6 +34,7 @@ contextBridge.exposeInMainWorld("chinchero", {
   openExternal: url => ipcRenderer.invoke("open:external", url),
   openMedia: url => ipcRenderer.invoke("open:media", url),
   capture: rect => ipcRenderer.invoke("capture:rect", rect),
+  coverWindow: on => ipcRenderer.invoke("capture:cover", on),
   exportPng: (png, name) => ipcRenderer.invoke("export:png", png, name),
   copyPng: png => ipcRenderer.invoke("copy:png", png),
   exportPdf: (pages, name) => ipcRenderer.invoke("export:pdf", pages, name),

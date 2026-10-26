@@ -29,7 +29,8 @@
   const RICH_TAGS = new Set(["B", "STRONG", "I", "EM", "U", "S", "STRIKE", "BR", "DIV", "P", "SPAN", "UL", "OL", "LI"]);
   function cleanRich(html) {
     const t = document.createElement("template"); // inerte: no ejecuta ni carga nada
-    t.innerHTML = html;
+    // Chromium avisa de la CSP al leer un atributo on… aunque no lo ejecute: se renombra antes (solo dentro de etiquetas)
+    t.innerHTML = String(html).replace(/<[^>]*>/g, tag => tag.replace(/([\s"'/])on([a-z]+\s*=)/gi, "$1data-on$2"));
     const walk = node => {
       for (const n of [...node.childNodes]) {
         if (n.nodeType === Node.TEXT_NODE) continue;
