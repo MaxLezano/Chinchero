@@ -636,7 +636,7 @@
   function applySurface() {
     const s = sheet().surface;
     viewport.className = viewport.className.replace(/\bsurface-\w+/g, "").trim() + " surface-" + s;
-    $$("#surfaces button").forEach(b => b.classList.toggle("active", b.dataset.s === s));
+    $$("#surfaces button").forEach(b => { b.classList.toggle("active", b.dataset.s === s); b.setAttribute("aria-pressed", b.dataset.s === s); });
     applyView();
   }
 
@@ -1458,11 +1458,23 @@
     fmt.innerHTML = `<button data-f="bold" aria-label="Negrita (Ctrl+B)" title="Negrita (Ctrl+B)"><b>B</b></button>
       <button data-f="italic" aria-label="Cursiva (Ctrl+I)" title="Cursiva (Ctrl+I)"><i>I</i></button>
       <button data-f="insertUnorderedList" title="Lista con viñetas">• Lista</button>
-      ${it.type === "note" ? `<span class="sep"></span>${["s", "m", "l"].map(s => `<button data-fs="${s}" class="${it.fs === s ? "on" : ""}" title="Tamaño de letra">${{ s: "Pequeña", m: "Normal", l: "Grande" }[s]}</button>`).join("")}` : ""}
+      ${it.type === "note" ? `<span class="sep"></span>${["s", "m", "l"].map(s => `<button data-fs="${s}" class="${it.fs === s ? "on" : ""}" aria-pressed="${it.fs === s}" title="Tamaño de letra">${{ s: "Pequeña", m: "Normal", l: "Grande" }[s]}</button>`).join("")}` : ""}
       <span class="sep"></span><button data-done title="Terminar (Esc)">Listo</button>`;
     fmt.classList.add("open");
     placeFmt();
+    syncFmt();
   }
+  // B, I y Lista quedan marcados según el texto donde está el cursor o la selección
+  function syncFmt() {
+    if (!editing || !fmt.classList.contains("open")) return;
+    $$("[data-f]", fmt).forEach(b => {
+      const on = document.queryCommandState(b.dataset.f);
+      b.classList.toggle("on", on);
+      b.setAttribute("aria-pressed", on);
+    });
+  }
+  document.addEventListener("selectionchange", syncFmt);
+  document.addEventListener("keyup", syncFmt); // Ctrl+B / Ctrl+I con el cursor sin selección no cambian la selección
   function placeFmt() {
     if (!editing || !fmt.classList.contains("open")) return;
     const r = elOf(editing.it.id)?.getBoundingClientRect();
@@ -1478,10 +1490,10 @@
     if (b.dataset.fs) {
       editing.it.fs = b.dataset.fs;
       elOf(editing.it.id).style.setProperty("--fs", FS[b.dataset.fs]);
-      $$("[data-fs]", fmt).forEach(x => x.classList.toggle("on", x === b));
+      $$("[data-fs]", fmt).forEach(x => { x.classList.toggle("on", x === b); x.setAttribute("aria-pressed", x === b); });
     }
     if (b.hasAttribute("data-done")) return editing.el.blur();
-    drawThreads(); placeFmt();
+    drawThreads(); placeFmt(); syncFmt();
   });
 
   /* ---------- Barra contextual ---------- */
@@ -1490,10 +1502,10 @@
     return list.map(c => {
       const bg = act === "color" && NOTE_COLORS[c] ? NOTE_COLORS[c] : c || "transparent";
       const name = NOTE_NAMES[c] || (c ? c : "Automático");
-      return `<button class="swatch ${cls}${c === cur ? " on" : ""}${c === "" ? " auto" : ""}" data-act="${act}" data-v="${c}" style="background:${bg}" aria-label="${name}" data-tip="${name}" data-tip-pos="bottom"></button>`;
+      return `<button class="swatch ${cls}${c === cur ? " on" : ""}${c === "" ? " auto" : ""}" data-act="${act}" data-v="${c}" aria-pressed="${c === cur}" style="background:${bg}" aria-label="${name}" data-tip="${name}" data-tip-pos="bottom"></button>`;
     }).join("");
   }
-  const seg = (act, opts, cur) => `<div class="seg" role="group">${opts.map(([v, l]) => `<button data-act="${act}" data-v="${v}" class="${String(v) === String(cur) ? "on" : ""}">${l}</button>`).join("")}</div>`;
+  const seg = (act, opts, cur) => `<div class="seg" role="group">${opts.map(([v, l]) => `<button data-act="${act}" data-v="${v}" class="${String(v) === String(cur) ? "on" : ""}" aria-pressed="${String(v) === String(cur)}">${l}</button>`).join("")}</div>`;
   const icon = (act, svg, label, v) => `<button class="icon-btn" data-act="${act}"${v ? ` data-v="${v}"` : ""} aria-label="${label}" data-tip="${label}" data-tip-pos="bottom">${svg}</button>`;
   const tbtn = (act, label) => `<button class="txt-btn" data-act="${act}">${label}</button>`;
 
@@ -1553,7 +1565,10 @@
     else if (selection.length > 1) parts = multiCtx(selection.map(byId));
     else if (selection.length === 1) parts = itemCtx(byId(selection[0]));
     if (!parts) return hideCtx();
+    // Se rehace en cada cambio: si el foco estaba en un botón, vuelve al mismo (o a su grupo) para seguir con teclado
+    const f = ctx.contains(document.activeElement) && document.activeElement.dataset;
     ctx.innerHTML = parts.map(x => `<div class="cg">${x}</div>`).join("");
+    if (f?.act) (ctx.querySelector(`[data-act="${CSS.escape(f.act)}"][data-v="${CSS.escape(f.v ?? "")}"]`) || ctx.querySelector(`[data-act="${CSS.escape(f.act)}"]`))?.focus();
     ctx.classList.add("open");
     placeCtx();
   }
@@ -1979,8 +1994,8 @@
     setEraser(null);
     if (b.dataset.dc) drawOpts.color = b.dataset.dc;
     if (b.dataset.dw) drawOpts.sw = +b.dataset.dw;
-    $$("[data-dc]", drawPop).forEach(x => x.classList.toggle("on", x.dataset.dc === drawOpts.color));
-    $$("[data-dw]", drawPop).forEach(x => x.classList.toggle("on", +x.dataset.dw === drawOpts.sw));
+    $$("[data-dc]", drawPop).forEach(x => { x.classList.toggle("on", x.dataset.dc === drawOpts.color); x.setAttribute("aria-pressed", x.dataset.dc === drawOpts.color); });
+    $$("[data-dw]", drawPop).forEach(x => { x.classList.toggle("on", +x.dataset.dw === drawOpts.sw); x.setAttribute("aria-pressed", +x.dataset.dw === drawOpts.sw); });
   });
 
   /* ---------- Hojas ---------- */
@@ -2258,7 +2273,7 @@
   $("#mmToggle").onclick = () => {
     minimap.hidden = !minimap.hidden;
     setPref("minimap", minimap.hidden ? "off" : "on");
-    $("#mmToggle").classList.toggle("active", !minimap.hidden);
+    $("#mmToggle").classList.toggle("active", !minimap.hidden); $("#mmToggle").setAttribute("aria-pressed", !minimap.hidden);
     drawMinimap();
   };
 
@@ -2586,7 +2601,7 @@
   }
   recalcZ();
   minimap.hidden = getPref("minimap") === "off";
-  $("#mmToggle").classList.toggle("active", !minimap.hidden);
+  $("#mmToggle").classList.toggle("active", !minimap.hidden); $("#mmToggle").setAttribute("aria-pressed", !minimap.hidden);
   applyThreadMode();
   // Pistas de la barra con los atajos actuales
   $$("[data-tool], [data-key]").forEach(b => { const k = Keys.label(b.dataset.key || "tool." + b.dataset.tool); b.dataset.tip = b.dataset.tip.replace(/ · [^·]*$/, "") + (k ? " · " + k : ""); });

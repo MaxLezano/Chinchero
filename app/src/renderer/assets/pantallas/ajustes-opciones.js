@@ -3,7 +3,7 @@ function bindChoice(id, key, fallback) {
   const box = document.getElementById(id);
   const mark = () => {
     const cur = getPref(key) ?? fallback;
-    box.querySelectorAll("button").forEach(b => b.classList.toggle("active", b.dataset.v === cur));
+    box.querySelectorAll("button").forEach(b => { b.classList.toggle("active", b.dataset.v === cur); b.setAttribute("aria-pressed", b.dataset.v === cur); });
   };
   box.onclick = e => {
     const b = e.target.closest("button"); if (!b) return;

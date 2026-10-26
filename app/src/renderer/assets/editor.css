@@ -198,7 +198,8 @@ body { overflow: hidden; user-select: none; }
 .fmt { position: fixed; display: none; z-index: 41; background: var(--text); color: var(--bg); border-radius: 8px; padding: 3px; gap: 2px; box-shadow: var(--shadow); }
 .fmt.open { display: flex; }
 .fmt button { border: 0; background: none; color: inherit; min-width: 28px; height: 28px; border-radius: 6px; font: 600 13px var(--font); }
-.fmt button:hover, .fmt button.on { background: rgba(127,127,127,.35); }
+.fmt button:hover { background: rgba(127,127,127,.35); }
+.fmt button.on { background: var(--accent); color: var(--on-accent); } /* distinto del hover: se ve qué formato está aplicado */
 .fmt .sep { width: 1px; background: rgba(127,127,127,.4); margin: 4px 2px; }
 
 .inpop { position: fixed; z-index: 60; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 8px; box-shadow: var(--shadow); display: flex; gap: 6px; }

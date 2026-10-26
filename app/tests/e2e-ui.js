@@ -179,7 +179,29 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   await p.mouse.click(c.x, c.y, { clickCount: 2 }); await sleep(200);
   ok("doble clic en nota edita sin crear", (await count()) === n0 && await p.evaluate(() => document.activeElement.isContentEditable));
   await p.keyboard.press("End"); await p.keyboard.type(" ✔"); await shot(p, "e01-edit-note");
+  // La barra de formato marca lo aplicado (antes B/I/Lista nunca quedaban marcados)
+  const fmtOn = () => p.evaluate(() => [...document.querySelectorAll(".fmt [data-f]")].map(b => b.classList.contains("on") && b.getAttribute("aria-pressed") === "true"));
+  ok("formato: sin negrita, B no está marcado", (await fmtOn())[0] === false);
+  await p.keyboard.down("Shift"); await p.keyboard.press("Home"); await p.keyboard.up("Shift");
+  await p.click('.fmt [data-f="bold"]'); await sleep(100);
+  ok("formato: al aplicar negrita, B queda marcado", (await fmtOn())[0] === true);
+  await p.keyboard.down("Control"); await p.keyboard.press("i"); await p.keyboard.up("Control"); await sleep(100);
+  ok("formato: Ctrl+I marca I", (await fmtOn())[1] === true);
+  await p.keyboard.press("End"); await p.keyboard.type("x"); await p.keyboard.press("Home"); await sleep(100);
+  ok("formato: al mover el cursor se actualiza", JSON.stringify(await fmtOn()) === JSON.stringify(await p.evaluate(() => ["bold", "italic", "insertUnorderedList"].map(c => document.queryCommandState(c)))));
+  ok("formato: el marcado se distingue del hover", await p.evaluate(() => {
+    const b = document.querySelector('.fmt [data-f="bold"]'); b.classList.add("on");
+    const on = getComputedStyle(b).backgroundColor; return on !== "rgba(127, 127, 127, 0.35)" && on !== "rgba(0, 0, 0, 0)";
+  }));
   await p.keyboard.press("Escape"); await sleep(200);
+  // La barra contextual se rehace al cambiar algo: el foco vuelve al mismo botón para seguir con teclado
+  await p.mouse.click(c.x, c.y); await sleep(200);
+  await p.focus('.ctx [data-act="color"][data-v="blue"]'); await p.keyboard.press("Enter"); await sleep(200);
+  ok("barra contextual: tras elegir con teclado el foco sigue en la opción", await p.evaluate(() => {
+    const a = document.activeElement; return a.dataset.act === "color" && a.dataset.v === "blue" && a.getAttribute("aria-pressed") === "true";
+  }));
+  await p.keyboard.down("Control"); await p.keyboard.press("z"); await p.keyboard.up("Control"); await sleep(150);
+  await p.keyboard.press("Escape"); await sleep(150);
 
   // Texto existente editable
   c = await center(".t-text .txt");
