@@ -369,11 +369,50 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     await q.click("#newBtn"); await sleep(200);
     ok("modal: nombre enfocado", await q.evaluate(() => document.activeElement.id === "boardName"));
     await shot(q, "v01-modal");
+    await q.click("#cancelModal"); await sleep(150);
+    ok("modal: Cancelar lo cierra (sin onclick en el HTML)", await q.evaluate(() => !document.querySelector("#modal.open")));
+    await q.close();
+  }
+
+  // Seguridad: CSP en cada pantalla y valores del modelo escapados (colores, ids, trazos, emoji) aunque no vengan de un .chinchero
+  {
+    const q = await open("01-tableros.html", { prefs: NO_TOURS });
+    const evil = `red"><img src="x" class="evil">`;
+    await q.evaluate(evil => {
+      const lib = Store.library();
+      lib.groups[0].color = evil;
+      lib.boards.push({ id: "malo", name: "Malo", group: lib.groups[0].id, surface: evil, items: evil, updatedAt: Date.now(),
+        preview: [{ t: "zone", x: 0, y: 0, w: .5, h: .5, c: evil }, { t: "note", x: evil, y: 0, w: .2, h: .2, pin: 1, pc: evil }] });
+      Store.saveLibrary();
+      const item = (id, type, extra) => ({ id, type, x: 100, y: 100, w: 200, h: 120, rot: 0, z: 1, s: 1, ...extra });
+      localStorage.setItem("chinchero-data-board-malo", JSON.stringify({ name: "Malo", active: 0, sheets: [{ id: "s1", name: "Hoja 1", surface: "dots", view: { x: 0, y: 0, z: 1 }, threads: [{ id: "t1", a: "e1", b: "e2", color: evil }], items: [
+        item("e1", "note", { text: "Hola", color: "yellow", fs: "m", fix: "pin", pin: { x: .5, y: .1, color: evil } }),
+        item("e2", "stamp", { text: "SELLO", color: evil, fix: "pin", pin: { x: .5, y: .1, color: "#e03131" } }),
+        item("e3", "sticker", { emoji: evil }),
+        item("e4", "draw", { d: evil, color: evil, sw: evil, vw: 10, vh: 10 }),
+        item("e5", "photo", { fit: evil, h: evil, frame: "polaroid", caption: "" }),
+        item("e6", "link", { domain: "x.com", title: "x", grad: evil }),
+      ] }] }));
+    }, evil);
+    await q.reload({ waitUntil: "networkidle0" }); await sleep(300);
+    ok("tableros: valores del modelo escapados", await q.evaluate(() => !document.querySelector(".evil") && !!document.querySelector('[data-id="malo"]')));
+    const b = q;
+    await b.goto(BASE + "02-tablero.html?board=malo", { waitUntil: "networkidle0" }); await sleep(400);
+    ok("editor: valores del modelo escapados", await b.evaluate(() => !document.querySelector(".evil") && document.querySelectorAll("#items .item").length === 6),
+      await b.evaluate(() => document.querySelectorAll("#items .item").length + " " + (document.querySelector(".evil")?.parentElement.outerHTML.slice(0, 300) || "")));
+    ok("CSP en todas las pantallas", await b.evaluate(() => /script-src 'self'/.test(document.querySelector('meta[http-equiv="Content-Security-Policy"]')?.content)));
+    const before = log.length;
+    ok("CSP: el código inline no se ejecuta", await b.evaluate(async () => {
+      const s = document.createElement("script"); s.textContent = "window.__inline = 1"; document.body.append(s);
+      await new Promise(r => setTimeout(r, 50)); return !window.__inline;
+    }));
+    // La violación provocada a propósito no cuenta como error
+    for (let i = log.length - 1; i >= before; i--) if (log[i].includes("Content Security Policy")) log.splice(i, 1);
     await q.close();
   }
 
   await browser.close();
   fs.writeFileSync(path.join(OUT, "log.txt"), log.join("\n"));
-  if (log.some(l => /^FAIL|PAGEERROR/.test(l))) process.exitCode = 1;
+  if (log.some(l => /^FAIL|PAGEERROR|Content Security Policy/.test(l))) process.exitCode = 1;
   console.log(log.join("\n"));
 })();

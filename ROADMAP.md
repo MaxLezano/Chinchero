@@ -11,30 +11,24 @@ Lista de tareas para avanzar de a una. Cada tarea se hace en una sesión de chat
 5. Commit con mensaje convencional (`feat: …`, `fix: …`, `docs: …`) y `git push`.
 6. Avisar al usuario que puede hacer `/clear` y decir «seguí con el Roadmap».
 
-## Estado actual (2026-10-25)
+## Estado actual (2026-10-26)
 
-- App Electron funcional: tableros, hojas, grupos, papelera, ajustes, bienvenida, tutoriales y sugerencias. Guarda en disco (`Documentos\Chinchero`), copia imágenes y archivos a `media/`, exporta PNG y PDF, hace copias de seguridad en .zip (y automáticas al abrir), comparte tableros sueltos como `.chinchero`, se actualiza desde GitHub Releases. Sonidos de interacción opcionales.
+- App Electron funcional: tableros, hojas, grupos, papelera, ajustes, bienvenida, tutoriales y sugerencias. Guarda en disco (`Documentos\Chinchero`), copia imágenes y archivos a `media/`, exporta PNG y PDF, hace copias de seguridad en .zip (y automáticas al abrir), comparte tableros sueltos como `.chinchero`, se actualiza desde GitHub Releases. Sonidos de interacción opcionales. Endurecida: fuses de Electron, CSP sin código inline y validación de cada IPC.
 - Instalador NSIS verificado localmente (`npm run dist`).
 - Web estática en `web/` con animaciones, capturas reales y descargas leídas de la API de GitHub.
 - Sin dependencias de internet: fuentes incluidas en el proyecto.
-- Pruebas: `app/tests/e2e-ui.js` (55 casos de interfaz), `e2e-app.js` (33 casos con la app real), `carga.js` (10 casos de rendimiento con 500 elementos), `offline-fonts.js`.
+- Pruebas: `app/tests/e2e-ui.js` (60 casos de interfaz), `e2e-app.js` (35 casos con la app real; con `CHINCHERO_EXE` prueba la empaquetada), `carga.js` (10 casos de rendimiento con 500 elementos), `offline-fonts.js`.
 
 ## Pendientes
 
-### 1. Seguridad de Electron
-- Activar los «fuses» de Electron (desactivar `RunAsNode`, `--inspect`, `NODE_OPTIONS`; verificar integridad del asar).
-- Content-Security-Policy en las pantallas (solo recursos locales y `chinchero-media:`).
-- Validar los argumentos de cada IPC en el proceso principal.
-- Escapar todos los valores que `itemHTML`, `miniHTML` y `cardHTML` ponen sin `esc` (colores, trazos, ids, emoji); hoy solo se limpian al importar un `.chinchero`.
-
-### 2. Liberar espacio
+### 1. Liberar espacio
 - En Ajustes → Datos: detectar imágenes y archivos de `media/` que ningún tablero usa y ofrecer borrarlos (también su miniatura en `media/thumbs/`).
 
-### 3. Accesibilidad
+### 2. Accesibilidad
 - Anunciar con `aria-live` lo que pasa en el lienzo (creado, movido, eliminado).
 - Revisar contraste en ambos temas y navegación completa con teclado.
 
-### 4. QA y revisión de UX/UI de la app y la web
+### 3. QA y revisión de UX/UI de la app y la web
 - Bugs reportados:
   - El nombre de la foto sobresale del marco polaroid cuando es largo (p. ej. `Gemini_Generated_Image_usc7f…`): recortar con «…» o ajustar en varias líneas; reproducir con una captura.
   - Falta una **goma** para borrar trazos a mano alzada (borrar trazos enteros o partes al pasar por encima).
@@ -68,3 +62,4 @@ Lista de tareas para avanzar de a una. Cada tarea se hace en una sesión de chat
 - **2026-10-25 · Compartir un tablero (.chinchero)**: «Exportar tablero…» (clic derecho en la tarjeta, menú Exportar del editor y Ctrl+K) guarda un `.chinchero`: zip con `tablero.json` (`formato: "chinchero-tablero"`, metadatos, nombre del grupo y el documento) y `media/` con las imágenes y archivos que usa. «Importar tablero» en Tableros, arrastrar el archivo a Tableros o al lienzo, y doble clic (asociación en el instalador NSIS; con la app abierta llega por `second-instance`). Se crea un tablero nuevo con id nuevo, en el grupo actual o en uno con el mismo nombre; las imágenes se guardan de nuevo por contenido en `media/` y se reescriben sus URLs. Como el archivo viene de otra persona, al importar se limpia: el texto con formato solo conserva etiquetas simples sin atributos y los demás valores no pueden traer comillas ni etiquetas; los toasts pasan a texto plano. 8 casos nuevos en `e2e-app.js` (`CHINCHERO_IMPORT_FILE` evita el diálogo), incluido un tablero malicioso. Pendiente: probar el doble clic con la app instalada (no se instaló en esta sesión; el instalador compila).
 - **2026-10-25 · Sonidos de interacción**: interruptor «Sonidos de interacción» (apagado por defecto) y volumen en Ajustes → Apariencia, con una muestra al encender o mover el volumen. `assets/sound.js` sintetiza con Web Audio cuatro sonidos sin archivos: chinche al crear o fijar con chinche, roce de papel al soltar tras mover (y al crear elementos sin fijación), cinta al fijar con cinta y «tic» al tachar una tarea. Deshacer/rehacer no suena (solo vuelven a dibujar) y además hay un límite anti-ráfaga (el mismo sonido no se repite en menos de 80 ms, máximo 4 por medio segundo). El volumen se suma al del sistema. 5 casos nuevos en `e2e-ui.js`. Pendiente: afinar el timbre de cada sonido escuchándolo en la app.
 - **2026-10-25 · Rendimiento con tableros grandes**: `render()` ya no reconstruye la hoja: cada elemento guarda el HTML con que se dibujó y solo se rehace si cambia (clases y posición se aplican siempre; al editar se invalida). Los hilos y chinches del SVG se actualizan igual, por clave: reemplazar todo el SVG obligaba a repintar la hoja entera en cada movimiento. El minimapa reutiliza sus nodos. Las fotos se ven en el lienzo con una miniatura de 1280 px como mucho (`chinchero-media://thumbs/…` → `media/thumbs/`), creada al importar con `nativeImage` o la primera vez que se pide (imágenes de antes); el visor y «Abrir» usan la original. Las miniaturas no van en las copias ni en los `.chinchero`. Con zoom < 45 % las sombras se simplifican. Prueba nueva `tests/carga.js` (500 elementos, 100 fotos de 3000×2000, 120 hilos): abre en ~250 ms; arrastrar a 20 % con todo en pantalla pasó de p95 36 ms a 24 ms y el pico de zoom de 261 ms a ~45 ms. Pendiente posible: al exportar a 2x, una foto ampliada a más de 640 px de ancho sale con la miniatura (algo menos nítida).
+- **2026-10-26 · Seguridad de Electron**: fuses en `electron-builder.yml` (`RunAsNode`, `NODE_OPTIONS` y `--inspect` desactivados, cookies cifradas, integridad del `app.asar` y solo cargar desde el asar); verificado en la app empaquetada: `ELECTRON_RUN_AS_NODE` no ejecuta nada y un asar modificado no arranca. CSP en las cinco pantallas (`script-src 'self'`, imágenes solo propias, `data:`, `blob:` y `chinchero-media:`; nada de internet): los `<script>` inline pasaron a `assets/pantallas/*.js` y los `onclick` a `addEventListener` (`data-theme-toggle` para el botón de tema). Cada IPC pasa por `handle`/`onSync` en `main.js`: solo responde a las pantallas propias de la ventana principal y valida tipos (ids, objetos, bytes ≤ 1 GB, rutas absolutas de archivos existentes, rectángulos). Se niegan todos los permisos (cámara, notificaciones…) y «Abrir» un adjunto ejecutable (.exe, .bat, .ps1, .lnk…) lo muestra en su carpeta en vez de lanzarlo. Escapados colores, trazos, ids, emoji, medidas y URLs de stickers en `itemHTML`, hilos y chinches del SVG, `miniHTML`, `cardHTML`, barra lateral, papelera y migas del editor; los menús contextuales ponen sus etiquetas como texto. Pruebas nuevas: valores maliciosos en tableros sin importar, CSP presente y efectiva, IPC con argumentos no válidos; una violación de CSP en consola hace fallar las pruebas. Pendientes: `grantFileProtocolExtraPrivileges` sigue activo porque `file://` no lee dentro del asar sin él (haría falta servir las pantallas con un protocolo propio); `style-src` necesita `'unsafe-inline'` (el editor posiciona con `style`); al limpiar un `.chinchero` con `onerror` Chromium avisa de la CSP en consola aunque la plantilla es inerte y no se ejecuta nada.

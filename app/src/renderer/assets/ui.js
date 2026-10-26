@@ -10,7 +10,9 @@
     for (const it of items) {
       if (it === "-") { m.appendChild(document.createElement("hr")); continue; }
       const b = document.createElement("button");
-      b.innerHTML = `<span>${it.label}</span>${it.kbd ? `<kbd>${it.kbd}</kbd>` : ""}`;
+      // Como texto: las etiquetas llevan nombres de hojas y grupos
+      b.appendChild(document.createElement("span")).textContent = it.label;
+      if (it.kbd) b.appendChild(document.createElement("kbd")).textContent = it.kbd;
       if (it.danger) b.classList.add("danger");
       b.onclick = () => { closeMenu(); it.action?.(); };
       m.appendChild(b);

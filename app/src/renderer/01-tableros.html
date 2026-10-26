@@ -2,6 +2,8 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
+<!-- Solo recursos propios: nada de internet ni código inline (los estilos inline sí, el editor posiciona con style) -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: chinchero-media:; media-src 'self' blob: chinchero-media:; connect-src 'self' data: blob: chinchero-media:; base-uri 'none'; form-action 'none'; object-src 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Chinchero — Tableros</title>
 <link rel="stylesheet" href="assets/fonts/fonts.css">
@@ -109,7 +111,7 @@
     <h1 id="title"></h1>
     <label class="search"><svg class="icon"><use href="#i-search"/></svg><input id="search" placeholder="Buscar tableros…" aria-label="Buscar tableros"><kbd>Ctrl F</kbd></label>
     <button class="btn" id="importBtn" title="Abre un tablero compartido (.chinchero). También puedes arrastrarlo a la ventana">Importar tablero</button>
-    <button class="btn btn-primary" id="newBtn" onclick="openModal()"><svg class="icon"><use href="#i-plus"/></svg>Nuevo tablero</button>
+    <button class="btn btn-primary" id="newBtn"><svg class="icon"><use href="#i-plus"/></svg>Nuevo tablero</button>
   </div>
   <div class="subbar" id="chips">
     <button class="chip active" data-f="all">Todos</button>
@@ -125,11 +127,11 @@
     <div class="empty-art surface-cork"><div class="note"><span class="pin"></span>¡Hola!</div></div>
     <h3 id="emptyTitle"></h3>
     <p id="emptyText"></p>
-    <button class="btn btn-primary" id="emptyBtn" onclick="openModal()"><svg class="icon"><use href="#i-plus"/></svg>Nuevo tablero</button>
+    <button class="btn btn-primary" id="emptyBtn"><svg class="icon"><use href="#i-plus"/></svg>Nuevo tablero</button>
   </div>
 </main>
 
-<div class="backdrop" id="modal" onclick="if(event.target===this)closeModal()">
+<div class="backdrop" id="modal">
   <form class="modal" id="newForm" role="dialog" aria-labelledby="newTitle">
     <h2 id="newTitle">Nuevo tablero</h2>
     <div class="field"><label for="boardName">Nombre</label><input id="boardName" value="Sin título" required></div>
@@ -153,290 +155,16 @@
       </div>
     </fieldset>
     <div class="modal-actions">
-      <button type="button" class="btn" onclick="closeModal()">Cancelar</button>
+      <button type="button" class="btn" id="cancelModal">Cancelar</button>
       <button type="submit" class="btn btn-primary">Crear tablero</button>
     </div>
   </form>
 </div>
 
-<script>
-  // Vista según la URL: ?group=<id> o ?view=recent|fav (por defecto, recientes)
-  const params = new URLSearchParams(location.search);
-  let view = params.get("view"), groupId = params.get("group");
-  if (groupId && !Store.group(groupId)) groupId = null;
-  if (!groupId && !view) view = "recent";
-
-  // Al abrir la app, vuelve al último tablero (una vez por sesión, si está activado en Ajustes)
-  if (!location.search && !sessionStorage.getItem("started")) {
-    sessionStorage.setItem("started", "1");
-    const last = getPref("lastBoardId");
-    if (getPref("lastboard") !== "0" && last && Store.board(last)) location.replace("02-tablero.html?board=" + last);
-  }
-  sessionStorage.setItem("started", "1");
-  document.getElementById("sidebar").dataset.active = view || "group:" + groupId;
-</script>
+<script src="assets/pantallas/tableros-vista.js"></script>
 <script src="assets/ui.js"></script>
 <script src="assets/guide.js"></script>
 <script src="assets/sidebar.js"></script>
-<script>
-  const $ = s => document.querySelector(s);
-  const grid = $("#grid");
-  const lib = Store.library();
-  const group = groupId ? Store.group(groupId) : null;
-  const NOTE = { yellow: "var(--note-yellow)", blue: "var(--note-blue)", pink: "var(--note-pink)", green: "var(--note-green)", purple: "var(--note-purple)", orange: "#ffc078", white: "#f8f9fa" };
-  const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-  let chip = "all";
-
-  $("#title").innerHTML = group
-    ? `<span class="group-dot" style="background:${group.color};width:14px;height:14px"></span>${esc(group.name)}`
-    : view === "fav" ? "Favoritos" : "Recientes";
-  if (view === "recent") $("#sort").closest(".sort").hidden = true;
-
-  // Miniatura: coordenadas ya normalizadas por el editor (0..1 dentro del recuadro de la tarjeta)
-  function miniHTML(p) {
-    const st = `left:${p.x * 100}%;top:${p.y * 100}%;width:${Math.max(2, p.w * 100)}%;height:${Math.max(3, p.h * 100)}%;transform:rotate(${p.r || 0}deg)`;
-    const pin = p.pin ? `<span class="pin" style="--pin:${p.pc || "#e03131"}"></span>` : "";
-    switch (p.t) {
-      case "zone": return `<i class="pv zone" style="${st};--zc:${p.c}"></i>`;
-      case "note": return `<i class="pv note" style="${st};background:${NOTE[p.c] || NOTE.yellow}">${pin}</i>`;
-      case "photo": return `<i class="pv photo" style="${st}">${pin}</i>`;
-      case "sticker": case "stamp": return `<i class="pv dot" style="${st};background:${p.c || "#fab005"}"></i>`;
-      case "text": return `<i class="pv text" style="${st}"></i>`;
-      case "draw": return `<i class="pv draw" style="${st};border-color:${p.c}"></i>`;
-      default: return `<i class="pv card" style="${st}">${pin}</i>`;
-    }
-  }
-
-  function cardHTML(b) {
-    const g = Store.group(b.group);
-    const n = b.sheets || 1;
-    return `<a class="card${b.fav ? " fav" : ""}" href="02-tablero.html?board=${b.id}" data-id="${b.id}">
-      <button class="fav-btn" aria-label="${b.fav ? "Quitar de favoritos" : "Añadir a favoritos"}"><svg class="icon"><use href="#i-star"/></svg></button>
-      <div class="thumb surface-${b.surface || "dots"}"><div class="pv-box">${(b.preview || []).map(miniHTML).join("")}</div>
-        ${!group && g ? `<span class="gchip"><span class="group-dot" style="background:${g.color}"></span>${esc(g.name)}</span>` : ""}</div>
-      <div class="card-body"><div class="card-title">${esc(b.name)}</div>
-        <div class="card-meta">${n} hoja${n > 1 ? "s" : ""} · ${b.items || 0} elemento${b.items === 1 ? "" : "s"} · ${relTime(b.updatedAt)}</div></div></a>`;
-  }
-
-  const sameDay = ts => ts && new Date(ts).toDateString() === new Date().toDateString();
-
-  function render() {
-    const q = $("#search").value.trim().toLowerCase();
-    const sort = view === "recent" ? "date" : $("#sort").value;
-    const list = lib.boards
-      .filter(b => group ? b.group === group.id : view !== "fav" || b.fav)
-      .filter(b => chip === "all" || (chip === "today" ? sameDay(b.updatedAt) : b.hasImages))
-      .filter(b => b.name.toLowerCase().includes(q))
-      .sort((a, b) => sort === "name" ? a.name.localeCompare(b.name) : (b.updatedAt || 0) - (a.updatedAt || 0));
-    grid.innerHTML = list.map(cardHTML).join("")
-      + (group ? '<button class="new-card" id="newCard" onclick="openModal()"><svg class="icon" style="width:28px;height:28px"><use href="#i-plus"/></svg>Nuevo tablero</button>' : "");
-    setGroupCounts();
-
-    const empty = !list.length;
-    grid.style.display = empty ? "none" : "";
-    $("#empty").classList.toggle("show", empty);
-    if (empty) {
-      const filtering = q || chip !== "all";
-      const none = !lib.boards.length;
-      $("#emptyTitle").textContent = filtering ? "Sin resultados" : none ? "Aún no tienes tableros" : view === "fav" ? "Aún no hay favoritos" : "Este grupo está vacío";
-      $("#emptyText").textContent = filtering ? "Prueba con otro nombre o quita los filtros."
-        : view === "fav" ? "Pulsa la ⭐ de un tablero para tenerlo siempre a mano." : "Crea un tablero en blanco o empieza con una plantilla.";
-      $("#emptyBtn").style.display = filtering || view === "fav" ? "none" : "";
-    }
-  }
-
-  $("#search").oninput = render;
-  $("#sort").onchange = render;
-  $("#chips").onclick = e => {
-    const b = e.target.closest(".chip"); if (!b) return;
-    $("#chips .active").classList.remove("active"); b.classList.add("active");
-    chip = b.dataset.f; render();
-  };
-  document.addEventListener("groups-changed", render);
-
-  grid.addEventListener("click", e => {
-    const fav = e.target.closest(".fav-btn"); if (!fav) return;
-    e.preventDefault();
-    const b = Store.board(fav.closest(".card").dataset.id);
-    Store.touch(b.id, { fav: !b.fav });
-    toast(b.fav ? "Añadido a favoritos" : "Quitado de favoritos");
-    render();
-  });
-
-  /* ---------- Mover tableros de grupo ---------- */
-  function moveTo(id, gid) {
-    const b = Store.board(id);
-    if (!b || b.group === gid) return;
-    const from = b.group;
-    Store.touch(id, { group: gid });
-    render();
-    toast(`Movido a «${Store.group(gid).name}»`, "Deshacer", () => { Store.touch(id, { group: from }); render(); });
-  }
-  grid.addEventListener("dragstart", e => {
-    const c = e.target.closest(".card"); if (!c) return;
-    e.dataTransfer.setData("text/board", c.dataset.id);
-    e.dataTransfer.effectAllowed = "move";
-    c.classList.add("dragging");
-  });
-  grid.addEventListener("dragend", e => e.target.closest?.(".card")?.classList.remove("dragging"));
-  document.addEventListener("board-move", e => moveTo(e.detail.board, e.detail.group));
-
-  /* ---------- Acciones sobre un tablero ---------- */
-  function rename(id) {
-    const title = grid.querySelector(`[data-id="${id}"] .card-title`);
-    title.contentEditable = "true"; title.focus();
-    document.getSelection().selectAllChildren(title);
-    title.onclick = ev => ev.preventDefault();
-    title.onkeydown = ev => { if (ev.key === "Enter" || ev.key === "Escape") { ev.preventDefault(); title.blur(); } };
-    title.onblur = () => {
-      title.contentEditable = "false";
-      Store.touch(id, { name: title.textContent.trim() || "Sin título" });
-      render();
-    };
-  }
-  function duplicate(id) {
-    const b = Store.board(id), doc = Store.loadBoard(id);
-    const copy = { ...JSON.parse(JSON.stringify(b)), id: Store.uid(), name: b.name + " (copia)", fav: false, createdAt: Date.now(), updatedAt: Date.now() };
-    if (doc) Store.saveBoard(copy.id, { ...doc, name: copy.name });
-    lib.boards.push(copy);
-    Store.saveLibrary();
-    render(); toast("Tablero duplicado");
-  }
-  function remove(id) {
-    const entry = Store.trashBoard(id);
-    render();
-    toast("Tablero enviado a la papelera", "Deshacer", () => { Store.restore(entry.id); render(); });
-  }
-
-  /* ---------- Compartir: exportar e importar .chinchero ---------- */
-  async function exportBoard(id) {
-    if (await Store.desktop("exportBoard", id, Store.board(id).name)) toast("Tablero exportado. Quien lo reciba lo abre con doble clic o lo arrastra a Chinchero");
-  }
-  async function importBoards(files) {
-    const added = [];
-    for (const f of files) { const b = await Store.importBoard(f, groupId); if (b) added.push(b); }
-    if (!added.length) return;
-    render();
-    if (added.length === 1) toast(`Tablero «${added[0].name}» importado`, "Abrir", () => location.href = "02-tablero.html?board=" + added[0].id);
-    else toast(`${added.length} tableros importados`);
-  }
-  $("#importBtn").onclick = () => importBoards([null]);
-  // Arrastrar archivos .chinchero a la ventana (las tarjetas arrastradas no traen "Files")
-  document.addEventListener("dragover", e => { if (e.dataTransfer.types.includes("Files")) e.preventDefault(); });
-  document.addEventListener("drop", e => {
-    if (!e.dataTransfer.files.length) return;
-    e.preventDefault();
-    const files = [...e.dataTransfer.files].filter(f => /\.chinchero$/i.test(f.name));
-    files.length ? importBoards(files) : toast("Aquí solo se pueden soltar tableros compartidos (.chinchero)");
-  });
-  // Abiertos con doble clic: si es uno solo, se abre directamente
-  const opened = params.get("abrir") ? Store.takeOpened() : [];
-  if (opened.length) (async () => {
-    const added = [];
-    for (const p of opened) { const b = await Store.importBoard(p); if (b) added.push(b); }
-    if (added.length === 1) {
-      try { sessionStorage.setItem("chinchero-aviso", `Tablero «${added[0].name}» importado`); } catch {}
-      location.replace("02-tablero.html?board=" + added[0].id);
-    } else if (added.length) { render(); toast(`${added.length} tableros importados`); }
-  })();
-
-  grid.addEventListener("contextmenu", e => {
-    const card = e.target.closest(".card");
-    if (!card) return;
-    e.preventDefault();
-    const id = card.dataset.id, b = Store.board(id);
-    showMenu(e.clientX, e.clientY, [
-      { label: "Abrir", kbd: "Enter", action: () => card.click() },
-      { label: b.fav ? "Quitar de favoritos" : "Añadir a favoritos", action: () => { Store.touch(id, { fav: !b.fav }); render(); } },
-      { label: "Renombrar", kbd: "F2", action: () => rename(id) },
-      { label: "Duplicar", action: () => duplicate(id) },
-      { label: "Exportar tablero…", action: () => exportBoard(id) },
-      { label: "Mover a grupo…", action: () => showMenu(e.clientX + 12, e.clientY + 12,
-        lib.groups.filter(g => g.id !== b.group).map(g => ({ label: "→ " + g.name, action: () => moveTo(id, g.id) }))) },
-      "-",
-      { label: "Eliminar", kbd: "Supr", danger: true, action: () => remove(id) },
-    ]);
-  });
-  grid.addEventListener("keydown", e => {
-    const card = e.target.closest?.(".card"); if (!card || e.target !== card) return;
-    if (e.key === "F2") { e.preventDefault(); rename(card.dataset.id); }
-    if (e.key === "Delete") remove(card.dataset.id);
-  });
-
-  /* ---------- Sugerencias ---------- */
-  const SUGGESTIONS = [
-    { id: "templates", em: "🧩", title: "Empieza con una plantilla", text: "Detective, Kanban, Semana, Moodboard o Viaje: tableros listos para rellenar.", cta: "Ver plantillas", fn: () => openModal("detective") },
-    { id: "backup", em: "💾", title: "Haz una copia de seguridad", text: "Guarda una copia de tus tableros en un USB o en una carpeta de la nube.", cta: "Ir a Datos", fn: () => location.href = "03-ajustes.html#datos" },
-    { id: "dragcards", em: "🗂️", title: "Ordena arrastrando", text: "Arrastra una tarjeta sobre un grupo de la izquierda para moverla.", cta: "Entendido", fn: () => {} },
-  ];
-  function renderSuggestions() {
-    const box = $("#suggest");
-    const list = Tips.enabled && lib.boards.length ? SUGGESTIONS.filter(s => getPref("sug-" + s.id) === null) : [];
-    box.hidden = !list.length || view === "fav";
-    box.innerHTML = list.map(s => `<div class="sug" data-id="${s.id}"><span class="em">${s.em}</span><div><b>${s.title}</b><p>${s.text}</p><button class="link">${s.cta} →</button></div><button class="x" aria-label="Descartar sugerencia">✕</button></div>`).join("");
-  }
-  $("#suggest").onclick = e => {
-    const el = e.target.closest(".sug"); if (!el) return;
-    const s = SUGGESTIONS.find(x => x.id === el.dataset.id);
-    if (e.target.closest(".x, .link")) { setPref("sug-" + s.id, "1"); renderSuggestions(); }
-    if (e.target.closest(".link")) s.fn();
-  };
-
-  /* ---------- Nuevo tablero ---------- */
-  const modal = $("#modal");
-  function pickOpt(box, v) { box.querySelectorAll(".opt").forEach(o => o.classList.toggle("selected", o.dataset.v === v)); }
-  function openModal(template = "blank") {
-    $("#groupSelect").innerHTML = lib.groups.map(g => `<option value="${g.id}" ${g.id === (groupId || lib.groups[0]?.id) ? "selected" : ""}>${esc(g.name)}</option>`).join("");
-    pickOpt($("#templates"), template);
-    pickOpt($("#surfaces"), getPref("surface") || "dots");
-    modal.classList.add("open");
-    $("#boardName").value = "Sin título";
-    $("#boardName").focus(); $("#boardName").select();
-  }
-  function closeModal() { modal.classList.remove("open"); }
-  ["#templates", "#surfaces"].forEach(id => $(id).onclick = e => {
-    const o = e.target.closest(".opt"); if (o) pickOpt($(id), o.dataset.v);
-  });
-  $("#newForm").onsubmit = e => {
-    e.preventDefault();
-    const q = new URLSearchParams({
-      new: "1", template: $("#templates .selected").dataset.v, surface: $("#surfaces .selected").dataset.v,
-      group: $("#groupSelect").value, name: $("#boardName").value.trim() || "Sin título",
-    });
-    location.href = "02-tablero.html?" + q;
-  };
-
-  document.addEventListener("keydown", e => {
-    if (e.key === "Escape") closeModal();
-    if (e.ctrlKey && e.key.toLowerCase() === "n") { e.preventDefault(); openModal(); }
-    if (e.ctrlKey && e.key.toLowerCase() === "f") { e.preventDefault(); $("#search").focus(); }
-    if (e.key === "?" && !e.target.matches("input, [contenteditable=true]")) showShortcuts(HELP.shortcuts);
-  });
-
-  /* ---------- Ayuda y tutorial ---------- */
-  window.HELP = {
-    tour: "boards",
-    shortcuts: [
-      { title: "Tableros", rows: [["Nuevo tablero", "Ctrl+N"], ["Buscar", "Ctrl+F"], ["Abrir tablero enfocado", "Enter"], ["Renombrar", "F2"], ["Eliminar", "Supr"], ["Ver atajos", "?"]] },
-    ],
-  };
-  Tour.define("boards", [
-    { el: null, title: "¡Estos son tus tableros!", text: "Te enseño esta pantalla en menos de un minuto. Puedes saltarlo y volver a verlo con el botón <b>?</b> de abajo a la izquierda." },
-    { el: "#groupList", place: "right", title: "Grupos", text: "Organiza tus tableros en grupos como <b>Trabajo</b> o <b>Personal</b>. Usa <b>+</b> para crear uno y clic derecho para renombrarlo o cambiar su color." },
-    { el: () => document.querySelector('.sidebar a[href*="view=fav"]'), place: "right", title: "Favoritos y recientes", text: "Marca un tablero con la ⭐ y lo tendrás siempre en <b>Favoritos</b>. <b>Recientes</b> muestra lo último que editaste." },
-    { el: () => grid.querySelector(".card"), title: "Cada tarjeta es un tablero", text: "Haz clic para abrirlo. Con <b>clic derecho</b> lo renombras, duplicas, mueves o exportas para compartirlo. También puedes <b>arrastrarlo</b> sobre un grupo de la izquierda." },
-    { el: ".search", title: "Busca y filtra", text: "Escribe parte del nombre (atajo <b>Ctrl+F</b>) o usa los filtros de abajo." },
-    { el: "#newBtn", place: "bottom", title: "Crea un tablero", text: "Elige nombre, grupo, fondo y, si quieres, una <b>plantilla</b> para no empezar de cero. Atajo: <b>Ctrl+N</b>." },
-    { el: "#helpBtn", place: "right", title: "¿Dudas?", text: "Desde aquí vuelves a ver este tutorial, consultas los atajos o activas y desactivas las sugerencias." },
-  ]);
-
-  render();
-  renderSuggestions();
-  Tour.auto("boards");
-  setTimeout(() => {
-    if (!Tour.active && lib.boards.length > 2 && !lib.boards.some(b => b.fav))
-      Tips.show("fav", "Marca con la ⭐ los tableros que más uses para encontrarlos rápido en Favoritos.");
-  }, 1500);
-</script>
+<script src="assets/pantallas/tableros.js"></script>
 </body>
 </html>

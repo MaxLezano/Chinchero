@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, protocol, net, shell, dialog, clipboard, nativeImage, nativeTheme } = require("electron");
+const { app, BrowserWindow, ipcMain, protocol, net, shell, dialog, clipboard, nativeImage, nativeTheme, session } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const os = require("os");
@@ -7,6 +7,7 @@ const store = require("./store");
 const updater = require("./updater");
 
 const RENDERER = path.join(__dirname, "..", "renderer");
+const RENDERER_URL = pathToFileURL(RENDERER).toString() + "/";
 let win = null;
 
 // Desarrollo y pruebas: perfil aislado (no toca la instalación real del usuario)
@@ -65,7 +66,7 @@ function createWindow() {
 
   // Solo se navega entre las pantallas propias; los enlaces web se abren en el navegador
   win.webContents.on("will-navigate", (e, url) => {
-    if (!url.startsWith(pathToFileURL(RENDERER).toString())) {
+    if (!url.startsWith(RENDERER_URL)) {
       e.preventDefault();
       if (/^https?:/i.test(url)) shell.openExternal(url);
     }
@@ -81,6 +82,9 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  // La app no usa cámara, micrófono, notificaciones ni nada que pida permiso: se niega todo
+  session.defaultSession.setPermissionRequestHandler((wc, permission, cb) => cb(false));
+  session.defaultSession.setPermissionCheckHandler(() => false);
   protocol.handle("chinchero-media", req => {
     const u = new URL(req.url);
     const file = u.host === "thumbs" ? store.thumbFile(decodeURIComponent(u.pathname)) : store.mediaFile(req.url);
@@ -97,24 +101,55 @@ app.on("window-all-closed", () => app.quit());
 
 /* ---------- IPC ----------
    Lecturas síncronas (la app las necesita al cargar cada pantalla y son JSON pequeños);
-   escrituras y operaciones con archivos, asíncronas. */
-ipcMain.on("lib:get", e => { e.returnValue = store.getLibrary(); });
-ipcMain.on("board:load", (e, id) => { e.returnValue = store.loadBoard(id); });
-ipcMain.on("data:recovered", e => { e.returnValue = store.takeRecovered(); });
-ipcMain.on("app:info", e => {
+   escrituras y operaciones con archivos, asíncronas.
+   Cada canal solo responde a las pantallas propias de la ventana principal y comprueba el tipo de sus argumentos. */
+const fromApp = e => !!win && e.sender === win.webContents && !!e.senderFrame?.url.startsWith(RENDERER_URL);
+const MAX_BYTES = 1024 ** 3; // 1 GB: lo más grande que se acepta importar o exportar de una vez
+const none = () => true;
+const is = {
+  id: v => typeof v === "string" && /^[a-zA-Z0-9_-]{1,100}$/.test(v),
+  str: (v, max = 500) => typeof v === "string" && v.length <= max,
+  num: (v, min = 0, max = 1e6) => Number.isFinite(v) && v >= min && v <= max,
+  obj: v => !!v && typeof v === "object" && !Array.isArray(v),
+  bytes: v => v instanceof Uint8Array && v.length > 0 && v.length <= MAX_BYTES,
+  file: v => typeof v === "string" && v.length < 4000 && path.isAbsolute(v) && !!fs.statSync(v, { throwIfNoEntry: false })?.isFile(),
+  rect: r => is.obj(r) && is.num(r.x, -1e4, 1e5) && is.num(r.y, -1e4, 1e5) && is.num(r.width, 1, 1e5) && is.num(r.height, 1, 1e5),
+};
+function rejected(channel, e) {
+  console.warn(`IPC rechazado: ${channel} desde ${e.senderFrame?.url || "?"}`);
+  return new Error(`Petición no válida (${channel})`);
+}
+function handle(channel, check, fn) {
+  ipcMain.handle(channel, (e, ...args) => {
+    if (!fromApp(e) || !check(...args)) throw rejected(channel, e);
+    return fn(e, ...args);
+  });
+}
+function onSync(channel, check, fn) {
+  ipcMain.on(channel, (e, ...args) => {
+    if (fromApp(e) && check(...args)) return fn(e, ...args);
+    rejected(channel, e);
+    e.returnValue = null;
+  });
+}
+
+onSync("lib:get", none, e => { e.returnValue = store.getLibrary(); });
+onSync("board:load", is.id, (e, id) => { e.returnValue = store.loadBoard(id); });
+onSync("data:recovered", none, e => { e.returnValue = store.takeRecovered(); });
+onSync("app:info", none, e => {
   e.returnValue = { version: app.getVersion(), dataDir: store.dataDir(), packaged: app.isPackaged, firstRun: !store.config.get().firstRunDone };
 });
 
-ipcMain.handle("lib:save", (e, lib) => store.saveLibrary(lib));
-ipcMain.handle("board:save", (e, id, doc) => store.saveBoard(id, doc));
-ipcMain.handle("board:delete", (e, id) => store.deleteBoard(id));
-ipcMain.handle("media:importPath", (e, p) => store.importPath(p));
-ipcMain.handle("media:importBuffer", (e, buf, ext) => store.importBuffer(buf, ext));
-ipcMain.handle("app:firstRunDone", () => store.config.set({ firstRunDone: true }));
-ipcMain.handle("data:stats", () => store.dirStats());
-ipcMain.handle("data:open", () => shell.openPath(store.dataDir()));
+handle("lib:save", lib => is.obj(lib) && Array.isArray(lib.groups) && Array.isArray(lib.boards), (e, lib) => store.saveLibrary(lib));
+handle("board:save", (id, doc) => is.id(id) && is.obj(doc) && Array.isArray(doc.sheets), (e, id, doc) => store.saveBoard(id, doc));
+handle("board:delete", is.id, (e, id) => store.deleteBoard(id));
+handle("media:importPath", is.file, (e, p) => store.importPath(p));
+handle("media:importBuffer", (buf, ext) => is.bytes(buf) && is.str(ext, 20), (e, buf, ext) => store.importBuffer(buf, ext));
+handle("app:firstRunDone", none, () => store.config.set({ firstRunDone: true }));
+handle("data:stats", none, () => store.dirStats());
+handle("data:open", none, () => shell.openPath(store.dataDir()));
 
-ipcMain.handle("data:choose", async (e, mode) => {
+handle("data:choose", mode => mode === "new" || mode === "existing", async (e, mode) => {
   const r = await dialog.showOpenDialog(win, {
     title: mode === "existing" ? "Elige la carpeta de datos de Chinchero" : "Elige dónde guardar tus tableros",
     properties: ["openDirectory", "createDirectory"],
@@ -128,7 +163,7 @@ ipcMain.handle("data:choose", async (e, mode) => {
   return dir;
 });
 
-ipcMain.handle("data:backup", async () => {
+handle("data:backup", none, async () => {
   const file = await savePath("¿Dónde guardo la copia de seguridad?", `Chinchero-copia-${new Date().toISOString().slice(0, 10)}`, "zip", "Copia de Chinchero (.zip)", "documents");
   if (!file) return null;
   store.backupTo(file);
@@ -137,7 +172,7 @@ ipcMain.handle("data:backup", async () => {
 });
 
 // Restaurar: devuelve cuántos tableros trae la copia, o { error } si el archivo no sirve
-ipcMain.handle("data:restore", async () => {
+handle("data:restore", none, async () => {
   let file = process.env.CHINCHERO_RESTORE_FILE;
   if (!file) {
     const r = await dialog.showOpenDialog(win, { title: "Elige la copia de seguridad (.zip)", filters: [{ name: "Copia de Chinchero (.zip)", extensions: ["zip"] }], properties: ["openFile"] });
@@ -148,13 +183,13 @@ ipcMain.handle("data:restore", async () => {
 });
 
 // Compartir un tablero: exportar a .chinchero e importar (del diálogo, de un archivo arrastrado o abierto con doble clic)
-ipcMain.handle("board:export", async (e, id, name) => {
+handle("board:export", (id, name) => is.id(id) && is.str(name), async (e, id, name) => {
   const file = await savePath("Exportar tablero para compartir", name, "chinchero", "Tablero de Chinchero (.chinchero)", "documents");
   if (!file) return null;
   store.exportBoard(id, file);
   return file;
 });
-ipcMain.handle("board:import", async (e, file) => {
+handle("board:import", file => file == null || (is.file(file) && /\.chinchero$/i.test(file)), async (e, file) => {
   file ||= process.env.CHINCHERO_IMPORT_FILE;
   if (!file) {
     const r = await dialog.showOpenDialog(win, { title: "Elige el tablero para importar", filters: [{ name: "Tablero de Chinchero (.chinchero)", extensions: ["chinchero"] }], properties: ["openFile"] });
@@ -163,18 +198,22 @@ ipcMain.handle("board:import", async (e, file) => {
   }
   try { return store.importBoardFile(file); } catch (err) { return { error: err.message }; }
 });
-ipcMain.on("board:opened", e => { e.returnValue = opened.splice(0); });
+onSync("board:opened", none, e => { e.returnValue = opened.splice(0); });
 
-ipcMain.handle("open:external", (e, url) => {
+handle("open:external", url => is.str(url, 4000), (e, url) => {
   if (/^https?:\/\//i.test(url)) return shell.openExternal(url);
 });
-ipcMain.handle("open:media", (e, url) => {
+const RISKY = /\.(exe|com|scr|pif|bat|cmd|msi|msp|ps1|psm1|vbs|vbe|js|jse|wsf|wsh|hta|lnk|url|reg|cpl|jar|appx|msix|appinstaller|application|gadget|inf|scf|chm)$/i;
+handle("open:media", url => is.str(url) && url.startsWith("chinchero-media://"), (e, url) => {
   const file = store.mediaFile(url);
-  return file ? shell.openPath(file) : "No encontrado";
+  if (!file) return "No encontrado";
+  // Un ejecutable adjunto (p. ej. dentro de un .chinchero ajeno) no se lanza: se muestra en su carpeta
+  if (RISKY.test(file)) return shell.showItemInFolder(file);
+  return shell.openPath(file);
 });
 
 // Captura un rectángulo de la ventana (px CSS); el editor la usa por partes para armar la hoja entera
-ipcMain.handle("capture:rect", async (e, rect) => (await win.webContents.capturePage(roundRect(rect))).toPNG());
+handle("capture:rect", is.rect, async (e, rect) => (await win.webContents.capturePage(roundRect(rect))).toPNG());
 
 // Pregunta dónde guardar (en pruebas, CHINCHERO_EXPORT_DIR guarda directo sin diálogo)
 async function savePath(title, name, ext, filter, folder) {
@@ -184,20 +223,20 @@ async function savePath(title, name, ext, filter, folder) {
   return r.canceled || !r.filePath ? null : r.filePath;
 }
 
-ipcMain.handle("export:png", async (e, png, name) => {
+handle("export:png", (png, name) => is.bytes(png) && is.str(name), async (e, png, name) => {
   const file = await savePath("Exportar como imagen", name, "png", "Imagen PNG", "pictures");
   if (!file) return null;
   fs.writeFileSync(file, Buffer.from(png));
   return file;
 });
-ipcMain.handle("copy:png", (e, png) => {
+handle("copy:png", is.bytes, (e, png) => {
   clipboard.writeImage(nativeImage.createFromBuffer(Buffer.from(png)));
   return true;
 });
 
 // PDF: una página por hoja, del tamaño de su contenido. Se arma una página oculta con las imágenes y se imprime
 const PDF_MAX = 19200; // 200 pulgadas, el máximo de una página PDF, en px CSS
-ipcMain.handle("export:pdf", async (e, pages, name) => {
+handle("export:pdf", (pages, name) => Array.isArray(pages) && pages.length > 0 && pages.length <= 1000 && pages.every(p => is.obj(p) && is.bytes(p.png) && is.num(p.w) && is.num(p.h)) && is.str(name), async (e, pages, name) => {
   const file = await savePath("Exportar como PDF", name, "pdf", "Documento PDF", "documents");
   if (!file) return null;
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "chinchero-pdf-"));
@@ -221,8 +260,8 @@ ipcMain.handle("export:pdf", async (e, pages, name) => {
   }
 });
 
-ipcMain.handle("update:check", () => updater.check(true));
-ipcMain.handle("update:install", () => updater.install());
+handle("update:check", none, () => updater.check(true));
+handle("update:install", none, () => updater.install());
 
 function roundRect(r) {
   return { x: Math.round(r.x), y: Math.round(r.y), width: Math.round(r.width), height: Math.round(r.height) };

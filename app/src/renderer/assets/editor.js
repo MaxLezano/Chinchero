@@ -344,7 +344,7 @@
   // En el lienzo las fotos guardadas usan su miniatura (ver thumbFile en main/store.js); el visor usa la original
   const thumb = src => src.replace(/^chinchero-media:\/\/media\//, "chinchero-media://thumbs/");
   function itemHTML(it) {
-    const fix = it.fix === "pin" ? `<span class="pin" style="left:${it.pin.x * 100}%;top:${it.pin.y * 100}%;--pin:${it.pin.color}" title="Arrastra para unir con un hilo · Mayús+arrastrar para moverla"></span>`
+    const fix = it.fix === "pin" ? `<span class="pin" style="left:${esc(it.pin.x * 100)}%;top:${esc(it.pin.y * 100)}%;--pin:${esc(it.pin.color)}" title="Arrastra para unir con un hilo · Mayús+arrastrar para moverla"></span>`
       : it.fix === "tape" ? '<span class="tape"></span>' : "";
     switch (it.type) {
       case "note": return fix + `<div class="txt" data-edit="text" data-rich>${it.text}</div>`;
@@ -358,14 +358,14 @@
       case "text": return fix + `<div class="txt" data-edit="text">${esc(it.text)}</div>`;
       case "photo": {
         const media = it.src ? `<img src="${esc(thumb(it.src))}" alt="" decoding="async">` : it.art ? ART[it.art] : '<div class="ph-empty">Arrastra una imagen aquí<br>o haz doble clic para elegirla</div>';
-        return fix + `<div class="img ${it.fit}" style="height:${it.h}px">${media}</div>` + (it.frame === "polaroid" ? `<div class="caption" data-edit="caption">${esc(it.caption)}</div>` : "");
+        return fix + `<div class="img ${esc(it.fit)}" style="height:${esc(it.h)}px">${media}</div>` + (it.frame === "polaroid" ? `<div class="caption" data-edit="caption">${esc(it.caption)}</div>` : "");
       }
-      case "link": return fix + `<div class="lp" style="--g:${it.grad}">${esc(it.domain.charAt(0).toUpperCase())}</div><div class="lb"><div class="lt" data-edit="title">${esc(it.title)}</div><div class="lu">🔗 ${esc(it.domain)}</div></div>`;
-      case "file": return fix + `<div class="fi" style="--fc:${FILE_COLORS[it.ext] || "#868e96"}">${esc(it.ext.toUpperCase() || "?")}</div><div><div class="fn">${esc(it.name)}</div><div class="fm">${esc(it.size)} · doble clic para abrir</div></div>`;
-      case "sticker": return it.img ? `<img src="${esc(it.img)}" alt="">` : it.emoji;
-      case "stamp": return `<span class="badge" data-edit="text" style="--b:${it.color}">${esc(it.text)}</span>`;
+      case "link": return fix + `<div class="lp" style="--g:${esc(it.grad)}">${esc(it.domain.charAt(0).toUpperCase())}</div><div class="lb"><div class="lt" data-edit="title">${esc(it.title)}</div><div class="lu">🔗 ${esc(it.domain)}</div></div>`;
+      case "file": return fix + `<div class="fi" style="--fc:${esc(FILE_COLORS[it.ext] || "#868e96")}">${esc(it.ext.toUpperCase() || "?")}</div><div><div class="fn">${esc(it.name)}</div><div class="fm">${esc(it.size)} · doble clic para abrir</div></div>`;
+      case "sticker": return it.img ? `<img src="${esc(it.img)}" alt="">` : esc(it.emoji);
+      case "stamp": return `<span class="badge" data-edit="text" style="--b:${esc(it.color)}">${esc(it.text)}</span>`;
       case "zone": return `<div class="zt" data-edit="title">${esc(it.title)}</div>`;
-      case "draw": return `<svg viewBox="0 0 ${it.vw} ${it.vh}" preserveAspectRatio="none"><path class="dh" d="${it.d}"/><path d="${it.d}" stroke="${it.color}" stroke-width="${it.sw}"/></svg>`;
+      case "draw": return `<svg viewBox="0 0 ${esc(it.vw)} ${esc(it.vh)}" preserveAspectRatio="none"><path class="dh" d="${esc(it.d)}"/><path d="${esc(it.d)}" stroke="${esc(it.color)}" stroke-width="${esc(it.sw)}"/></svg>`;
     }
     return "";
   }
@@ -491,10 +491,10 @@
     const sag = Math.min(140, Math.hypot(b.x - a.x, b.y - a.y) * .16) * k;
     return { d: `M${a.x} ${a.y} Q${mx} ${my + sag} ${b.x} ${b.y}`, mid: { x: (a.x + 2 * mx + b.x) / 4, y: (a.y + 2 * (my + sag) + b.y) / 4 } };
   }
-  const pinHead = p => `<g filter="url(#pinShadow)"><circle cx="${p.x}" cy="${p.y}" r="8" fill="${p.color}"/><circle cx="${p.x}" cy="${p.y}" r="8" fill="url(#pinShine)"/></g>`;
+  const pinHead = p => `<g filter="url(#pinShadow)"><circle cx="${esc(p.x)}" cy="${esc(p.y)}" r="8" fill="${esc(p.color)}"/><circle cx="${esc(p.x)}" cy="${esc(p.y)}" r="8" fill="url(#pinShine)"/></g>`;
   function labelSVG(m, text) {
     const w = text.length * 7 + 20;
-    return `<g class="tl" transform="translate(${m.x} ${m.y})"><rect x="${-w / 2}" y="-12" width="${w}" height="24" rx="5"/><text text-anchor="middle" dy="4">${esc(text)}</text></g>`;
+    return `<g class="tl" transform="translate(${esc(m.x)} ${esc(m.y)})"><rect x="${-w / 2}" y="-12" width="${w}" height="24" rx="5"/><text text-anchor="middle" dy="4">${esc(text)}</text></g>`;
   }
 
   function drawThreads(preview) {
@@ -507,8 +507,8 @@
       if (!a || !b) continue;
       const { d, mid } = curve(a, b, t.sag ?? 1);
       const hl = t.id === selThread || related.has(t.a) || related.has(t.b);
-      out.push(["t" + t.id, `<g class="th${hl ? " hl" : ""}${t.id === selThread ? " sel" : ""}" data-t="${t.id}">
-        <path d="${d}" class="sh" transform="translate(1.5 4)"/><path d="${d}" class="ln" style="stroke:${t.color || "var(--thread)"}"/><path d="${d}" class="hit"/>
+      out.push(["t" + t.id, `<g class="th${hl ? " hl" : ""}${t.id === selThread ? " sel" : ""}" data-t="${esc(t.id)}">
+        <path d="${esc(d)}" class="sh" transform="translate(1.5 4)"/><path d="${esc(d)}" class="ln" style="stroke:${esc(t.color || "var(--thread)")}"/><path d="${esc(d)}" class="hit"/>
         ${t.label ? labelSVG(mid, t.label) : ""}</g>`]);
       heads.set(t.a, a); heads.set(t.b, b);
     }
@@ -1785,7 +1785,7 @@
   }
   function renderMyStickers() {
     $("#myStickers").innerHTML = myStickers.length
-      ? myStickers.map(src => `<button data-st="img" data-src="${src}" draggable="true" aria-label="Sticker propio"><img src="${src}" alt="" draggable="false"></button>`).join("")
+      ? myStickers.map(src => `<button data-st="img" data-src="${esc(src)}" draggable="true" aria-label="Sticker propio"><img src="${esc(src)}" alt="" draggable="false"></button>`).join("")
       : '<small style="grid-column:1/-1;color:var(--text-muted);font-size:12px;padding:4px">Importa PNG con fondo transparente para usarlos como stickers.</small>';
   }
   function stickerSpec(b) {
@@ -2375,7 +2375,7 @@
   /* ---------- Inicio ---------- */
   const group = Store.group(Store.board(boardId)?.group);
   if (group) {
-    $(".crumb .group").innerHTML = `<span class="dot" style="background:${group.color}"></span>${esc(group.name)} /`;
+    $(".crumb .group").innerHTML = `<span class="dot" style="background:${esc(group.color)}"></span>${esc(group.name)} /`;
     $(".back").href = "01-tableros.html?group=" + group.id;
   }
   recalcZ();

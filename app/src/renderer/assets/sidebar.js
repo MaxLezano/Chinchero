@@ -23,8 +23,8 @@
   const on = key => (key === active ? ' active" aria-current="page' : "");
 
   function groupRow(g) {
-    return `<a class="nav-item${on("group:" + g.id)}" href="01-tableros.html?group=${g.id}" data-group="${g.id}">
-      <span class="group-dot" style="background:${g.color}"></span><span class="gname">${esc(g.name)}</span><span class="count">${countOf(g.id)}</span></a>`;
+    return `<a class="nav-item${on("group:" + g.id)}" href="01-tableros.html?group=${encodeURIComponent(g.id)}" data-group="${esc(g.id)}">
+      <span class="group-dot" style="background:${esc(g.color)}"></span><span class="gname">${esc(g.name)}</span><span class="count">${countOf(g.id)}</span></a>`;
   }
 
   el.setAttribute("aria-label", "Navegación");
@@ -36,7 +36,7 @@
     <div id="groupList">${GROUPS.map(groupRow).join("")}</div>
     <a class="nav-item${on("trash")}" href="04-papelera.html" style="margin-top:8px">${I.trash}Papelera<span class="count" id="trashCount">${lib.trash.length || ""}</span></a>
     <div class="sidebar-footer">
-      <button class="icon-btn" aria-label="Cambiar tema" data-tip="Cambiar tema" data-tip-pos="top" onclick="toggleTheme()">${I.moon}${I.sun}</button>
+      <button class="icon-btn" aria-label="Cambiar tema" data-tip="Cambiar tema" data-tip-pos="top" data-theme-toggle>${I.moon}${I.sun}</button>
       <a class="icon-btn${on("settings")}" aria-label="Ajustes" data-tip="Ajustes" data-tip-pos="top" href="03-ajustes.html">${I.gear}</a>
       <button class="icon-btn" id="helpBtn" aria-label="Ayuda" data-tip="Ayuda" data-tip-pos="top">${I.help}</button>
     </div>`;

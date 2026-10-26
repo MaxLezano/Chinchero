@@ -21,7 +21,8 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const log = [];
 const ok = (n, c, x = "") => log.push(`${c ? "PASS" : "FAIL"} ${n}${x ? " — " + x : ""}`);
 
-const ELECTRON = path.join(APP, "node_modules/electron/dist/electron.exe");
+// CHINCHERO_EXE prueba la app empaquetada (dist/win-unpacked/Chinchero.exe), con los fuses activados
+const ELECTRON = process.env.CHINCHERO_EXE || path.join(APP, "node_modules/electron/dist/electron.exe");
 const ENV = { ...Object.fromEntries(Object.entries(process.env).filter(([k]) => k !== "ELECTRON_RUN_AS_NODE")), CHINCHERO_USER_DATA: path.join(TMP, "user"), CHINCHERO_DATA_DIR: DATA, CHINCHERO_EXPORT_DIR: EXPORT, CHINCHERO_RESTORE_FILE: RESTORE, CHINCHERO_IMPORT_FILE: IMPORT };
 
 async function launch() {
@@ -200,11 +201,36 @@ delete process.env.ELECTRON_RUN_AS_NODE;
     { id: "s1", type: "stamp", x: 400, y: 100, rot: 0, z: 2, s: 1, text: "SELLO", color: `red">${evil}` },
   ] }] };
   fs.writeFileSync(IMPORT, zipSync({ "tablero.json": strToU8(JSON.stringify({ formato: "chinchero-tablero", version: 1, board: { name: `Ajeno${evil}` }, doc: evilDoc })) }));
+  // Al limpiar el texto con formato, Chromium avisa de la CSP aunque la plantilla sea inerte y nada se ejecute
+  const beforeEvil = log.length;
   await page.click("#importBtn"); await sleep(800);
+  for (let i = log.length - 1; i >= beforeEvil; i--) if (log[i].includes("Content Security Policy")) log.splice(i, 1);
   const evilId = JSON.parse(fs.readFileSync(path.join(DATA, "library.json"), "utf8")).boards.find(b => b.name.startsWith("Ajeno"))?.id;
   await page.goto(page.url().replace(/01-tableros\.html.*/, "02-tablero.html?board=" + evilId)); await sleep(1200);
   ok("un tablero importado no puede ejecutar código", await page.evaluate(() => !window.__xss && document.querySelector(".t-note .txt")?.innerHTML === "<b>Hola</b>" && !document.querySelector("#items img")),
     await page.evaluate(() => document.querySelector(".t-note .txt")?.innerHTML));
+
+  // El proceso principal rechaza argumentos que no son del tipo esperado
+  const ipc = await page.evaluate(async () => {
+    const rejects = async p => { try { await p; return false; } catch { return true; } };
+    const c = window.chinchero;
+    return {
+      load: c.loadBoard("../library") === null,
+      save: await rejects(c.saveBoard("../../fuera", { sheets: [] })),
+      saveDoc: await rejects(c.saveBoard("bueno", "no es un documento")),
+      lib: await rejects(c.saveLibrary(null)),
+      del: await rejects(c.deleteBoard({ id: "x" })),
+      choose: await rejects(c.chooseDataDir("C:\\")),
+      ext: await rejects(c.openExternal(["https://x.com"])),
+      media: await rejects(c.openMedia("file:///C:/Windows/notepad.exe")),
+      rect: await rejects(c.capture({ x: 0, y: 0, width: -5, height: "a" })),
+      png: await rejects(c.exportPng("no son bytes", "x")),
+      pdf: await rejects(c.exportPdf([{ png: new Uint8Array(1), w: 1 }], "x")),
+      imp: await rejects(c.importBoard("C:\\Windows\\win.ini")),
+    };
+  });
+  ok("IPC: argumentos no válidos se rechazan", Object.values(ipc).every(Boolean), JSON.stringify(ipc));
+  ok("IPC: el tablero sigue intacto tras los rechazos", fs.existsSync(path.join(DATA, "library.json")) && !fs.existsSync(path.join(TMP, "fuera.json")));
 
   fs.copyFileSync(shareFile, path.join(TMP, "doble-clic.chinchero"));
   spawn(ELECTRON, [APP, path.join(TMP, "doble-clic.chinchero")], { env: ENV, stdio: "ignore" });
@@ -220,6 +246,6 @@ delete process.env.ELECTRON_RUN_AS_NODE;
 
   await browser.disconnect(); proc.kill();
   fs.writeFileSync(path.join(SHOTS, "log.txt"), log.join("\n"));
-  if (log.some(l => /^FAIL|PAGEERROR/.test(l))) process.exitCode = 1;
+  if (log.some(l => /^FAIL|PAGEERROR|Content Security Policy/.test(l))) process.exitCode = 1;
   console.log(log.join("\n"));
 })().catch(e => { console.error(e); process.exit(1); });

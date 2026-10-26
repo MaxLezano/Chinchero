@@ -177,6 +177,6 @@ delete process.env.ELECTRON_RUN_AS_NODE;
 
   await browser.disconnect(); proc.kill();
   fs.writeFileSync(path.join(SHOTS, "log.txt"), log.join("\n"));
-  if (log.some(l => /^FAIL|PAGEERROR/.test(l))) process.exitCode = 1;
+  if (log.some(l => /^FAIL|PAGEERROR|Content Security Policy/.test(l))) process.exitCode = 1;
   console.log(log.join("\n"));
 })().catch(e => { console.error(e); process.exit(1); });

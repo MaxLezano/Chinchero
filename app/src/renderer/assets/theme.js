@@ -66,4 +66,6 @@
   window.toggleTheme = function () {
     setPref("theme", root.dataset.theme === "dark" ? "light" : "dark");
   };
+  // Botones de tema (sin onclick en el HTML: la CSP no permite código inline)
+  document.addEventListener("click", e => { if (e.target.closest("[data-theme-toggle]")) toggleTheme(); });
 })();

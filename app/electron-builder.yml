@@ -13,6 +13,19 @@ files:
   - build/icon.png
   - package.json
 
+# Fuses: interruptores de Electron fijados en el .exe al empaquetar (no afectan a `npm start` ni a las pruebas).
+# Nadie puede usar Chinchero.exe como Node (ELECTRON_RUN_AS_NODE, NODE_OPTIONS, --inspect)
+# y solo carga un app.asar que no haya sido modificado.
+electronFuses:
+  runAsNode: false
+  enableCookieEncryption: true
+  enableNodeOptionsEnvironmentVariable: false
+  enableNodeCliInspectArguments: false
+  enableEmbeddedAsarIntegrityValidation: true
+  onlyLoadAppFromAsar: true
+  # Sin este, file:// no puede leer las pantallas dentro de app.asar (haría falta servirlas con un protocolo propio)
+  grantFileProtocolExtraPrivileges: true
+
 win:
   target:
     - target: nsis

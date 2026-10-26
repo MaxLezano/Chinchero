@@ -2,6 +2,8 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
+<!-- Solo recursos propios: nada de internet ni código inline (los estilos inline sí, el editor posiciona con style) -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: chinchero-media:; media-src 'self' blob: chinchero-media:; connect-src 'self' data: blob: chinchero-media:; base-uri 'none'; form-action 'none'; object-src 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Chinchero — Tablero</title>
 <link rel="stylesheet" href="assets/fonts/fonts.css">
@@ -65,7 +67,7 @@
     <button class="icon-btn" id="exportBtn" aria-label="Exportar" data-tip="Exportar" data-tip-pos="bottom"><svg class="icon"><use href="#i-share"/></svg></button>
     <span class="sep"></span>
     <button class="icon-btn" id="helpBtn" aria-label="Ayuda" data-tip="Ayuda y tutorial" data-tip-pos="bottom"><svg class="icon"><use href="#i-help"/></svg></button>
-    <button class="icon-btn" aria-label="Cambiar tema" data-tip="Cambiar tema" data-tip-pos="left" onclick="toggleTheme()"><svg class="icon ico-moon"><use href="#i-moon"/></svg><svg class="icon ico-sun"><use href="#i-sun"/></svg></button>
+    <button class="icon-btn" aria-label="Cambiar tema" data-tip="Cambiar tema" data-tip-pos="left" data-theme-toggle><svg class="icon ico-moon"><use href="#i-moon"/></svg><svg class="icon ico-sun"><use href="#i-sun"/></svg></button>
   </div>
 </header>
 
