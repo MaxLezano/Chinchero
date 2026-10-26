@@ -147,6 +147,8 @@ handle("media:importPath", is.file, (e, p) => store.importPath(p));
 handle("media:importBuffer", (buf, ext) => is.bytes(buf) && is.str(ext, 20), (e, buf, ext) => store.importBuffer(buf, ext));
 handle("app:firstRunDone", none, () => store.config.set({ firstRunDone: true }));
 handle("data:stats", none, () => store.dirStats());
+handle("data:unused", none, () => { const { count, bytes } = store.unusedMedia(); return { count, bytes }; });
+handle("data:clean", none, () => store.cleanMedia());
 handle("data:open", none, () => shell.openPath(store.dataDir()));
 
 handle("data:choose", mode => mode === "new" || mode === "existing", async (e, mode) => {

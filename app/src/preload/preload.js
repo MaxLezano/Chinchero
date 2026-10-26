@@ -25,6 +25,8 @@ contextBridge.exposeInMainWorld("chinchero", {
   takeOpened: () => ipcRenderer.sendSync("board:opened"),
 
   dataStats:() => ipcRenderer.invoke("data:stats"),
+  unusedMedia: () => ipcRenderer.invoke("data:unused"),
+  cleanMedia: () => ipcRenderer.invoke("data:clean"),
   openDataDir: () => ipcRenderer.invoke("data:open"),
   chooseDataDir: mode => ipcRenderer.invoke("data:choose", mode),
   backup: () => ipcRenderer.invoke("data:backup"),

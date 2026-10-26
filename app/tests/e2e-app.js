@@ -143,9 +143,24 @@ delete process.env.ELECTRON_RUN_AS_NODE;
   ok("avisa que lo recuperó", await page.evaluate(() => document.querySelector(".toast")?.textContent.includes("lo recuperamos")));
   ok("el archivo dañado queda apartado", fs.readdirSync(path.join(DATA, "boards")).some(n => n.includes(".corrupto-")));
 
+  // Liberar espacio: un archivo sin usar y su miniatura se borran; lo que usa un tablero o una copia de backups/ se conserva
+  const MEDIA = path.join(DATA, "media"), inUse = fs.readdirSync(MEDIA).filter(n => n !== "thumbs");
+  fs.mkdirSync(path.join(MEDIA, "thumbs"), { recursive: true });
+  fs.writeFileSync(path.join(MEDIA, "sinusar0001.png"), Buffer.alloc(300 * 1024, 1));
+  fs.writeFileSync(path.join(MEDIA, "thumbs", "sinusar0001.jpg"), Buffer.alloc(1024, 1));
+  fs.writeFileSync(path.join(MEDIA, "encopia0001.pdf"), Buffer.alloc(1024, 1));
+  fs.writeFileSync(path.join(DATA, "backups", "prueba-copia.zip"), zipSync({ "boards/viejo.json": strToU8(JSON.stringify({ sheets: [{ items: [{ type: "file", src: "chinchero-media://media/encopia0001.pdf" }] }] })) }));
   await page.goto(page.url().replace(/02-tablero\.html.*/, "03-ajustes.html")); await sleep(800);
   await page.evaluate(() => document.getElementById("datos").scrollIntoView());
   await page.screenshot({ path: `${SHOTS}/a5-datos.png` });
+  ok("«Liberar espacio» cuenta solo lo que no se usa", await page.evaluate(() => /^1 imagen o archivo que ningún tablero usa \(301 KB\)/.test(document.getElementById("unused").textContent) && !document.getElementById("cleanBtn").disabled),
+    await page.evaluate(() => document.getElementById("unused").textContent));
+  page.once("dialog", d => d.accept());
+  await page.evaluate(() => document.getElementById("cleanBtn").click()); await sleep(800);
+  const left = fs.readdirSync(MEDIA);
+  ok("«Liberar espacio» borra el archivo sin usar y su miniatura", !left.includes("sinusar0001.png") && !fs.existsSync(path.join(MEDIA, "thumbs", "sinusar0001.jpg")) && await page.evaluate(() => document.querySelector(".toast")?.textContent.includes("Espacio liberado: 301 KB")), left.join(","));
+  ok("«Liberar espacio» conserva lo que usan los tableros y las copias", inUse.length > 0 && inUse.every(n => left.includes(n)) && left.includes("encopia0001.pdf") && await page.evaluate(() => document.getElementById("cleanBtn").disabled && document.getElementById("unused").textContent.startsWith("No hay nada que borrar")));
+  fs.rmSync(path.join(DATA, "backups", "prueba-copia.zip"));
   await page.evaluate(() => document.getElementById("backupBtn").click());
   const zipFile = await waitFile(".zip");
   const zipped = zipFile ? Object.keys(unzipSync(fs.readFileSync(zipFile))) : [];

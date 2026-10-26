@@ -151,6 +151,48 @@ function dirStats() {
   return { bytes, images };
 }
 
+/* ---------- Liberar espacio ----------
+   Un archivo de media/ está en uso si su URL aparece en library.json (stickers, papelera), en algún tablero
+   (también los de la papelera, que conservan su archivo) o en alguna copia de backups/: restaurarla no debe dejar fotos rotas. */
+const USED_URL = /chinchero-media:\/\/media\/([a-zA-Z0-9][a-zA-Z0-9_.-]*)/g;
+function usedMedia() {
+  const used = new Set(), scan = buf => { for (const m of buf.toString("utf8").matchAll(USED_URL)) used.add(m[1]); };
+  for (const buf of Object.values(dataFiles({ onlyJSON: true }))) scan(buf);
+  let zips = [];
+  try { zips = fs.readdirSync(paths.backups()).filter(n => n.endsWith(".zip")); } catch {}
+  for (const n of zips) {
+    try {
+      const files = unzipSync(new Uint8Array(fs.readFileSync(path.join(paths.backups(), n))), { filter: f => f.name.endsWith(".json") });
+      for (const data of Object.values(files)) scan(Buffer.from(data));
+    } catch {}
+  }
+  return used;
+}
+
+// Archivos de media/ (y miniaturas en media/thumbs/) que nada usa, con su tamaño
+function unusedMedia() {
+  const used = usedMedia(), stem = n => n.replace(/\.\w+$/, ""), list = [];
+  const ls = dir => { try { return fs.readdirSync(dir, { withFileTypes: true }).filter(e => e.isFile() && !e.name.endsWith(".tmp")); } catch { return []; } };
+  const media = ls(paths.media()).map(e => e.name);
+  for (const n of media) if (!used.has(n)) list.push(path.join(paths.media(), n));
+  // La miniatura se llama como la imagen con .png o .jpg: se borra si ninguna imagen que queda tiene ese nombre
+  const kept = new Set(media.filter(n => used.has(n)).map(stem));
+  for (const e of ls(paths.thumbs())) if (!kept.has(stem(e.name))) list.push(path.join(paths.thumbs(), e.name));
+  const files = list.map(file => ({ file, bytes: fs.statSync(file).size, thumb: file.startsWith(paths.thumbs()) }));
+  return { count: files.filter(f => !f.thumb).length, bytes: files.reduce((s, f) => s + f.bytes, 0), files };
+}
+
+// Se vuelve a calcular al borrar (no se confía en una lista vieja): por si se añadió algo entre medio
+function cleanMedia() {
+  const { files } = unusedMedia();
+  let count = 0, bytes = 0;
+  for (const f of files) {
+    try { fs.rmSync(f.file); bytes += f.bytes; if (!f.thumb) count++; } catch {}
+  }
+  small.clear();
+  return { count, bytes };
+}
+
 /* ---------- Copias de seguridad (.zip) ---------- */
 
 // Archivos de la carpeta de datos como { "ruta/relativa": bytes }. Sin backups/, miniaturas ni temporales.
@@ -322,6 +364,6 @@ function readOrRecover(file, rel, label) {
 
 module.exports = {
   config, dataDir, getLibrary, saveLibrary, loadBoard, saveBoard, deleteBoard,
-  importPath, importBuffer, mediaFile, thumbFile, dirStats, backupTo, autoBackup, restoreFrom, takeRecovered,
+  importPath, importBuffer, mediaFile, thumbFile, dirStats, unusedMedia, cleanMedia, backupTo, autoBackup, restoreFrom, takeRecovered,
   exportBoard, importBoardFile,
 };

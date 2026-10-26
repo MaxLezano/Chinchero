@@ -31,8 +31,31 @@ document.getElementById("version").textContent = info.version;
 const mb = n => (n / 1048576).toFixed(n > 10485760 ? 0 : 1).replace(".", ",") + " MB";
 const usage = document.getElementById("usage");
 const nb = lib.boards.length;
-if (Store.native) window.chinchero.dataStats().then(st => { usage.textContent = `${mb(st.bytes)} · ${nb} tablero${nb === 1 ? "" : "s"} · ${st.images} imágenes`; });
+const showUsage = () => window.chinchero.dataStats().then(st => { usage.textContent = `${mb(st.bytes)} · ${nb} tablero${nb === 1 ? "" : "s"} · ${st.images} imágenes`; });
+if (Store.native) showUsage();
 else usage.textContent = `${nb} tablero${nb === 1 ? "" : "s"} (modo de prueba en el navegador)`;
+
+// Liberar espacio: imágenes y archivos de la carpeta que ningún tablero, papelera ni copia automática usa
+const unused = document.getElementById("unused"), cleanBtn = document.getElementById("cleanBtn");
+const size = n => n < 1048576 ? Math.max(1, Math.round(n / 1024)) + " KB" : mb(n);
+const KEEP = " Se conservan los de la papelera y los de las copias automáticas.";
+const showUnused = async () => {
+  const u = await window.chinchero.unusedMedia();
+  cleanBtn.disabled = !u.bytes;
+  cleanBtn.dataset.mb = size(u.bytes);
+  unused.textContent = u.count
+    ? `${u.count} imagen${u.count === 1 ? "" : "es"} o archivo${u.count === 1 ? "" : "s"} que ningún tablero usa (${size(u.bytes)}).${KEEP}`
+    : u.bytes ? `Hay miniaturas que ya no se usan (${size(u.bytes)}).` : `No hay nada que borrar: todos los archivos están en uso.${KEEP}`;
+};
+if (Store.native) showUnused();
+else unused.textContent = "Disponible en la app de escritorio.";
+cleanBtn.onclick = async () => {
+  if (!confirm(`Se borrarán de la carpeta de datos las imágenes y archivos que ningún tablero usa (${cleanBtn.dataset.mb}). No se puede deshacer. ¿Continuar?`)) return;
+  cleanBtn.disabled = true;
+  const r = await window.chinchero.cleanMedia();
+  toast(r.bytes ? `Espacio liberado: ${size(r.bytes)}` : "No había nada que borrar");
+  showUsage(); showUnused();
+};
 if (lib.lastBackup) document.getElementById("lastBackup").textContent = `Última copia: ${relTime(lib.lastBackup)}. Guarda todo en un solo archivo .zip donde elijas.`;
 
 document.getElementById("openData").onclick = () => Store.desktop("openDataDir");
