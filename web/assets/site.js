@@ -117,9 +117,23 @@ function showShot(key = currentShot) {
   next.onload = () => { img.src = next.src; img.alt = caption; img.style.opacity = 1; };
   next.src = `assets/screens/${file}-${theme}.webp`;
   $("#shotCaption").textContent = caption;
-  $$(".tab").forEach(t => t.classList.toggle("active", t.dataset.shot === key));
+  $$(".tab").forEach(t => {
+    const on = t.dataset.shot === key;
+    t.classList.toggle("active", on);
+    t.setAttribute("aria-selected", on);
+    t.tabIndex = on ? 0 : -1;
+  });
 }
 $(".tabs").onclick = e => { const t = e.target.closest(".tab"); if (t) showShot(t.dataset.shot); };
+// Pestañas con teclado: flechas, Inicio y Fin
+$(".tabs").onkeydown = e => {
+  const tabs = $$(".tab"), i = tabs.findIndex(t => t.dataset.shot === currentShot);
+  const j = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: tabs.length - 1 }[e.key];
+  if (j === undefined) return;
+  e.preventDefault();
+  const t = tabs[(j + tabs.length) % tabs.length];
+  showShot(t.dataset.shot); t.focus();
+};
 showShot();
 
 /* ---------- Descargas: releases públicas del repositorio ---------- */
@@ -161,7 +175,7 @@ async function fetchReleases() {
 function noReleases(msg) {
   $("#latest").innerHTML = `<div class="ver"><h3>Muy pronto</h3></div>
     <p class="meta">${msg}</p>
-    <a class="btn" href="${REPO_URL}/releases" target="_blank" rel="noopener">Ver releases en GitHub</a>`;
+    <a class="btn" href="${esc(REPO_URL)}/releases" target="_blank" rel="noopener">Ver releases en GitHub</a>`;
   $("#versions").innerHTML = '<li style="padding:14px 4px;color:var(--muted)">Aquí aparecerá el historial de versiones.</li>';
   $$(".dl-btn").forEach(b => { b.href = "#descargar"; $(".dl-ver", b).textContent = "Próximamente"; });
 }
@@ -172,17 +186,18 @@ fetchReleases().then(list => {
   if (!latest) return noReleases("Todavía no hay versiones publicadas. Vuelve en unos días.");
   const exe = installer(latest);
   const downloads = list.reduce((n, r) => n + r.assets.reduce((m, a) => m + (/\.exe$/i.test(a.name) ? a.download_count : 0), 0), 0);
-  const href = exe ? exe.browser_download_url : latest.html_url;
-  $$(".dl-btn").forEach(b => { b.href = href; $(".dl-ver", b).textContent = latest.tag_name; });
+  const href = esc(exe ? exe.browser_download_url : latest.html_url);
+  $$(".dl-btn").forEach(b => { b.href = exe ? exe.browser_download_url : latest.html_url; $(".dl-ver", b).textContent = latest.tag_name; });
   $("#latest").innerHTML = `
     <div class="ver"><h3>${esc(latest.name || latest.tag_name)}</h3><span class="badge">${latest.prerelease ? "Beta" : "Última versión"}</span></div>
     <p class="meta">Publicada el ${fmtDate(latest.published_at)}${exe ? ` · ${fmtSize(exe.size)}` : ""}${downloads ? ` · ${downloads.toLocaleString("es-AR")} descargas` : ""}</p>
     <a class="btn btn-primary" href="${href}">${ICON_WIN} Descargar instalador <small>${esc(latest.tag_name)}</small></a>
     <div class="notes">${md(latest.body) || "<p>Sin notas para esta versión.</p>"}</div>`;
-  $("#versions").innerHTML = list.map((r, i) => {
+  // Cerradas: las notas de la última ya se ven arriba
+  $("#versions").innerHTML = list.map(r => {
     const e = installer(r);
-    return `<li><details ${i === 0 ? "open" : ""}><summary>${esc(r.tag_name)}${r.prerelease ? " · beta" : ""} <small>${fmtDate(r.published_at)}</small></summary>
-      <div class="vbody">${md(r.body) || "<p>Sin notas.</p>"}${e ? `<a class="btn" href="${e.browser_download_url}">Descargar ${esc(r.tag_name)} · ${fmtSize(e.size)}</a>` : ""}</div></details></li>`;
+    return `<li><details><summary>${esc(r.tag_name)}${r.prerelease ? " · beta" : ""} <small>${fmtDate(r.published_at)}</small></summary>
+      <div class="vbody">${md(r.body) || "<p>Sin notas.</p>"}${e ? `<a class="btn" href="${esc(e.browser_download_url)}">Descargar ${esc(r.tag_name)} · ${fmtSize(e.size)}</a>` : ""}</div></details></li>`;
   }).join("");
 }).catch(() => noReleases("No pudimos consultar las versiones ahora mismo. Puedes verlas directamente en GitHub."));
 

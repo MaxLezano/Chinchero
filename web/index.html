@@ -7,7 +7,10 @@
 <meta name="description" content="Chinchero es una app gratuita para Windows: pincha notas, fotos y stickers en un tablero, únelos con hilos y organiza tus ideas. Funciona sin conexión.">
 <meta property="og:title" content="Chinchero — Tu tablero de ideas digital">
 <meta property="og:description" content="Notas, fotos y stickers unidos con hilos, como en un tablero de verdad. Gratis para Windows.">
-<meta property="og:image" content="assets/screens/detective-dark.webp">
+<meta property="og:image" content="https://maxlezano.github.io/Chinchero/assets/screens/detective-dark.webp">
+<meta property="og:url" content="https://maxlezano.github.io/Chinchero/">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="icon" type="image/png" href="assets/favicon.png">
 <link rel="stylesheet" href="assets/fonts/fonts.css">
 <link rel="stylesheet" href="assets/site.css">
@@ -78,7 +81,7 @@
         <article class="feature reveal"><div class="fi" style="--c:#ebfbee">📑</div><h3>Tableros y hojas</h3><p>Organiza tableros en grupos y cada tablero en hojas, como pestañas de Excel.</p></article>
         <article class="feature reveal"><div class="fi" style="--c:#fff4e6">🔎</div><h3>Encuentra todo</h3><p>Ctrl+K busca cualquier nota, foto o lista en todas las hojas y salta directo a ella.</p></article>
         <article class="feature reveal"><div class="fi" style="--c:#f8f0e3">🌗</div><h3>Fondos, claro y oscuro</h3><p>Fondo de corcho, puntos o cuadrícula, en tema claro u oscuro. Tú eliges.</p></article>
-        <article class="feature reveal"><div class="fi" style="--c:#e6fcf5">↩️</div><h3>Sin miedo a equivocarte</h3><p>Guardado automático, deshacer infinito y papelera durante 30 días.</p></article>
+        <article class="feature reveal"><div class="fi" style="--c:#e6fcf5">↩️</div><h3>Sin miedo a equivocarte</h3><p>Guardado automático, deshacer y rehacer, copias de seguridad y papelera durante 30 días.</p></article>
         <article class="feature reveal"><div class="fi" style="--c:#fff0f6">🔒</div><h3>Tus datos son tuyos</h3><p>Sin cuentas ni nube obligatoria. Todo queda en una carpeta que puedes copiar donde quieras.</p></article>
       </div>
     </div>
@@ -114,23 +117,23 @@
   <section id="capturas">
     <div class="wrap">
       <div class="sec-head reveal"><div class="kicker">Así se ve</div><h2>Capturas reales de la app</h2><p>Cambia el tema arriba a la derecha para verlas en claro u oscuro.</p></div>
-      <div class="tabs" role="tablist">
-        <button class="tab" data-shot="editor">Tablero</button>
-        <button class="tab" data-shot="detective">Detective</button>
-        <button class="tab" data-shot="kanban">Kanban</button>
-        <button class="tab" data-shot="select">Edición</button>
-        <button class="tab" data-shot="search">Buscar</button>
-        <button class="tab" data-shot="boards">Tableros</button>
-        <button class="tab" data-shot="settings">Ajustes</button>
+      <div class="tabs" role="tablist" aria-label="Capturas">
+        <button class="tab" role="tab" data-shot="editor">Tablero</button>
+        <button class="tab" role="tab" data-shot="detective">Detective</button>
+        <button class="tab" role="tab" data-shot="kanban">Kanban</button>
+        <button class="tab" role="tab" data-shot="select">Edición</button>
+        <button class="tab" role="tab" data-shot="search">Buscar</button>
+        <button class="tab" role="tab" data-shot="boards">Tableros</button>
+        <button class="tab" role="tab" data-shot="settings">Ajustes</button>
       </div>
-      <figure class="shot reveal" style="margin:0"><div class="bar"><i></i><i></i><i></i><span>Chinchero</span></div><img id="shotImg" alt="" width="1440" height="900"></figure>
+      <figure class="shot reveal" style="margin:0"><div class="bar"><i></i><i></i><i></i><span>Chinchero</span></div><img id="shotImg" alt="" width="1440" height="900" role="tabpanel"></figure>
       <p class="shot-caption" id="shotCaption"></p>
     </div>
   </section>
 
   <section class="alt">
     <div class="wrap">
-      <div class="sec-head reveal"><div class="kicker">Para ir rápido</div><h2>Atajos que vas a usar todos los días</h2></div>
+      <div class="sec-head reveal"><div class="kicker">Para ir rápido</div><h2>Atajos que vas a usar todos los días</h2><p>Y si prefieres otros, los cambias en Ajustes → Atajos.</p></div>
       <div class="keys reveal">
         <div class="key">Nota nueva <kbd>N</kbd></div><div class="key">Tender hilo <kbd>L</kbd></div><div class="key">Buscar <kbd>Ctrl K</kbd></div><div class="key">Deshacer <kbd>Ctrl Z</kbd></div>
         <div class="key">Agrupar <kbd>Ctrl G</kbd></div><div class="key">Duplicar <kbd>Ctrl D</kbd></div><div class="key">Zoom <kbd>Rueda</kbd></div><div class="key">Encuadrar todo <kbd>Shift 1</kbd></div>
@@ -146,7 +149,7 @@
         <div>
           <div class="card reveal">
             <h3 style="margin-top:0">Requisitos</h3>
-            <ul class="req"><li>Windows 10 u 11 de 64 bits</li><li>Unos 300 MB libres</li><li>No necesita internet para usarla</li></ul>
+            <ul class="req"><li>Windows 10 u 11 de 64 bits</li><li>Unos 400 MB libres</li><li>No necesita internet para usarla</li></ul>
             <div class="callout"><b>¿Windows muestra un aviso al instalar?</b> Es normal en apps nuevas sin firma comercial: pulsa «Más información» → «Ejecutar de todas formas».</div>
           </div>
           <div class="card reveal" style="margin-top:22px">
@@ -164,7 +167,8 @@
       <div class="faq reveal">
         <details><summary>¿Es gratis?</summary><p>Sí, totalmente. Y el código es abierto: puedes verlo en GitHub.</p></details>
         <details><summary>¿Dónde se guardan mis tableros?</summary><p>En la carpeta Documentos\Chinchero (puedes cambiarla en Ajustes). Las imágenes que pinchas se copian ahí, así no se pierden aunque muevas los originales.</p></details>
-        <details><summary>¿Puedo pasar mis tableros a otra computadora?</summary><p>Sí: haz una copia de seguridad desde Ajustes → Datos (o copia la carpeta) y en el otro equipo elige «Abrir datos existentes».</p></details>
+        <details><summary>¿Puedo pasar mis tableros a otra computadora?</summary><p>Sí: en Ajustes → Datos haz una copia de seguridad (.zip) y en el otro equipo elige «Restaurar copia». También puedes copiar la carpeta entera y elegir «Abrir datos existentes».</p></details>
+        <details><summary>¿Puedo compartir un tablero?</summary><p>Sí: «Exportar tablero…» guarda un archivo .chinchero con sus imágenes, que la otra persona abre con doble clic. También puedes exportar una hoja como imagen PNG o PDF.</p></details>
         <details><summary>¿Cómo se actualiza?</summary><p>Chinchero busca versiones nuevas al abrirse, las descarga en segundo plano y las instala cuando la cierras. También puedes buscarlas a mano en Ajustes → Acerca de.</p></details>
         <details><summary>¿Hay versión para Mac o Linux?</summary><p>Por ahora solo Windows. Si te interesa otra plataforma, cuéntalo en GitHub.</p></details>
         <details><summary>Encontré un error o tengo una idea</summary><p>Abre un «issue» en el repositorio de GitHub. ¡Toda sugerencia suma!</p></details>
