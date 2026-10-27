@@ -23,7 +23,7 @@ const ok = (n, c, x = "") => log.push(`${c ? "PASS" : "FAIL"} ${n}${x ? " — " 
 
 // CHINCHERO_EXE prueba la app empaquetada (dist/win-unpacked/Chinchero.exe), con los fuses activados
 const ELECTRON = process.env.CHINCHERO_EXE || path.join(APP, "node_modules/electron/dist/electron.exe");
-const ENV = { ...Object.fromEntries(Object.entries(process.env).filter(([k]) => k !== "ELECTRON_RUN_AS_NODE")), CHINCHERO_USER_DATA: path.join(TMP, "user"), CHINCHERO_DATA_DIR: DATA, CHINCHERO_EXPORT_DIR: EXPORT, CHINCHERO_RESTORE_FILE: RESTORE, CHINCHERO_IMPORT_FILE: IMPORT };
+const ENV = { ...Object.fromEntries(Object.entries(process.env).filter(([k]) => k !== "ELECTRON_RUN_AS_NODE")), CHINCHERO_USER_DATA: path.join(TMP, "user"), CHINCHERO_DATA_DIR: DATA, CHINCHERO_EXPORT_DIR: EXPORT, CHINCHERO_RESTORE_FILE: RESTORE, CHINCHERO_IMPORT_FILE: IMPORT, LOCALAPPDATA: path.join(TMP, "localappdata") };
 
 async function launch() {
   const proc = spawn(ELECTRON, [APP, "--remote-debugging-port=9333"], { env: ENV, stdio: "ignore" });
@@ -42,7 +42,7 @@ async function launch() {
 // Proveedor de IA simulado: imita las API de Ollama y de Gemini y guarda los pedidos para revisarlos
 // La clave falsa se arma por partes para que los escáneres de secretos no la tomen por una real
 const AI_KEY = ["AIza", "Prueba_0123456789abcdefghijklmnopqr"].join("");
-const aiReqs = [];
+const aiReqs = [], aiFake = { ollamaDown: false };
 function fakeAI() {
   const http = require("http");
   const send = (res, code, obj) => { res.writeHead(code, { "content-type": "application/json" }); res.end(JSON.stringify(obj)); };
@@ -52,7 +52,18 @@ function fakeAI() {
     req.on("end", () => {
       const r = { method: req.method, url: req.url, key: req.headers["x-goog-api-key"], body: body ? JSON.parse(body) : null };
       aiReqs.push(r);
+      if (req.url.startsWith("/api/") && aiFake.ollamaDown) { res.destroy(); return; }
       if (req.url === "/api/tags") return send(res, 200, { models: [{ name: "llama-prueba" }] });
+      // Descarga de un modelo: progreso por líneas JSON, como Ollama
+      if (req.url === "/api/pull") {
+        res.writeHead(200, { "content-type": "application/x-ndjson" });
+        const total = 4000;
+        [{ status: "pulling manifest" }, { status: "pulling abc", total, completed: 1000 }, { status: "pulling abc", total, completed: 4000 }, { status: "success" }]
+          .forEach((m, i) => setTimeout(() => { res.write(JSON.stringify(m) + "\n"); if (i === 3) res.end(); }, 150 * i));
+        return;
+      }
+      // Instalador falso (sin firma): la app debe negarse a ejecutarlo
+      if (req.url === "/OllamaSetup.exe") { res.writeHead(200, { "content-length": 300000 }); return res.end(Buffer.alloc(300000, 77)); }
       if (req.url === "/api/chat") {
         // Respuesta envuelta en ```json como hacen algunos modelos pequeños, con una acción sobre un id que no existe
         const acciones = [
@@ -85,6 +96,7 @@ delete process.env.ELECTRON_RUN_AS_NODE;
 (async () => {
   const aiSrv = await fakeAI();
   ENV.CHINCHERO_OLLAMA_URL = ENV.CHINCHERO_GEMINI_URL = `http://127.0.0.1:${aiSrv.address().port}`;
+  ENV.CHINCHERO_OLLAMA_SETUP_URL = ENV.CHINCHERO_OLLAMA_URL + "/OllamaSetup.exe";
   // 1) Primer inicio → Bienvenida
   let { proc, browser, page } = await launch();
   // Espera (hasta 4 s) un toast con ese texto: leerlo una sola vez fallaba a veces si tardaba un poco más
@@ -321,12 +333,46 @@ delete process.env.ELECTRON_RUN_AS_NODE;
   // 9) Asistente con IA (proveedor simulado): desactivado de fábrica, Ollama, Gemini con la clave del portapapeles
   await page.goto(page.url().replace(/02-tablero\.html.*/, "03-ajustes.html")); await sleep(800);
   ok("IA: desactivada de fábrica", await page.evaluate(() => !document.getElementById("aiOn").checked && !window.chinchero.ai.status().enabled && document.querySelector("#asistente [data-ai]").hidden));
-  await page.click("#aiOn + span"); await sleep(1000);
-  ok("IA: al activarla usa Ollama y encuentra sus modelos", await page.evaluate(() => {
-    const st = window.chinchero.ai.status();
-    return st.enabled && st.provider === "ollama" && document.getElementById("aiOllama").textContent.includes("1 modelo") && [...document.querySelectorAll("#aiModel option")].some(o => o.value === "llama-prueba");
-  }), await page.evaluate(() => document.getElementById("aiOllama").textContent));
+  // Al activarla se elige Gemini (recomendado) y se abre la guía; al copiar la clave se guarda sola y se prueba
+  const copy = k => page.evaluate(k => { const t = document.createElement("textarea"); t.value = k; document.body.append(t); t.select(); document.execCommand("copy"); t.remove(); }, k);
+  await copy("nada");
+  await page.click("#aiOn + span"); await sleep(800);
+  ok("IA: al activarla recomienda Gemini y abre la guía paso a paso", await page.evaluate(() => window.chinchero.ai.status().provider === "gemini"
+    && !!document.querySelector(".gg-modal") && document.querySelectorAll(".gg-step").length === 5 && !document.querySelector(".gg-step.done")));
+  await page.screenshot({ path: `${SHOTS}/a8-guia-gemini.png` });
+  await copy(AI_KEY);
+  await page.waitForFunction(() => document.getElementById("ggStatus")?.textContent.includes("funciona"), { timeout: 8000 }).catch(() => {});
+  ok("IA: la guía detecta la clave copiada, la guarda y la prueba", await page.evaluate(() => window.chinchero.ai.status().hasKey
+    && document.querySelectorAll(".gg-step.done").length === 5 && document.getElementById("ggStatus").textContent.includes("Listo")), await page.evaluate(() => document.getElementById("ggStatus")?.textContent));
+  ok("IA: la prueba llamó a Gemini con la clave", aiReqs.some(r => r.url.includes(":generateContent") && r.key === AI_KEY));
+  await page.screenshot({ path: `${SHOTS}/a8-guia-lista.png` });
+  await page.click(".gg-status [data-close]"); await sleep(300);
+  ok("IA: la guía se cierra", await page.evaluate(() => !document.querySelector(".gg-modal")));
+
+  // Ollama: modelos instalados, prueba, descarga de un modelo con progreso e instalador que no es el oficial
+  await page.click('#aiProvider [data-v="ollama"]'); await sleep(1000);
+  ok("IA: con Ollama encuentra sus modelos", await page.evaluate(() => document.getElementById("aiOllama").textContent.includes("1 modelo")
+    && [...document.querySelectorAll("#aiModel option")].some(o => o.value === "llama-prueba")), await page.evaluate(() => document.getElementById("aiOllama").textContent));
+  await page.click("#aiTest");
+  await page.waitForFunction(() => document.getElementById("aiTestTxt").textContent.includes("funciona"), { timeout: 8000 }).catch(() => {});
+  ok("IA: «Probar» confirma que Ollama responde", await page.evaluate(() => document.getElementById("aiTestTxt").textContent.includes("funciona")));
   await page.screenshot({ path: `${SHOTS}/a8-ajustes-ia.png` });
+  await page.evaluate(() => { window.__prog = []; window.chinchero.ai.onProgress(p => window.__prog.push(p)); });
+  const pulled = await page.evaluate(() => window.chinchero.ai.ollamaPull("llama-prueba"));
+  const prog = await page.evaluate(() => window.__prog);
+  ok("IA: descarga un modelo de Ollama con progreso", pulled.ok && prog.some(p => p.step === "pull" && p.done === 4000 && p.total === 4000)
+    && aiReqs.some(r => r.url === "/api/pull" && r.body.model === "llama-prueba" && r.body.stream), JSON.stringify({ pulled, prog }));
+  aiFake.ollamaDown = true;
+  await page.reload(); await sleep(1500);
+  ok("IA: sin Ollama ofrece instalarlo", await page.evaluate(() => { const b = document.getElementById("aiOllamaAct"); return !b.hidden && b.textContent.includes("Instalar") && !document.getElementById("aiOllamaGet").hidden; }));
+  await page.evaluate(() => { window.__prog = []; window.chinchero.ai.onProgress(p => window.__prog.push(p)); });
+  await page.click("#aiOllamaAct");
+  const unsignedToast = await page.waitForFunction(() => [...document.querySelectorAll(".toast")].some(e => e.textContent.includes("instalador oficial")), { timeout: 30000 }).then(() => true, () => false);
+  await sleep(300);
+  const prog2 = await page.evaluate(() => window.__prog);
+  ok("IA: baja el instalador con progreso y no ejecuta uno sin la firma de Ollama", unsignedToast && prog2.some(p => p.step === "download" && p.total === 300000) && prog2.some(p => p.step === "verify")
+    && !fs.existsSync(path.join(require("os").tmpdir(), "Chinchero-OllamaSetup.exe")) && !fs.existsSync(path.join(TMP, "localappdata", "Programs")));
+  aiFake.ollamaDown = false;
   await page.goto(page.url().replace(/03-ajustes\.html.*/, "02-tablero.html?board=" + boardId)); await sleep(1200);
   const count = () => page.evaluate(() => ({ items: document.querySelectorAll("#items .item").length, threads: document.querySelectorAll("#threadLayer .th").length }));
   const before = await count();
@@ -335,7 +381,7 @@ delete process.env.ELECTRON_RUN_AS_NODE;
   await page.waitForSelector(".ai-msg.assistant", { timeout: 8000 }).catch(() => {});
   await sleep(500);
   const after = await count();
-  const chatReq = aiReqs.find(r => r.url === "/api/chat");
+  const chatReq = aiReqs.filter(r => r.url === "/api/chat").at(-1);
   ok("IA: Ollama recibe la hoja y el pedido", !!chatReq && chatReq.body.model === "llama-prueba" && chatReq.body.format === "json" && chatReq.body.messages[0].role === "system"
     && chatReq.body.messages.at(-1).content.includes("Pedido: Dame ideas") && chatReq.body.messages.at(-1).content.includes("Nota guardada en disco"));
   ok("IA: aplica las acciones (nota, lista e hilo) y avisa", after.items === before.items + 2 && after.threads === before.threads + 1
@@ -346,7 +392,7 @@ delete process.env.ELECTRON_RUN_AS_NODE;
   ok("IA: «Deshacer» quita todo lo que hizo de una vez", JSON.stringify(await count()) === JSON.stringify(before));
 
   // Gemini: la clave copiada se detecta, se guarda cifrada y nunca llega a la pantalla ni a la carpeta de datos
-  await page.evaluate(() => window.chinchero.ai.config({ provider: "gemini" }));
+  await page.evaluate(() => { window.chinchero.ai.config({ provider: "gemini" }); return window.chinchero.ai.setKey(null); });
   await page.goto(page.url().replace(/02-tablero\.html.*/, "03-ajustes.html")); await sleep(1000);
   // Se copia desde la página (sin lanzar otros programas) y se vuelve a enfocar la ventana, como al volver del navegador
   await page.evaluate(k => { const t = document.createElement("textarea"); t.value = k; document.body.append(t); t.select(); document.execCommand("copy"); t.remove(); window.dispatchEvent(new Event("focus")); }, AI_KEY);

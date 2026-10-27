@@ -73,6 +73,36 @@
   .ai-key input { flex: 1; min-width: 160px; font: 13px var(--font); color: var(--text); background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; }
   .ai-found { margin-top: 8px; padding: 10px 12px; border-radius: 8px; background: var(--accent-soft); display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 13px; }
   .ai-found[hidden] { display: none; }
+  .ai-progress { margin-top: 8px; }
+  .ai-progress[hidden] { display: none; }
+  .ai-bar { height: 8px; border-radius: 99px; background: var(--surface-2); overflow: hidden; margin-bottom: 4px; }
+  .ai-bar i { display: block; height: 100%; width: 0; background: var(--accent); border-radius: inherit; transition: width .25s; }
+  .ai-bar.indet i { width: 30%; animation: ai-indet 1.2s ease-in-out infinite; }
+  @keyframes ai-indet { from { transform: translateX(-100%); } to { transform: translateX(340%); } }
+  .ok-txt { color: var(--text); font-weight: 600; }
+  .err-txt { color: var(--danger); }
+  /* Guía paso a paso para conectar Gemini */
+  .gg-modal { width: min(620px, 100%); }
+  .gg-intro { margin: 0 0 14px; font-size: 13px; color: var(--text-muted); line-height: 1.5; }
+  .gg-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+  .gg-step { display: grid; grid-template-columns: 28px 1fr; gap: 4px 12px; padding: 12px; border: 1px solid var(--border); border-radius: 10px; }
+  .gg-step.now { border-color: var(--accent); background: var(--accent-soft); }
+  .gg-num { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font: 600 13px var(--font); background: var(--surface-2); border: 1px solid var(--border); }
+  .gg-step.done .gg-num { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+  .gg-step b { font-size: 14px; align-self: center; }
+  .gg-step p { grid-column: 2; margin: 0; font-size: 13px; line-height: 1.5; color: var(--text-muted); }
+  .gg-step .btn, .gg-shot, .gg-status { grid-column: 2; justify-self: start; margin-top: 6px; }
+  .gg-shot { width: min(340px, 100%); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: #fff; color: #202124; font: 11px Arial, sans-serif; }
+  .gg-shot .bar { display: flex; align-items: center; gap: 6px; padding: 5px 8px; background: #f1f3f4; border-bottom: 1px solid #dadce0; color: #5f6368; }
+  .gg-shot .bar::before { content: "● ● ●"; letter-spacing: 1px; font-size: 7px; color: #bdc1c6; }
+  .gg-shot .bar span { flex: 1; background: #fff; border-radius: 99px; padding: 2px 8px; }
+  .gg-shot .body { padding: 10px 12px; display: grid; gap: 6px; }
+  .gg-shot .line { height: 6px; border-radius: 3px; background: #e8eaed; }
+  .gg-shot .hl { justify-self: start; padding: 4px 10px; border-radius: 99px; background: #1a73e8; color: #fff; font-weight: 700; box-shadow: 0 0 0 3px #fbbc04; }
+  .gg-shot .row2 { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .gg-shot .key { font-family: Consolas, monospace; background: #f1f3f4; border-radius: 4px; padding: 3px 6px; flex: 1; overflow: hidden; white-space: nowrap; }
+  .gg-status { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+  .gg-status .btn { margin: 0; }
   .about { display: flex; gap: 16px; align-items: center; padding: 20px; }
   .about .brand-mark { width: 48px; height: 48px; border-radius: 12px; position: relative; flex: none; }
   .about small { color: var(--text-muted); }
@@ -166,22 +196,28 @@
       </div>
       <div class="row" data-ai>
         <div class="txt"><b>Proveedor</b><small id="aiProvHelp"></small></div>
-        <div class="seg" id="aiProvider"><button data-v="ollama">Ollama (en tu PC)</button><button data-v="gemini">Gemini (Google)</button></div>
+        <div class="seg" id="aiProvider"><button data-v="gemini">Gemini (recomendado)</button><button data-v="ollama">Ollama (sin internet)</button></div>
       </div>
       <div class="row" data-ai data-for="ollama">
-        <div class="txt"><b>Ollama</b><small id="aiOllama">Buscando Ollama en tu PC…</small></div>
-        <div class="btns"><button class="btn" id="aiOllamaGet">Descargar Ollama</button></div>
+        <div class="txt"><b>Ollama</b><small id="aiOllama">Buscando Ollama en tu PC…</small>
+          <div class="ai-progress" id="aiProg" hidden><div class="ai-bar"><i id="aiProgBar"></i></div><small id="aiProgTxt" role="status"></small></div>
+        </div>
+        <div class="btns"><button class="btn btn-primary" id="aiOllamaAct" hidden></button><button class="btn" id="aiCancel" hidden>Cancelar</button><button class="btn" id="aiOllamaGet" hidden>Descargar a mano</button></div>
       </div>
       <div class="row" data-ai data-for="gemini">
         <div class="txt"><b>Clave de Gemini</b><small id="aiKeyState"></small>
           <div class="ai-found" id="aiFound" role="status" hidden><span id="aiFoundTxt"></span><button class="btn btn-primary" id="aiUseClip">Usar esta clave</button></div>
           <div class="ai-key"><input type="password" id="aiKeyInput" placeholder="O pégala aquí (empieza por AQ. o AIza)" aria-label="Clave de Gemini" autocomplete="off" spellcheck="false"><button class="btn" id="aiKeySave">Guardar</button></div>
         </div>
-        <div class="btns"><button class="btn btn-primary" id="aiGetKey">Obtener clave</button><button class="btn" id="aiDelKey">Quitar</button></div>
+        <div class="btns"><button class="btn btn-primary" id="aiGetKey">Conectar paso a paso</button><button class="btn" id="aiDelKey">Quitar</button></div>
       </div>
       <div class="row" data-ai>
         <div class="txt"><b>Modelo</b><small id="aiModelHelp"></small></div>
         <select class="ai-select" id="aiModel" aria-label="Modelo"></select>
+      </div>
+      <div class="row" data-ai>
+        <div class="txt"><b>Probar el asistente</b><small id="aiTestTxt" role="status">Comprueba que el asistente responde con lo que elegiste.</small></div>
+        <button class="btn" id="aiTest">Probar</button>
       </div>
     </section>
 

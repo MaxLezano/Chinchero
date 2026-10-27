@@ -15,7 +15,8 @@ const GEMINI_AUTO = ["gemini-flash-lite-latest", "gemini-flash-latest"];
 const KEY_RE = /^(AIza[0-9A-Za-z_-]{35}|AQ\.[0-9A-Za-z_-]{30,200})$/;
 let sessionKey = null; // si el sistema no puede cifrar, la clave vive solo mientras la app está abierta
 
-const cfg = () => ({ enabled: false, provider: "ollama", model: "", ...store.config.get().ai });
+// Gemini de fábrica: no hay que instalar nada (Ollama queda para usar sin internet)
+const cfg = () => ({ enabled: false, provider: "gemini", model: "", ...store.config.get().ai });
 
 function getKey() {
   const enc = store.config.get().aiKey;
@@ -155,9 +156,23 @@ function parse(raw) {
   return { text: s.trim().slice(0, 4000), actions: [] };
 }
 
+// Prueba final de la conexión guiada: un pedido mínimo con el proveedor y el modelo elegidos
+async function test() {
+  const c = cfg(), p = providers[c.provider];
+  if (!p) return { error: "off" };
+  try {
+    const model = c.model || (c.provider === "ollama" ? (await p.models())[0] : "");
+    if (!model && c.provider === "ollama") return { error: "nomodel" };
+    await p.chat(model, 'Responde solo con este JSON: {"respuesta":"ok","acciones":[]}', [{ role: "user", text: "Prueba de conexión" }]);
+    return { ok: true };
+  } catch (e) {
+    return { error: e instanceof AIError ? e.message : "fail" };
+  }
+}
+
 async function models(provider) {
   try { return { models: await providers[provider].models() }; }
   catch (e) { return { error: e instanceof AIError ? e.message : "fail" }; }
 }
 
-module.exports = { status, setConfig, setKey, detectKey, saveClipboardKey, chat, models };
+module.exports = { status, setConfig, setKey, detectKey, saveClipboardKey, chat, models, test };

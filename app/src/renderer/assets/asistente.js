@@ -26,7 +26,7 @@
     return {
       off: "El asistente está desactivado. Actívalo en Ajustes.",
       nokey: "Falta la clave de Gemini. Ve a Ajustes → Asistente con IA.",
-      nomodel: "Ollama no tiene ningún modelo instalado. Abre una terminal y escribe «ollama pull llama3.2».",
+      nomodel: "Ollama no tiene ningún modelo instalado. Descarga uno en Ajustes → Asistente con IA.",
       offline: local ? "No se pudo conectar con Ollama. ¿Está abierto en tu PC?" : "No se pudo conectar con Google. Revisa tu conexión a internet.",
       timeout: "El modelo tardó demasiado en responder. Prueba de nuevo o con un pedido más corto.",
       400: "Google rechazó el pedido: revisa la clave y el modelo en Ajustes.",
@@ -59,7 +59,7 @@
       log.dataset.state = ready;
       if (!msgs.length) log.innerHTML = "";
       if (!ai) bubble("info", "El asistente está disponible en la app de escritorio.");
-      else if (!st.enabled) bubble("info", `El asistente con IA viene desactivado. Puedes usar <b>Ollama</b>, que funciona en tu PC sin internet, o <b>Gemini</b> de Google con una clave gratuita. ${settingsLink}`);
+      else if (!st.enabled) bubble("info", `El asistente con IA viene desactivado. Lo más fácil es <b>Gemini</b> de Google, gratis y sin instalar nada: en Ajustes te guiamos paso a paso. Si prefieres usarlo sin internet, Chinchero puede instalar <b>Ollama</b>. ${settingsLink}`);
       else if (!ready) bubble("info", `Falta la clave de Gemini. ${settingsLink}`);
       else if (!msgs.length) bubble("info", "Pídeme ideas, que resuma u ordene la hoja, o que convierta notas en tareas. Puedo crear notas, fichas, listas, zonas e hilos. Todo lo que haga se deshace con Ctrl+Z.");
     }
@@ -78,7 +78,7 @@
     busy = false;
     if (r.error) {
       msgs.pop();
-      bubble("error", esc(errorText(r.error)) + (["off", "nokey", "400", "403", "404"].includes(r.error) ? " " + settingsLink : ""));
+      bubble("error", esc(errorText(r.error)) + (["off", "nokey", "nomodel", "400", "403", "404"].includes(r.error) ? " " + settingsLink : ""));
     } else {
       const n = r.actions.length ? Editor.applyAI(r.actions) : 0;
       const reply = r.text || (n ? "Listo." : "No entendí el pedido. ¿Puedes decirlo de otra forma?");

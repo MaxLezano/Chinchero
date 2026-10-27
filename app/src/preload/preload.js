@@ -51,5 +51,12 @@ contextBridge.exposeInMainWorld("chinchero", {
     saveClipboardKey: () => ipcRenderer.invoke("ai:saveClipboardKey"),
     models: provider => ipcRenderer.invoke("ai:models", provider),
     chat: req => ipcRenderer.invoke("ai:chat", req),
+    test: () => ipcRenderer.invoke("ai:test"),
+    ollamaState: () => ipcRenderer.invoke("ai:ollamaState"),
+    ollamaStart: () => ipcRenderer.invoke("ai:ollamaStart"),
+    ollamaInstall: () => ipcRenderer.invoke("ai:ollamaInstall"),
+    ollamaPull: model => ipcRenderer.invoke("ai:ollamaPull", model),
+    cancel: () => ipcRenderer.invoke("ai:cancel"),
+    onProgress: cb => ipcRenderer.on("ai:progress", (e, p) => cb(p)),
   },
 });

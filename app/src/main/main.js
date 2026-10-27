@@ -6,6 +6,7 @@ const { pathToFileURL } = require("url");
 const store = require("./store");
 const updater = require("./updater");
 const ai = require("./ai");
+const ollamaSetup = require("./ollama-setup");
 
 const RENDERER = path.join(__dirname, "..", "renderer");
 // Las pantallas se sirven con un esquema propio (no file://): así file:// no necesita privilegios extra para leer el asar
@@ -306,6 +307,14 @@ handle("ai:saveClipboardKey", none, () => ai.saveClipboardKey());
 handle("ai:models", p => AI_PROVIDERS.includes(p), (e, p) => ai.models(p));
 handle("ai:chat", r => is.obj(r) && is.str(r.board, 200000) && Array.isArray(r.messages) && r.messages.length > 0 && r.messages.length <= 40
   && r.messages.every(m => is.obj(m) && (m.role === "user" || m.role === "assistant") && is.str(m.text, 8000)), (e, r) => ai.chat(r));
+handle("ai:test", none, () => ai.test());
+// Instalación guiada de Ollama (ver ollama-setup.js): el progreso vuelve por "ai:progress"
+const progressTo = e => p => { if (!e.sender.isDestroyed()) e.sender.send("ai:progress", p); };
+handle("ai:ollamaState", none, () => ollamaSetup.state());
+handle("ai:ollamaStart", none, () => ollamaSetup.start());
+handle("ai:ollamaInstall", none, e => ollamaSetup.install(progressTo(e)));
+handle("ai:ollamaPull", m => is.str(m, 100) && /^[\w.:/-]+$/.test(m), (e, m) => ollamaSetup.pull(m, progressTo(e)));
+handle("ai:cancel", none, () => ollamaSetup.cancel());
 
 handle("update:check", none, () => updater.check(true));
 handle("update:install", none, () => updater.install());
