@@ -1,6 +1,6 @@
 // Prueba de punta a punta de la app Electron real: primer inicio, crear tablero, guardar en disco, reabrir.
 // Perfil y datos aislados en tests/out. Uso: node tests/e2e-app.js
-const { spawn } = require("child_process");
+const { spawn, spawnSync } = require("child_process");
 const puppeteer = require("puppeteer-core");
 const fs = require("fs");
 const path = require("path");
@@ -25,8 +25,13 @@ const ok = (n, c, x = "") => log.push(`${c ? "PASS" : "FAIL"} ${n}${x ? " — " 
 const ELECTRON = process.env.CHINCHERO_EXE || path.join(APP, "node_modules/electron/dist/electron.exe");
 const ENV = { ...Object.fromEntries(Object.entries(process.env).filter(([k]) => k !== "ELECTRON_RUN_AS_NODE")), CHINCHERO_USER_DATA: path.join(TMP, "user"), CHINCHERO_DATA_DIR: DATA, CHINCHERO_EXPORT_DIR: EXPORT, CHINCHERO_RESTORE_FILE: RESTORE, CHINCHERO_IMPORT_FILE: IMPORT, LOCALAPPDATA: path.join(TMP, "localappdata") };
 
+// Electron lanzado por las pruebas: se cierra con todo su árbol al salir, aunque una prueba falle con una excepción
+const vivos = new Set();
+const lanzar = (...a) => { const p = spawn(...a); vivos.add(p); p.on("exit", () => vivos.delete(p)); return p; };
+process.on("exit", () => { for (const p of vivos) spawnSync("taskkill", ["/pid", String(p.pid), "/T", "/F"], { stdio: "ignore" }); });
+
 async function launch() {
-  const proc = spawn(ELECTRON, [APP, "--remote-debugging-port=9333"], { env: ENV, stdio: "ignore" });
+  const proc = lanzar(ELECTRON, [APP, "--remote-debugging-port=9333"], { env: ENV, stdio: "ignore" });
   let browser;
   for (let i = 0; i < 40 && !browser; i++) {
     await sleep(500);
@@ -421,7 +426,7 @@ delete process.env.ELECTRON_RUN_AS_NODE;
   aiSrv.close();
 
   fs.copyFileSync(shareFile, path.join(TMP, "doble-clic.chinchero"));
-  spawn(ELECTRON, [APP, path.join(TMP, "doble-clic.chinchero")], { env: ENV, stdio: "ignore" });
+  lanzar(ELECTRON, [APP, path.join(TMP, "doble-clic.chinchero")], { env: ENV, stdio: "ignore" });
   let opened = null;
   for (let i = 0; i < 30 && !opened; i++) {
     await sleep(300);

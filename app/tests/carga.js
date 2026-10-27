@@ -1,7 +1,7 @@
 // Prueba de carga con la app real: un tablero con 500 elementos (100 fotos grandes) y 120 hilos.
 // Mide cuánto tarda en abrir y la fluidez (duración de los fotogramas) al arrastrar, hacer zoom y mover todo.
 // Perfil y datos aislados en tests/out. Uso: node tests/carga.js
-const { spawn } = require("child_process");
+const { spawn, spawnSync } = require("child_process");
 const puppeteer = require("puppeteer-core");
 const fs = require("fs");
 const path = require("path");
@@ -31,6 +31,11 @@ fs.writeFileSync(path.join(DATA, "library.json"), JSON.stringify({
 
 const ELECTRON = path.join(APP, "node_modules/electron/dist/electron.exe");
 const ENV = { ...Object.fromEntries(Object.entries(process.env).filter(([k]) => k !== "ELECTRON_RUN_AS_NODE")), CHINCHERO_USER_DATA: USER, CHINCHERO_DATA_DIR: DATA };
+
+// Electron lanzado por las pruebas: se cierra con todo su árbol al salir, aunque una prueba falle con una excepción
+const vivos = new Set();
+const lanzar = (...a) => { const p = spawn(...a); vivos.add(p); p.on("exit", () => vivos.delete(p)); return p; };
+process.on("exit", () => { for (const p of vivos) spawnSync("taskkill", ["/pid", String(p.pid), "/T", "/F"], { stdio: "ignore" }); });
 
 // Tablero sintético: cuadrícula de 25 × 20 con notas, fichas, listas, textos, stickers y fotos repartidas
 function makeBoard(urls) {
@@ -79,7 +84,7 @@ const fmtF = f => `p95 ${f.p95} ms, máx ${f.max} ms, ${f.n} fotogramas${f.tries
 
 delete process.env.ELECTRON_RUN_AS_NODE;
 (async () => {
-  const proc = spawn(ELECTRON, [APP, "--remote-debugging-port=9334"], { env: ENV, stdio: "ignore" });
+  const proc = lanzar(ELECTRON, [APP, "--remote-debugging-port=9334"], { env: ENV, stdio: "ignore" });
   let browser, page;
   for (let i = 0; i < 40 && !browser; i++) { await sleep(500); try { browser = await puppeteer.connect({ browserURL: "http://127.0.0.1:9334", defaultViewport: null }); } catch {} }
   for (let i = 0; i < 20 && !page; i++) { page = (await browser.pages()).find(p => p.url().startsWith("chinchero:")); if (!page) await sleep(300); }

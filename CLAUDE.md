@@ -33,4 +33,12 @@ cd app && npm test       # e2e-ui (Edge + localStorage), e2e-app (Electron real,
 cd app && npm run dist   # instalador en app/dist/
 ```
 
+**Regla dura: no dejar procesos de prueba abiertos.** Después de *cada* corrida de pruebas o de la app (pase o falle, también si se cortó), comprobar y cerrar lo que quedó antes de seguir:
+
+```powershell
+Get-CimInstance Win32_Process | ? { $_.Name -match 'msedge|electron|Chinchero' -and $_.CommandLine -match 'tests\\out|puppeteer|remote-debugging-port|Chinchero\\app' } | % { taskkill /pid $_.ProcessId /T /F }
+```
+
+No tocar el Edge del usuario (los `msedge` sin `--user-data-dir` temporal ni `--remote-debugging-port`). Las pruebas que lanzan Electron lo registran con `lanzar()` y lo matan al salir; cualquier prueba nueva que lance procesos debe hacer lo mismo.
+
 Las pruebas usan `puppeteer-core` con Microsoft Edge instalado (`EDGE_PATH` para otra ruta). `e2e-app.js` lanza Electron con `CHINCHERO_USER_DATA` y `CHINCHERO_DATA_DIR` en `app/tests/out/` para no tocar datos reales.
