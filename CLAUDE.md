@@ -30,7 +30,7 @@ App de escritorio para Windows (Electron) tipo tablero de corcho: notas, fotos, 
 ```bash
 cd app && npm start      # quitar antes ELECTRON_RUN_AS_NODE si existe (VS Code la define)
 cd app && npm test       # e2e-ui (Edge + localStorage), e2e-app (Electron real, perfil aislado), offline-fonts
-cd app && npm run dist   # instalador en app/dist/
+cd app && npm run dist   # instaladores x64 y ARM64 en app/dist/ (scripts/dist.js)
 ```
 
 **Regla dura: no dejar procesos de prueba abiertos.** Después de *cada* corrida de pruebas o de la app (pase o falle, también si se cortó), comprobar y cerrar lo que quedó antes de seguir:

@@ -1,4 +1,4 @@
-# Al subir una etiqueta vX.Y.Z se compila el instalador de Windows y se publica en GitHub Releases.
+# Al subir una etiqueta vX.Y.Z se compilan los instaladores de Windows (x64 y ARM64) y se publican en GitHub Releases.
 # La app instalada lee esas releases para actualizarse sola, y la web las muestra en la sección de descargas.
 name: Release
 
@@ -34,8 +34,9 @@ jobs:
           PKG=$(node -p "require('./package.json').version")
           if [ "$TAG" != "$PKG" ]; then echo "La etiqueta ($TAG) no coincide con package.json ($PKG)"; exit 1; fi
 
+      # Dos instaladores (x64 y -arm64) y un solo latest.yml con los dos: cada PC se actualiza con el suyo
       - name: Compilar
-        run: npx electron-builder --win --publish never
+        run: node scripts/dist.js --publish never
 
       # Se publica con gh y no con electron-builder: al subir los archivos en paralelo,
       # electron-builder puede crear dos releases con la misma etiqueta.

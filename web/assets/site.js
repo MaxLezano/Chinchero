@@ -157,7 +157,19 @@ function md(text) {
 }
 const fmtDate = d => new Date(d).toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" });
 const fmtSize = b => (b / 1048576).toFixed(0) + " MB";
-const installer = r => r.assets.find(a => /\.exe$/i.test(a.name));
+const isExe = a => /\.exe$/i.test(a.name);
+const isArm = a => /arm64/i.test(a.name);
+// Instalador de una release para la arquitectura pedida; las versiones viejas solo tienen la x64
+const installer = (r, arch = "x64") => r.assets.find(a => isExe(a) && isArm(a) === (arch === "arm64")) || r.assets.find(a => isExe(a) && !isArm(a));
+
+// Arquitectura de la PC, porque casi nadie sabe qué procesador tiene. Firefox y Safari no la informan (null):
+// se baja la x64, que también funciona emulada en ARM, y se ofrece el enlace a la ARM64.
+async function detectArch() {
+  try {
+    const { architecture } = await navigator.userAgentData.getHighEntropyValues(["architecture"]);
+    return architecture === "arm" ? "arm64" : architecture === "x86" ? "x64" : null;
+  } catch (e) { return null; }
+}
 
 async function fetchReleases() {
   const KEY = "releases-cache";
@@ -180,22 +192,29 @@ function noReleases(msg) {
   $$(".dl-btn").forEach(b => { b.href = "#descargar"; $(".dl-ver", b).textContent = "Próximamente"; });
 }
 
-fetchReleases().then(list => {
+Promise.all([fetchReleases(), detectArch()]).then(([list, arch]) => {
   const stable = list.filter(r => !r.prerelease);
   const latest = stable[0] || list[0];
   if (!latest) return noReleases("Todavía no hay versiones publicadas. Vuelve en unos días.");
-  const exe = installer(latest);
-  const downloads = list.reduce((n, r) => n + r.assets.reduce((m, a) => m + (/\.exe$/i.test(a.name) ? a.download_count : 0), 0), 0);
+  const exe = installer(latest, arch || "x64");
+  // La otra arquitectura, por si la detección no acertó o se baja para otra PC
+  const otherArch = arch === "arm64" ? "x64" : "arm64";
+  const other = installer(latest, otherArch);
+  const otherLink = other && other !== exe ? `<p class="alt-arch"><a href="${esc(other.browser_download_url)}">${otherArch === "arm64"
+    ? "¿PC con procesador ARM (Snapdragon)? Descarga la versión ARM64"
+    : "¿PC con procesador Intel o AMD? Descarga la versión x64"}</a> · ${fmtSize(other.size)}</p>` : "";
+  const downloads = list.reduce((n, r) => n + r.assets.reduce((m, a) => m + (isExe(a) ? a.download_count : 0), 0), 0);
   const href = esc(exe ? exe.browser_download_url : latest.html_url);
   $$(".dl-btn").forEach(b => { b.href = exe ? exe.browser_download_url : latest.html_url; $(".dl-ver", b).textContent = latest.tag_name; });
   $("#latest").innerHTML = `
     <div class="ver"><h3>${esc(latest.name || latest.tag_name)}</h3><span class="badge">${latest.prerelease ? "Beta" : "Última versión"}</span></div>
     <p class="meta">Publicada el ${fmtDate(latest.published_at)}${exe ? ` · ${fmtSize(exe.size)}` : ""}${downloads ? ` · ${downloads.toLocaleString("es-AR")} descargas` : ""}</p>
-    <a class="btn btn-primary" href="${href}">${ICON_WIN} Descargar instalador <small>${esc(latest.tag_name)}</small></a>
+    <a class="btn btn-primary" href="${href}">${ICON_WIN} Descargar instalador <small>${esc(latest.tag_name)}${exe && isArm(exe) ? " · ARM64" : ""}</small></a>
+    ${otherLink}
     <div class="notes">${md(latest.body) || "<p>Sin notas para esta versión.</p>"}</div>`;
   // Cerradas: las notas de la última ya se ven arriba
   $("#versions").innerHTML = list.map(r => {
-    const e = installer(r);
+    const e = installer(r, arch || "x64");
     return `<li><details><summary>${esc(r.tag_name)}${r.prerelease ? " · beta" : ""} <small>${fmtDate(r.published_at)}</small></summary>
       <div class="vbody">${md(r.body) || "<p>Sin notas.</p>"}${e ? `<a class="btn" href="${esc(e.browser_download_url)}">Descargar ${esc(r.tag_name)} · ${fmtSize(e.size)}</a>` : ""}</div></details></li>`;
   }).join("");

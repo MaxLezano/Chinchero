@@ -26,10 +26,11 @@ electronFuses:
   # Las pantallas se sirven con chinchero://app (main.js), así que file:// no necesita privilegios extra
   grantFileProtocolExtraPrivileges: false
 
+# Sin arquitectura fija: la elige scripts/dist.js (npm run dist), que compila la x64 y la ARM64 por separado
+# y une sus latest.yml. Con arch aquí, --arm64 se sumaría a la x64 en un solo instalador del doble de tamaño.
 win:
   target:
-    - target: nsis
-      arch: [x64]
+    - nsis
   icon: build/icon.png
   artifactName: Chinchero-Setup-${version}.${ext}
 

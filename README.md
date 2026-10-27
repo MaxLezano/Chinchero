@@ -5,7 +5,7 @@
 **Tu tablero de corcho digital para Windows.** Pincha notas, fichas, listas, fotos, enlaces, archivos y stickers; únelos con hilos como en las películas de detectives y organízalos en tableros, hojas, zonas y grupos. Funciona sin conexión y todo queda en tu equipo.
 
 - 🌐 Web y descargas: https://tuchinchero.com/
-- ⬇️ Instalador: [Releases](https://github.com/MaxLezano/Chinchero/releases)
+- ⬇️ Instalador: [Releases](https://github.com/MaxLezano/Chinchero/releases) (`Chinchero-Setup-X.Y.Z.exe` para Intel y AMD, `-arm64.exe` para ARM)
 
 ## Estructura
 
@@ -13,7 +13,7 @@
 |---|---|
 | `app/` | La aplicación de escritorio (Electron). `src/main` proceso principal, `src/preload` puente seguro, `src/renderer` pantallas. |
 | `web/` | Web estática del producto (GitHub Pages): animaciones, capturas y descargas leídas de GitHub Releases. |
-| `.github/workflows/` | `release.yml` compila y publica el instalador al subir una etiqueta; `pages.yml` publica la web. |
+| `.github/workflows/` | `release.yml` compila y publica los instaladores al subir una etiqueta; `pages.yml` publica la web. |
 
 ## Desarrollo
 
@@ -22,7 +22,7 @@ cd app
 npm install
 npm start          # abre la app
 npm test           # pruebas de interfaz, de la app real y de funcionamiento sin internet
-npm run dist       # genera el instalador en app/dist/
+npm run dist       # genera los instaladores x64 y ARM64 en app/dist/
 ```
 
 > Si `npm start` abre algo raro o falla con `Cannot read properties of undefined`, la terminal tiene definida `ELECTRON_RUN_AS_NODE` (pasa dentro de VS Code). Ejecuta `set ELECTRON_RUN_AS_NODE=` en cmd o `Remove-Item Env:ELECTRON_RUN_AS_NODE` en PowerShell.
