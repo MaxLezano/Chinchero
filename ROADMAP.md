@@ -21,12 +21,12 @@ Lista de tareas para avanzar de a una. Cada tarea se hace en una sesión de chat
 
 ## Pendientes
 
-1. **Revisión de UX/UI** de toda la app con el asistente incluido (p. ej. lo que crea la IA puede quedar debajo del panel abierto; textos, espaciados, estados vacíos y de error).
-2. **QA completo** de la app (recorrido `qa-capturas.js` + pruebas manuales), anotando y corrigiendo lo que aparezca.
-3. **Instalador para Windows ARM64** (notebooks con Snapdragon, hoy usan la x64 emulada y más lenta). Electron 45 publica x64 y ARM64; 32 bits no existe y no se hará.
+1. **Instalador para Windows ARM64** (notebooks con Snapdragon, hoy usan la x64 emulada y más lenta). Electron 45 publica x64 y ARM64; 32 bits no existe y no se hará.
    - La web elige sola la descarga según la PC (`navigator.userAgentData.getHighEntropyValues(["architecture"])`), porque el usuario no suele saber qué procesador tiene. Si el navegador no lo informa (Firefox), se baja la x64, que también funciona en ARM, y se muestra un enlace «¿PC con procesador ARM?».
    - Compilar las dos arquitecturas en `release.yml` y cuidar que la actualización automática baje la de cada PC (un `latest.yml` por arquitectura, o un instalador único con las dos y comparar su tamaño).
    - Actualizar requisitos y preguntas frecuentes de la web.
+2. **Revisión de UX/UI** de toda la app con el asistente incluido (p. ej. lo que crea la IA puede quedar debajo del panel abierto; textos, espaciados, estados vacíos y de error).
+3. **QA completo** de la app (recorrido `qa-capturas.js` + pruebas manuales), anotando y corrigiendo lo que aparezca.
 
 ### Para hacer a mano (necesitan a una persona)
 - Con la próxima release: tener la 0.5.0 instalada con una clave de Gemini guardada, actualizar con «Reiniciar ahora» y comprobar que el asistente sigue conectado (Ajustes muestra la pista de la clave y «Probar» funciona).
