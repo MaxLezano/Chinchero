@@ -218,9 +218,11 @@ delete process.env.ELECTRON_RUN_AS_NODE;
   ok("al abrir se guarda una copia automática solo con los JSON", autos.length === 1 && autoZip.includes("library.json") && autoZip.includes(`boards/${boardId}.json`) && !autoZip.some(n => n.startsWith("media/")), autos.join(",") + " → " + autoZip.join(","));
 
   fs.writeFileSync(file, "{ esto no es JSON");
+  // Se anotan los avisos desde que abre la página: el de recuperación dura 4 s y con la PC cargada podía irse antes de mirarlo
+  await page.evaluateOnNewDocument(() => { window.__toasts = []; new MutationObserver(ms => ms.forEach(m => m.addedNodes.forEach(n => n.classList?.contains("toast") && window.__toasts.push(n.textContent)))).observe(document, { childList: true, subtree: true }); });
   await page.goto(page.url().replace(/04-papelera\.html.*/, "02-tablero.html?board=" + boardId)); await sleep(1200);
   ok("un tablero dañado se recupera de la copia automática", await page.evaluate(() => document.body.innerText.includes("Nota guardada en disco")));
-  ok("avisa que lo recuperó", await toast("lo recuperamos"));
+  ok("avisa que lo recuperó", await page.waitForFunction(() => window.__toasts.some(t => t.includes("lo recuperamos")), { timeout: 4000 }).then(() => true, () => false), await page.evaluate(() => window.__toasts.join(" | ")));
   ok("el archivo dañado queda apartado", fs.readdirSync(path.join(DATA, "boards")).some(n => n.includes(".corrupto-")));
 
   // Liberar espacio: un archivo sin usar y su miniatura se borran; lo que usa un tablero o una copia de backups/ se conserva
