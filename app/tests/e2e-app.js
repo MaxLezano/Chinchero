@@ -341,11 +341,20 @@ delete process.env.ELECTRON_RUN_AS_NODE;
   await page.goto(page.url().replace(/02-tablero\.html.*/, "03-ajustes.html")); await sleep(800);
   ok("IA: desactivada de fábrica", await page.evaluate(() => !document.getElementById("aiOn").checked && !window.chinchero.ai.status().enabled && document.querySelector("#asistente [data-ai]").hidden));
   // Al activarla se elige Gemini (recomendado) y se abre la guía; al copiar la clave se guarda sola y se prueba
-  const copy = k => page.evaluate(k => { const t = document.createElement("textarea"); t.value = k; document.body.append(t); t.select(); document.execCommand("copy"); t.remove(); }, k);
-  await copy("nada");
-  await page.click("#aiOn + span"); await sleep(800);
-  ok("IA: al activarla recomienda Gemini y abre la guía paso a paso", await page.evaluate(() => window.chinchero.ai.status().provider === "gemini"
-    && !!document.querySelector(".gg-modal") && document.querySelectorAll(".gg-step").length === 5 && !document.querySelector(".gg-step.done")));
+  // Sin foco, execCommand("copy") falla y queda la clave falsa de la corrida anterior: la guía la tomaría al abrirse
+  const copy = async k => {
+    for (let i = 0; i < 5; i++) {
+      await page.bringToFront();
+      if (await page.evaluate(k => { window.focus(); const t = document.createElement("textarea"); t.value = k; document.body.append(t); t.select(); const r = document.execCommand("copy"); t.remove(); return r; }, k)) return true;
+      await sleep(200);
+    }
+    return false;
+  };
+  const copied = await copy("nada");
+  await page.click("#aiOn + span");
+  await page.waitForFunction(() => document.querySelectorAll(".gg-step").length === 5, { timeout: 4000 }).catch(() => {});
+  const guide = await page.evaluate(() => ({ provider: window.chinchero.ai.status().provider, modal: !!document.querySelector(".gg-modal"), steps: document.querySelectorAll(".gg-step").length, done: document.querySelectorAll(".gg-step.done").length }));
+  ok("IA: al activarla recomienda Gemini y abre la guía paso a paso", guide.provider === "gemini" && guide.modal && guide.steps === 5 && !guide.done, JSON.stringify({ copied, ...guide }));
   await page.screenshot({ path: `${SHOTS}/a8-guia-gemini.png` });
   await copy(AI_KEY);
   await page.waitForFunction(() => document.getElementById("ggStatus")?.textContent.includes("funciona"), { timeout: 8000 }).catch(() => {});
