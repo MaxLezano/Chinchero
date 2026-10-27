@@ -715,6 +715,19 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
       const rs = [...document.querySelectorAll("#items .item")].map(e => e.getBoundingClientRect());
       return rs.length === 8 && rs.every((a, i) => rs.every((b, j) => i === j || a.right <= b.left || b.right <= a.left || a.bottom <= b.top || b.bottom <= a.top));
     }));
+    const dr = await p.evaluate(() => {
+      const n = Editor.applyAI([
+        { op: "dibujar", trazos: ["M10 10 L60 10 L35 50 Z", "M35 50 L35 90"], color: "azul", grosor: "grueso" },
+        { op: "dibujar", trazos: ["m100 100 l20 0", "m100 120 l20 0"] }, // relativos, lejos del 0,0 y diminutos
+        { op: "dibujar", trazos: ['M0 0"/><script>alert(1)</script>', "<g>"] }, { op: "dibujar", trazos: "M0 0 L9 9" }, { op: "dibujar", trazos: [] },
+      ]);
+      const ds = [...document.querySelectorAll(".t-draw")], paths = ds.map(e => e.querySelectorAll("path")[1]);
+      return { n, count: ds.length, d: paths[0]?.getAttribute("d"), d2: paths[1]?.getAttribute("d"), stroke: paths[0]?.getAttribute("stroke"), sw: paths[0]?.getAttribute("stroke-width"),
+        sizes: ds.map(e => Math.max(e.offsetWidth, e.offsetHeight)), script: !!document.querySelector("#items script") };
+    });
+    ok("IA: «dibujar» crea dibujos con los trazos válidos", dr.n === 2 && dr.count === 2 && dr.d === "M8 8 L58 8 L33 48 Z M33 48 L33 88" && dr.d2 === "M1.2 1.2 l20 0 M1.2 21.2 l20 0" && dr.stroke === "#1c7ed6" && dr.sw === "8" && !dr.script, JSON.stringify(dr));
+    ok("IA: los dibujos de la IA tienen un tamaño visible", dr.sizes.every(s => s >= 120 && s <= 480), JSON.stringify(dr.sizes));
+    await shot(p, "ia-dibujo");
     await p.close();
     const s = await open("03-ajustes.html", { prefs: NO_TOURS });
     ok("IA: en el navegador los ajustes del asistente están desactivados", await s.evaluate(() => document.getElementById("aiOn").disabled && document.getElementById("aiIntro").textContent.includes("app de escritorio")));

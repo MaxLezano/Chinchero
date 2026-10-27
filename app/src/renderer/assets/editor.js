@@ -2463,6 +2463,10 @@
     zone: { azul: "#4dabf7", rosa: "#f783ac", verde: "#69db7c", naranja: "#ffa94d", violeta: "#9775fa", gris: "#868e96" },
     stamp: { rojo: "#e03131", verde: "#2f9e44", azul: "#1c7ed6", naranja: "#f08c00", violeta: "#7048e8", gris: "#495057" },
   };
+  const AI_DRAW = { rojo: "#e03131", azul: "#1c7ed6", negro: "#2b2a27", amarillo: "#f59f00", verde: "#2f9e44", blanco: "#ffffff" };
+  const AI_SW = { fino: 2, medio: 4, grueso: 8 };
+  // Un trazo SVG del modelo: solo comandos de trazado y números (nada de etiquetas ni urls)
+  const AI_PATH = /^\s*[Mm][MLHVCSQTAZmlhvcsqtaz0-9eE.,+\-\s]*$/;
   const aiNoteName = Object.fromEntries(Object.entries(AI_NOTE).map(([k, v]) => [v, k]));
   const aiStr = (v, max = 500) => typeof v === "string" ? v.trim().slice(0, max) : "";
   const aiRich = v => esc(aiStr(v, 1000)).replace(/\n/g, "<br>"); // el texto de notas y fichas se pinta como HTML
@@ -2474,6 +2478,56 @@
       return { id: o.id, tipo: AI_NAMES[o.type] || o.type, texto: (itemText(o) || "").slice(0, 300), x: Math.round(o.x), y: Math.round(o.y), w: Math.round(r.w), h: Math.round(r.h), ...(o.type === "note" && { color: aiNoteName[o.color] }) };
     });
     return JSON.stringify({ hoja: s.name, elementos, hilos: s.threads.map(t => ({ a: t.a, b: t.b, ...(t.label && { etiqueta: t.label }) })), seleccion: selection });
+  }
+
+  // Desplaza un trazo SVG (dx, dy): solo se mueven las coordenadas absolutas. Un «m» al principio del trazo se pasa
+  // a «M», porque al unir varios trazos se tomaría desde el final del anterior. Los grupos incompletos se descartan.
+  const PATH_ARGS = { M: 2, L: 2, T: 2, C: 6, S: 4, Q: 4, A: 7, H: 1, V: 1, Z: 0 };
+  function shiftPath(t, dx, dy) {
+    const tok = t.match(/[A-Za-z]|[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?/g) || [], out = [], r1 = n => Math.round(n * 10) / 10;
+    let i = 0, first = true;
+    while (i < tok.length) {
+      let c = tok[i++];
+      const n = PATH_ARGS[c.toUpperCase()];
+      if (n == null) return "";
+      if (!n) { out.push(c); first = false; continue; }
+      for (let g = 0; i + n <= tok.length && !isNaN(tok[i]); g++) {
+        const v = tok.slice(i, i + n).map(Number);
+        i += n;
+        if (v.some(x => !Number.isFinite(x))) return "";
+        const abs = c === c.toUpperCase() || (first && c === "m" && g === 0);
+        if (abs) {
+          const C = c.toUpperCase();
+          if (C === "H") v[0] += dx;
+          else if (C === "V") v[0] += dy;
+          else if (C === "A") { v[5] += dx; v[6] += dy; }
+          else v.forEach((x, k) => { v[k] = x + (k % 2 ? dy : dx); });
+        }
+        out.push((g === 0 ? (first && c === "m" ? "M" : c) : first && c === "m" && g === 1 ? "l" : "") + v.map(r1).join(" "));
+      }
+      first = false;
+    }
+    return out.join(" ");
+  }
+
+  // Un dibujo a mano alzada con los trazos del modelo. El recuadro se mide con el navegador (getBBox) y se ajusta al
+  // dibujo, sin depender de dónde dibujó el modelo, y se escala para que el lado mayor quede entre 120 y 480 px.
+  function drawFromAI(trazos, a) {
+    const sw = AI_SW[aiStr(a.grosor).toLowerCase()] || (Number.isFinite(a.grosor) ? clamp(Math.round(a.grosor), 1, 12) : 3);
+    const d0 = trazos.map(t => shiftPath(t, 0, 0)).filter(Boolean).join(" ");
+    if (!d0) return null;
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", d0);
+    drawTmp.appendChild(path);
+    let b = null;
+    try { b = path.getBBox(); } catch (e) {}
+    path.remove();
+    if (!b || ![b.x, b.y, b.width, b.height].every(Number.isFinite) || b.width > 1e4 || b.height > 1e4) return null;
+    // El margen es de unos píxeles en pantalla, ya con la escala aplicada
+    const m = Math.max(b.width, b.height, 1), k = clamp(1, 120 / m, 480 / m), pad = (sw + 4) / k;
+    const vw = Math.ceil(b.width + 2 * pad), vh = Math.ceil(b.height + 2 * pad);
+    const d = trazos.map(t => shiftPath(t, pad - b.x, pad - b.y)).filter(Boolean).join(" ");
+    return mk("draw", 0, 0, { w: Math.round(vw * k), h: Math.round(vh * k), vw, vh, d, color: AI_DRAW[aiStr(a.color).toLowerCase()] || "#e03131", sw });
   }
 
   // Aplica lo que pidió el modelo como un solo cambio (un Ctrl+Z lo deshace entero). Lo que no se entiende se ignora.
@@ -2538,6 +2592,12 @@
         if (type === "list" && !it.tasks.length) it.tasks = [{ text: "", done: false }];
         it.rot = type === "zone" ? 0 : type === "stamp" ? (tilt ? rand(-14, 14) : 0) : tilt ? rand(-3.5, 3.5) : 0;
         it.pin.color = getPref("lastPin") || "#e03131";
+        place(it, find(a.cerca));
+        sh.items.push(it); made.push(it); changes++;
+        if (typeof a.ref === "string") refs.set(a.ref, it);
+      } else if (a.op === "dibujar" && Array.isArray(a.trazos)) {
+        const it = drawFromAI(a.trazos.slice(0, 40).filter(t => typeof t === "string" && t.length <= 4000 && AI_PATH.test(t)), a);
+        if (!it) continue;
         place(it, find(a.cerca));
         sh.items.push(it); made.push(it); changes++;
         if (typeof a.ref === "string") refs.set(a.ref, it);

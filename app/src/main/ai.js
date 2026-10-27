@@ -120,6 +120,8 @@ Acciones posibles (usa solo estas):
 - {"op":"crear","ref":"n1","tipo":"nota|ficha|lista|texto|zona|sello","texto":"...","titulo":"...","tareas":["..."],"color":"...","cerca":"id o ref"}
   nota: "texto" y color amarillo|azul|rosa|verde|violeta|naranja|blanco. ficha: "titulo" y "texto". lista: "titulo" y "tareas". texto: un título grande en "texto". zona: "titulo" (agrupa elementos). sello: "texto" corto en mayúsculas.
   "cerca" coloca el elemento junto a otro; sin "cerca" va a un hueco libre. "ref" es un nombre tuyo para usarlo en otras acciones.
+- {"op":"dibujar","ref":"d1","trazos":["M10 80 Q50 10 90 80", "..."],"color":"rojo|azul|negro|amarillo|verde|blanco","grosor":"fino|medio|grueso","cerca":"id o ref"}
+  un dibujo a mano alzada (flecha, estrella, casa, cara, esquema...): cada trazo es el "d" de un path SVG (M, L, Q, C, A, Z) en un lienzo de unos 200x200 que empieza en 0,0. Solo líneas, sin relleno ni texto.
 - {"op":"unir","a":"id o ref","b":"id o ref","etiqueta":"opcional"} tiende un hilo entre dos elementos.
 - {"op":"editar","id":"...","texto":"...","titulo":"...","tareas":["..."],"color":"..."} cambia solo los campos que pongas.
 - {"op":"mover","id":"...","x":0,"y":0} mueve un elemento (coordenadas del tablero).

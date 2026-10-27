@@ -17,14 +17,13 @@ Lista de tareas para avanzar de a una. Cada tarea se hace en una sesión de chat
 - Instalador NSIS verificado localmente (`npm run dist`).
 - Web estática en `web/` con animaciones, capturas reales y descargas leídas de la API de GitHub.
 - Sin dependencias de internet: fuentes incluidas en el proyecto.
-- Pruebas: `app/tests/e2e-ui.js` (130 casos de interfaz), `e2e-app.js` (54 casos con la app real; con `CHINCHERO_EXE` prueba la empaquetada), `carga.js` (10 casos de rendimiento con 500 elementos), `offline-fonts.js`, `actualizacion.js` (`npm run test:actualizacion`, aparte porque baja la última release). Recorrido de QA con capturas: `node tests/qa-capturas.js` → `app/tests/out/qa/`. Capturas de la galería de la web: `node tests/capturas-web.js` (regenerarlas cuando cambie la interfaz).
+- Pruebas: `app/tests/e2e-ui.js` (132 casos de interfaz), `e2e-app.js` (54 casos con la app real; con `CHINCHERO_EXE` prueba la empaquetada), `carga.js` (10 casos de rendimiento con 500 elementos), `offline-fonts.js`, `actualizacion.js` (`npm run test:actualizacion`, aparte porque baja la última release). Recorrido de QA con capturas: `node tests/qa-capturas.js` → `app/tests/out/qa/`. Capturas de la galería de la web: `node tests/capturas-web.js` (regenerarlas cuando cambie la interfaz).
 
 ## Pendientes
 
-1. **Asistente: dibujar o generar imágenes en el tablero** (revisar viabilidad). Dos caminos: (a) que el modelo devuelva trazos SVG y se creen como elementos «Dibujo» a mano alzada (funciona con cualquier modelo, también Ollama); (b) generar una imagen con un modelo de imágenes de Gemini (la clave de prueba lista `gemini-nano-banana-*`; confirmar si entra en el plan gratuito) y pincharla como foto en `media/`.
-2. **Revisión de UX/UI** de toda la app con el asistente incluido (p. ej. lo que crea la IA puede quedar debajo del panel abierto; textos, espaciados, estados vacíos y de error).
-3. **QA completo** de la app (recorrido `qa-capturas.js` + pruebas manuales), anotando y corrigiendo lo que aparezca.
-4. **Instalador para Windows ARM64** (notebooks con Snapdragon, hoy usan la x64 emulada y más lenta). Electron 45 publica x64 y ARM64; 32 bits no existe y no se hará.
+1. **Revisión de UX/UI** de toda la app con el asistente incluido (p. ej. lo que crea la IA puede quedar debajo del panel abierto; textos, espaciados, estados vacíos y de error).
+2. **QA completo** de la app (recorrido `qa-capturas.js` + pruebas manuales), anotando y corrigiendo lo que aparezca.
+3. **Instalador para Windows ARM64** (notebooks con Snapdragon, hoy usan la x64 emulada y más lenta). Electron 45 publica x64 y ARM64; 32 bits no existe y no se hará.
    - La web elige sola la descarga según la PC (`navigator.userAgentData.getHighEntropyValues(["architecture"])`), porque el usuario no suele saber qué procesador tiene. Si el navegador no lo informa (Firefox), se baja la x64, que también funciona en ARM, y se muestra un enlace «¿PC con procesador ARM?».
    - Compilar las dos arquitecturas en `release.yml` y cuidar que la actualización automática baje la de cada PC (un `latest.yml` por arquitectura, o un instalador único con las dos y comparar su tamaño).
    - Actualizar requisitos y preguntas frecuentes de la web.
@@ -40,6 +39,7 @@ Lista de tareas para avanzar de a una. Cada tarea se hace en una sesión de chat
 - Escuchar los sonidos de interacción en la app y afinar su timbre en `assets/sound.js`.
 
 ### Descartadas por ahora
+- Asistente que genera imágenes con Gemini (Nano Banana): la API no tiene plan gratuito para sus modelos de imagen (octubre de 2026, unos 0,03–0,07 US$ por imagen) y el asistente promete ser gratis. Revisar si Google vuelve a ofrecerlo gratis.
 - Versión para macOS / Linux: sin una Mac no se puede compilar ni probar la de macOS, y Linux no se hace si no se hace macOS.
 
 ## Ideas revisadas que ya están hechas
@@ -50,6 +50,7 @@ Lista de tareas para avanzar de a una. Cada tarea se hace en una sesión de chat
 
 ## Hecho
 
+- **2026-10-27 · Asistente: dibujos a mano alzada**: nueva acción `{"op":"dibujar","trazos":[…],"color","grosor","cerca"}`: el modelo manda el `d` de paths SVG y se crea un elemento «Dibujo» (funciona con Ollama y Gemini). Solo se aceptan comandos de trazado y números; cada trazo se desplaza para que el recuadro quede justo alrededor del dibujo (medido con `getBBox`), un `m` inicial se pasa a absoluto y el lado mayor queda entre 120 y 480 px. Se deshace con el mismo Ctrl+Z y se borra con la goma. Generar imágenes con Gemini se descartó: no entra en el plan gratuito. Pruebas en `e2e-ui.js` y captura `ia-dibujo.png`.
 - **2026-10-27 · Asistente: botón de enviar redondo**: circular, centrado en vertical en el campo y con 12 px de aire entre el texto y el botón. Prueba y captura `a9-asistente-enviar.png` en `e2e-app.js`.
 - **2026-10-27 · Ajustes: «Quitar» centrado**: con la clave guardada, «Obtener clave» y «Quitar» se apilan centrados y cada uno del ancho de su texto (antes «Quitar» se estiraba y el texto quedaba a la izquierda). Prueba y captura `a10-clave-botones.png` en `e2e-app.js`.
 - **2026-10-27 · La conexión del asistente sobrevive a las actualizaciones**: el desinstalador viejo que corre el instalador nuevo (con `--updated`) solo borra `%APPDATA%\Chinchero` con `deleteAppDataOnUninstall: true` o `--delete-app-data`, así que `config.json` y «Local State» (la llave de safeStorage) quedan. Nueva prueba `tests/actualizacion.js`: baja el instalador de la última release, lo extrae con el 7-Zip de la caché de electron-builder (sin instalar nada), guarda configuración y clave con esa versión en un perfil aislado y abre la nueva (código fuente, o la empaquetada con `CHINCHERO_EXE`) para leer la clave y usarla contra un Gemini simulado: 0.5.0 → 0.5.0 pasa en los dos casos. Hallazgo: Chromium escribe «Local State» con demora; si la app se mata a los pocos segundos de abrirse por primera vez, la llave se pierde y la clave hay que volver a pegarla. No afecta a las actualizaciones (la app ya se abrió antes y se cierra normal), por eso la prueba cierra la ventana en vez de matar el proceso.
