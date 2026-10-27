@@ -672,6 +672,39 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   // Asistente con IA: sin la app de escritorio no se puede usar; las acciones del modelo se aplican con cuidado
   {
     const p = await open("02-tablero.html?template=blank&name=IA", { prefs: NO_TOURS });
+    // Chinche: el pin flotante que abre el asistente, fuera de la barra de arriba y sin tapar el minimapa
+    const pin = () => p.evaluate(() => {
+      const b = document.getElementById("aiBtn"), r = b.getBoundingClientRect(), mm = document.getElementById("minimap");
+      const m = mm.hidden ? null : mm.getBoundingClientRect(), cs = getComputedStyle(b);
+      return { top: !!b.closest(".topbar"), fixed: cs.position === "fixed", visible: cs.visibility === "visible" && r.width > 0,
+        overMinimap: !!m && r.bottom > m.top && r.right > m.left && r.left < m.right,
+        floats: getComputedStyle(b.querySelector(".chinche-flota")).animationName, label: b.getAttribute("aria-label"), expanded: b.getAttribute("aria-expanded") };
+    });
+    let c = await pin();
+    ok("Chinche: pin flotante fuera de la barra, con nombre y animación en reposo", !c.top && c.fixed && c.visible && /Chinche/.test(c.label) && c.floats === "chinche-flota", JSON.stringify(c));
+    ok("Chinche: no tapa el minimapa", !c.overMinimap, JSON.stringify(c));
+    await p.click("#mmToggle"); await sleep(100);
+    ok("Chinche: sin minimapa baja a la esquina", await p.evaluate(() => innerHeight - document.getElementById("aiBtn").getBoundingClientRect().bottom < 70));
+    await p.click("#mmToggle"); await sleep(100);
+    await p.hover("#aiBtn"); await sleep(400);
+    ok("Chinche: al pasar el ratón se levanta y muestra el brillo", await p.evaluate(() => getComputedStyle(document.querySelector(".chinche-brillo")).opacity === "1" && getComputedStyle(document.querySelector(".chinche-pin")).transform !== "none"));
+    await shot(p, "chinche");
+    await p.click("#aiBtn"); await sleep(60);
+    ok("Chinche: el panel sale desde el pin", await p.evaluate(() => {
+      const pn = document.getElementById("aiPanel"), [x, y] = getComputedStyle(pn).transformOrigin.split(" ").map(parseFloat);
+      return pn.classList.contains("sale") && x > pn.offsetWidth / 2 && y > 0;
+    }));
+    await sleep(400);
+    c = await pin();
+    ok("Chinche: con el panel abierto se esconde y queda expandido", !c.visible && c.expanded === "true", JSON.stringify(c));
+    await p.keyboard.press("Escape"); await sleep(300);
+    ok("Chinche: al cerrar vuelve y recibe el foco", await p.evaluate(() => document.activeElement.id === "aiBtn" && getComputedStyle(document.activeElement).visibility === "visible" && document.activeElement.getAttribute("aria-expanded") === "false"));
+    await p.keyboard.press("Enter"); await sleep(300);
+    ok("Chinche: se abre con el teclado", await p.evaluate(() => !document.getElementById("aiPanel").hidden));
+    await p.keyboard.press("Escape"); await sleep(300);
+    await p.emulateMediaFeatures([{ name: "prefers-reduced-motion", value: "reduce" }]);
+    ok("Chinche: con movimiento reducido no flota", (await pin()).floats === "none");
+    await p.emulateMediaFeatures([]);
     await p.click("#aiBtn"); await sleep(300);
     ok("IA: en el navegador el panel avisa que es de la app de escritorio", await p.evaluate(() => !document.getElementById("aiPanel").hidden && document.getElementById("aiLog").textContent.includes("app de escritorio") && document.getElementById("aiInput").disabled));
     await p.keyboard.press("Escape"); await sleep(200);

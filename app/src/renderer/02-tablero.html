@@ -66,7 +66,6 @@
       <button class="icon-btn" id="redoBtn" data-key="redo" aria-label="Rehacer" data-tip="Rehacer · Ctrl+Y" data-tip-pos="bottom"><svg class="icon"><use href="#i-redo"/></svg></button>
     </span>
     <span class="sep"></span>
-    <button class="icon-btn" id="aiBtn" aria-label="Asistente con IA" aria-expanded="false" aria-controls="aiPanel" data-tip="Asistente con IA" data-tip-pos="bottom"><svg class="icon"><use href="#i-spark"/></svg></button>
     <button class="icon-btn" id="searchBtn" data-key="search" aria-label="Buscar y acciones" data-tip="Buscar y acciones · Ctrl+K" data-tip-pos="bottom"><svg class="icon"><use href="#i-search"/></svg></button>
     <button class="icon-btn" id="threadsBtn" aria-label="Mostrar hilos" data-tip="Hilos: encima, atenuados u ocultos" data-tip-pos="bottom"><svg class="icon"><use href="#i-thread"/></svg></button>
     <button class="icon-btn" id="exportBtn" aria-label="Exportar" data-tip="Exportar" data-tip-pos="bottom"><svg class="icon"><use href="#i-share"/></svg></button>
@@ -181,6 +180,23 @@
 </div>
 
 <div class="minimap" id="minimap" aria-label="Minimapa"></div>
+<!-- Chinche: el pin que abre el asistente con IA. Flota sobre el minimapa (ver editor.css) -->
+<button class="chinche" id="aiBtn" aria-label="Chinche, el asistente con IA" aria-expanded="false" aria-controls="aiPanel" data-tip="Chinche · asistente con IA" data-tip-pos="left">
+  <span class="chinche-sombra" aria-hidden="true"></span>
+  <span class="chinche-flota" aria-hidden="true"><svg class="chinche-pin" viewBox="0 0 40 60">
+    <defs>
+      <radialGradient id="chCabeza" cx="36%" cy="30%" r="72%"><stop offset="0" stop-color="#ff8a80"/><stop offset=".42" stop-color="#e53935"/><stop offset="1" stop-color="#8e1515"/></radialGradient>
+      <linearGradient id="chCuerpo" x1="0" x2="1"><stop offset="0" stop-color="#9b1919"/><stop offset=".38" stop-color="#ef5350"/><stop offset="1" stop-color="#861212"/></linearGradient>
+      <linearGradient id="chPunta" x1="0" x2="1"><stop offset="0" stop-color="#8a9096"/><stop offset=".5" stop-color="#eef1f3"/><stop offset="1" stop-color="#6f757b"/></linearGradient>
+    </defs>
+    <path d="M18.9 39h2.2l-.7 19h-.8z" fill="url(#chPunta)"/>
+    <path d="M15.5 22h9l-1.6 13h-5.8z" fill="url(#chCuerpo)"/>
+    <ellipse cx="20" cy="37" rx="9.5" ry="3.4" fill="url(#chCuerpo)"/>
+    <ellipse cx="20" cy="36" rx="6.5" ry="1.6" fill="#ff8a80" opacity=".35"/>
+    <circle cx="20" cy="14" r="12.5" fill="url(#chCabeza)"/>
+    <ellipse cx="15.2" cy="8.6" rx="4.3" ry="2.6" fill="#fff" opacity=".6" transform="rotate(-32 15.2 8.6)"/>
+  </svg><svg class="chinche-brillo icon"><use href="#i-spark"/></svg></span>
+</button>
 
 <div class="cmdk-back" id="cmdk" role="dialog" aria-modal="true" aria-label="Buscar y acciones">
   <div class="cmdk">

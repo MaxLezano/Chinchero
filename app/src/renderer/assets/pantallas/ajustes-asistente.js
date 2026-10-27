@@ -153,7 +153,7 @@
     out.className = r.ok ? "ok-txt" : "err-txt";
     out.textContent = !r.ok ? errorText(r.error)
       : st.model && r.model !== st.model ? `${st.model} no respondió (suele pasar cuando está saturado), así que contestó ${r.model}. El asistente funciona: usará ese de respaldo cuando haga falta.`
-      : "✓ Listo, el asistente funciona. Ábrelo con el botón de la chispa, arriba en cualquier tablero.";
+      : "✓ Listo, el asistente funciona. Ábrelo con Chinche, el pin rojo de abajo a la derecha en cualquier tablero.";
     return r;
   }
 
@@ -220,7 +220,7 @@
     async function test() {
       const r = await ai.test();
       if (!guide) return;
-      if (r.ok) { step(5, "done"); status(`<span class="ok-txt">✓ Listo, el asistente funciona. Ábrelo con el botón de la chispa, arriba en cualquier tablero.</span><button class="btn btn-primary" data-close>Terminar</button>`); }
+      if (r.ok) { step(5, "done"); status(`<span class="ok-txt">✓ Listo, el asistente funciona. Ábrelo con Chinche, el pin rojo de abajo a la derecha en cualquier tablero.</span><button class="btn btn-primary" data-close>Terminar</button>`); }
       else status(`<span class="err-txt">${esc(errorText(r.error))}</span><button class="btn" data-retry>Probar de nuevo</button>`);
       announce($("ggStatus").textContent);
       b.querySelector("[data-close]:not(.icon-btn), [data-retry]")?.focus();

@@ -152,23 +152,30 @@
   }
 
   function open(prompt) {
-    panel.hidden = false;
+    if (panel.hidden) {
+      // El panel crece desde Chinche: se mide el pin antes de que se esconda
+      const r = btn.getBoundingClientRect();
+      panel.hidden = false;
+      const p = panel.getBoundingClientRect();
+      panel.style.transformOrigin = `${r.left + r.width / 2 - p.left}px ${r.top + r.height / 2 - p.top}px`;
+      panel.classList.add("sale");
+    }
     document.body.classList.add("ai-open");
     btn.setAttribute("aria-expanded", "true");
-    btn.classList.add("active");
     log.scrollTop = log.scrollHeight;
     if (refresh() && prompt) ask(prompt);
     else (input.disabled ? $("#aiClose") : input).focus();
   }
   function close() {
     panel.hidden = true;
+    panel.classList.remove("sale");
     document.body.classList.remove("ai-open");
     btn.setAttribute("aria-expanded", "false");
-    btn.classList.remove("active");
     btn.focus();
   }
 
   btn.addEventListener("click", () => panel.hidden ? open() : close());
+  panel.addEventListener("animationend", e => { if (e.target === panel) panel.classList.remove("sale"); });
   $("#aiClose").addEventListener("click", close);
   $("#aiNew").addEventListener("click", newChat);
   tips.addEventListener("click", () => showTips(chips.hidden));

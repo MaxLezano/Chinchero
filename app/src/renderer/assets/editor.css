@@ -325,5 +325,31 @@ body.exporting [data-tip]::after { display: none !important; }
 .ai-privacy { display: block; padding: 0 14px 10px; font-size: 11.5px; color: var(--text-muted); }
 .ai-panel button:disabled, .ai-panel textarea:disabled { opacity: .5; cursor: default; }
 body.ai-open .minimap { right: 384px; }
-body.ai-open #aiBtn::after { display: none; } /* con el panel abierto, el tooltip quedaría tapado por él */
-@media (prefers-reduced-motion: reduce) { .ai-msg.wait::after { animation: none; width: auto; } }
+/* El panel sale desde Chinche (transform-origin lo pone asistente.js) */
+.ai-panel.sale { animation: ai-sale .32s cubic-bezier(.2,.9,.3,1.12); }
+@keyframes ai-sale { from { opacity: 0; transform: scale(.08); } 55% { opacity: 1; } }
+
+/* Chinche: el pin rojo que abre el asistente. Flota sobre el minimapa, se levanta al pasar el ratón, se clava
+   al hacer clic y se esconde mientras el panel está abierto */
+button.chinche { position: fixed; right: 20px; bottom: 192px; width: 52px; height: 66px; padding: 0; border: 0; background: none; border-radius: 14px; cursor: pointer; z-index: 26; transition: opacity .18s, transform .22s, visibility 0s; }
+.minimap[hidden] + .chinche { bottom: 56px; }
+.chinche:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.chinche-flota { position: absolute; inset: 0; animation: chinche-flota 3.6s ease-in-out infinite; }
+.chinche-pin { position: absolute; left: 6px; top: 0; width: 40px; height: 60px; transform-origin: 50% 96%; transform: rotate(-14deg); filter: drop-shadow(0 2px 2px rgba(0,0,0,.25)); transition: transform .28s cubic-bezier(.3,1.6,.5,1), filter .2s; }
+.chinche-sombra { position: absolute; left: 50%; bottom: 1px; width: 22px; height: 6px; margin-left: -11px; border-radius: 50%; background: rgba(0,0,0,.3); filter: blur(2px); animation: chinche-sombra 3.6s ease-in-out infinite; }
+.chinche-brillo { position: absolute; right: -2px; top: 0; width: 16px; height: 16px; color: #f6b93b; fill: currentColor; stroke-width: 1; opacity: 0; transform: scale(.3); transition: opacity .2s, transform .25s; }
+.chinche:hover .chinche-pin, .chinche:focus-visible .chinche-pin { transform: translateY(-6px) rotate(5deg) scale(1.06); filter: drop-shadow(0 7px 4px rgba(0,0,0,.2)) brightness(1.07); }
+.chinche:hover .chinche-brillo, .chinche:focus-visible .chinche-brillo { opacity: 1; transform: scale(1); animation: chinche-brillo 1.4s ease-in-out infinite; }
+.chinche:active .chinche-pin { transform: translateY(4px) rotate(0deg) scale(.92); transition-duration: .08s; }
+body.ai-open .chinche { opacity: 0; visibility: hidden; transform: translateY(-16px) scale(.5); pointer-events: none; transition: opacity .18s, transform .22s, visibility 0s .22s; }
+@keyframes chinche-flota { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px) rotate(2deg); } }
+@keyframes chinche-sombra { 0%, 100% { transform: scaleX(1); opacity: 1; } 50% { transform: scaleX(.7); opacity: .55; } }
+@keyframes chinche-brillo { 0%, 100% { transform: scale(1) rotate(0deg); } 50% { transform: scale(.7) rotate(25deg); } }
+@media (max-height: 760px) { .minimap:not([hidden]) + .chinche { bottom: 160px; } }
+@media (max-width: 720px) { button.chinche, .minimap:not([hidden]) + .chinche { bottom: 104px; } }
+body.exporting .chinche { display: none !important; }
+@media (prefers-reduced-motion: reduce) {
+  .ai-msg.wait::after { animation: none; width: auto; }
+  .ai-panel.sale, .chinche-flota, .chinche-sombra, .chinche .chinche-brillo { animation: none; }
+  button.chinche, .chinche-pin, .chinche-brillo { transition: none; }
+}
