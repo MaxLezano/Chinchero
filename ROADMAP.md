@@ -27,8 +27,8 @@ Ninguna tarea de código por ahora.
 - Instalar el `.exe` y abrir un `.chinchero` con doble clic con la app cerrada (con la app abierta ya está probado).
 - Escuchar los sonidos de interacción en la app y afinar su timbre en `assets/sound.js`.
 
-### Opcionales (sin orden)
-- Versión para macOS / Linux.
+### Descartadas por ahora
+- Versión para macOS / Linux: sin una Mac no se puede compilar ni probar la de macOS, y Linux no se hace si no se hace macOS.
 
 ## Ideas revisadas que ya están hechas
 
@@ -61,3 +61,4 @@ Ninguna tarea de código por ahora.
 - **2026-10-26 · Sonido de papelera**: quinto sonido en `assets/sound.js` (`trash`): papel que se hace una bola (unos 40 crujidos irregulares sobre un siseo agudo) y se arroja (un «fsss» que baja de tono); la primera versión, con un golpe grave al final, sonaba a cierre. Suena al eliminar elementos o hilos en el editor (Supr, menú, barra) y al enviar un tablero a la papelera en Tableros (`01-tableros.html` ahora carga `sound.js`). Cortar (Ctrl+X) no suena. Texto de Ajustes actualizado. 2 casos nuevos en `e2e-ui.js`.
 - **2026-10-26 · Firma de código: decidido no hacer**: revisadas las opciones. Azure Artifact Signing solo acepta personas de EE. UU. y Canadá; un certificado OV/EV es de pago y tampoco quita el aviso de SmartScreen al instante (la reputación se gana con descargas); SignPath Foundation firma gratis a proyectos abiertos, pero el editor sería «SignPath Foundation» y puede pausar o revocar la firma. La app sigue sin firma; la web ya dice «Hecho por Max Lezano» con el enlace a GitHub y explica el aviso de Windows.
 - **2026-10-26 · Dominio propio**: `tuchinchero.com` registrado en Cloudflare Registrar (USD 10.46/año al costo, privacidad WHOIS gratis; `chinchero.com` estaba tomado y NIC.ar no vende .com). DNS en Cloudflare con 4 registros A a GitHub Pages (`185.199.108–111.153`) y `www` CNAME a `maxlezano.github.io`, todos en «Solo DNS» (sin proxy, para que GitHub emita el certificado). Dominio configurado en Pages con `gh api` (al publicar con Actions, un archivo `CNAME` no alcanza). Enlaces de `web/index.html` (og) y `README.md` actualizados.
+- **2026-10-26 · Banner de actualización en una línea y QA**: el botón «Reiniciar ahora» ya no se parte en dos líneas (botones sin salto de línea y banner de hasta 720 px). El recorrido de QA (`tests/qa-capturas.js`) captura también el banner. QA de la app (claro/oscuro, 1000–1920 px) y de la web sin avisos; la web muestra la v0.4.0.

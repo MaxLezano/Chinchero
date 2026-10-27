@@ -67,6 +67,13 @@ function audit() {
       await go("03-ajustes.html", "03-ajustes");
       await go("03-ajustes.html", "03-ajustes-fin", () => page.evaluate(() => { const m = document.querySelector("main, .main, .content") || document.scrollingElement; m.scrollTop = 1e6; }));
       await go("04-papelera.html", "04-papelera");
+      // Banner de actualización lista (en el navegador no hay updater: se arma con el mismo HTML de store.js)
+      await go("01-tableros.html?view=recent", "01-actualizacion", () => page.evaluate(() => {
+        const b = document.createElement("div");
+        b.className = "update-banner";
+        b.innerHTML = `<span>La versión <b>0.4.0</b> está lista. Se instalará al cerrar Chinchero.</span><button class="btn btn-primary">Reiniciar ahora</button><button class="icon-btn" aria-label="Cerrar">✕</button>`;
+        document.body.appendChild(b);
+      }));
       await go(ed, "02-editor");
       await go(ed, "02-cmdk", () => key("k", "Control"));
       await go(ed, "02-atajos", () => key("?"));
