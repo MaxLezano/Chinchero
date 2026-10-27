@@ -18,6 +18,23 @@
 html { scroll-behavior: smooth; scroll-padding-top: 80px; }
 body { margin: 0; font-family: var(--font); background: var(--bg); color: var(--text); line-height: 1.6; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
 img { max-width: 100%; display: block; }
+
+/* Barras de desplazamiento propias, iguales a las de la app. scrollbar-color solo donde no hay ::-webkit-scrollbar
+   (Firefox): en Chromium anularía el pulgar redondeado. */
+:root { --scroll-thumb: rgba(40,35,25,.22); --scroll-thumb-hover: rgba(40,35,25,.38); }
+:root[data-theme="dark"] { --scroll-thumb: rgba(255,255,255,.18); --scroll-thumb-hover: rgba(255,255,255,.32); }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--scroll-thumb); background-clip: padding-box;
+  border: 2px solid transparent; border-radius: 999px; min-height: 32px;
+}
+::-webkit-scrollbar-thumb:hover { background-color: var(--scroll-thumb-hover); }
+::-webkit-scrollbar-thumb:active { background-color: var(--accent); }
+::-webkit-scrollbar-button { display: none; }
+@supports not selector(::-webkit-scrollbar) {
+  * { scrollbar-width: thin; scrollbar-color: var(--scroll-thumb) transparent; }
+}
 a { color: inherit; }
 .wrap { width: min(1160px, 100% - 32px); margin: 0 auto; }
 .dots-bg { background-image: radial-gradient(var(--dot) 1.2px, transparent 1.3px); background-size: 22px 22px; }
