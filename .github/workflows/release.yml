@@ -48,3 +48,21 @@ jobs:
             dist/Chinchero-Setup-*.exe dist/Chinchero-Setup-*.exe.blockmap dist/latest.yml
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Manda el PR de la versión nueva a winget (microsoft/winget-pkgs) desde el fork MaxLezano/winget-pkgs.
+  # Necesita el secreto WINGET_TOKEN (token clásico con permiso public_repo); sin él, se saltea.
+  # Solo funciona si el paquete MaxLezano.Chinchero ya existe en winget (el primero se mandó a mano).
+  winget:
+    needs: windows
+    runs-on: windows-latest
+    env:
+      WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
+    steps:
+      - name: Publicar en winget
+        if: env.WINGET_TOKEN != ''
+        uses: vedantmgoyal9/winget-releaser@v2
+        with:
+          identifier: MaxLezano.Chinchero
+          installers-regex: 'Chinchero-Setup-.*\.exe$'
+          release-notes-url: https://github.com/MaxLezano/Chinchero/releases/tag/${{ github.ref_name }}
+          token: ${{ secrets.WINGET_TOKEN }}
