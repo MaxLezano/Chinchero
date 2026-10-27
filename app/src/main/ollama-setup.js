@@ -1,7 +1,7 @@
 // Instalación guiada de Ollama: la app baja el instalador oficial, comprueba su firma, lo ejecuta en silencio
 // (se instala para el usuario, sin permisos de administrador) y descarga un modelo con /api/pull.
 // Solo hay una tarea a la vez; el progreso se envía a la pantalla que la pidió.
-const { net } = require("electron");
+const { app, net } = require("electron");
 const { execFile, spawn } = require("child_process");
 const path = require("path");
 const fs = require("fs");
@@ -14,6 +14,10 @@ const SERVER_EXE = path.join(DIR, "ollama.exe");
 const SETUP_FILE = path.join(os.tmpdir(), "Chinchero-OllamaSetup.exe");
 // La app de escritorio de Ollama abre su propia ventana (cuenta, chat) y se pone en el inicio de Windows
 const STARTUP_LNK = path.join(process.env.APPDATA || path.join(os.homedir(), "AppData", "Roaming"), "Microsoft", "Windows", "Start Menu", "Programs", "Startup", "Ollama.lnk");
+// Modelos descargados, registros y configuración de Ollama
+const HOME_DIRS = [path.join(os.homedir(), ".ollama"), path.join(process.env.LOCALAPPDATA || path.join(os.homedir(), "AppData", "Local"), "Ollama")];
+// Marca de que Ollama lo instaló Chinchero: el desinstalador de Chinchero (build/installer.nsh) solo quita Ollama si existe
+const MARK = () => path.join(app.getPath("userData"), "ollama-de-chinchero");
 
 let job = null; // { kind, ctrl, child }
 
@@ -85,11 +89,8 @@ async function run(kind, progress, fn) {
 
 // El instalador abre la app de Ollama al terminar (también en silencio): se cierra, con su servidor, y se quita
 // del inicio de Windows. Chinchero arranca el servidor oculto cuando hace falta (ver start).
-function quietApp() {
-  return new Promise(resolve => execFile("taskkill", ["/im", "ollama app.exe", "/f", "/t"], { windowsHide: true }, () => {
-    fs.rm(STARTUP_LNK, { force: true }, () => resolve());
-  }));
-}
+const kill = name => new Promise(r => execFile("taskkill", ["/im", name, "/f", "/t"], { windowsHide: true }, () => r()));
+const quietApp = () => kill("ollama app.exe").then(() => fs.promises.rm(STARTUP_LNK, { force: true }).catch(() => {}));
 
 const install = progress => run("install", progress, async ctrl => {
   if (await alive()) return { ok: true };
@@ -105,6 +106,7 @@ const install = progress => run("install", progress, async ctrl => {
       // La app tarda un momento en abrirse tras el instalador: se espera antes de cerrarla
       await new Promise(r => setTimeout(r, 3000));
       await quietApp();
+      fs.writeFileSync(MARK(), "");
     } finally {
       fs.rm(SETUP_FILE, { force: true }, () => {});
     }
@@ -145,4 +147,35 @@ function cancel() {
   return true;
 }
 
-module.exports = { state, start, install, pull, cancel };
+// Quita Ollama de la PC: lo cierra, ejecuta su desinstalador oficial en silencio y borra los modelos, sus registros y
+// el acceso del inicio de Windows. Las carpetas de Ollama solo se tocan si estaba instalado en la carpeta de siempre.
+// Solo se cierran los procesos que corren desde esa carpeta (no otro Ollama con el mismo nombre)
+const killIn = dir => new Promise(r => execFile("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command",
+  "Get-Process | ? { $_.Path -and $_.Path.StartsWith($env:CH_DIR, 'OrdinalIgnoreCase') } | Stop-Process -Force"],
+{ env: { ...process.env, CH_DIR: dir + path.sep }, windowsHide: true, timeout: 30000 }, () => r()));
+
+// El desinstalador de Ollama deja su carpeta en el PATH del usuario: se quita esa entrada y nada más
+const cleanPath = () => new Promise(r => execFile("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command",
+  "$k = Get-Item HKCU:\\Environment; $p = $k.GetValue('Path', '', 'DoNotExpandEnvironmentNames'); " +
+  "$n = ($p -split ';' | ? { $_ -notmatch '\\\\Programs\\\\Ollama\\\\?$' }) -join ';'; " +
+  "if ($n -ne $p) { Set-ItemProperty HKCU:\\Environment -Name Path -Value $n -Type ($k.GetValueKind('Path')) }"],
+{ windowsHide: true, timeout: 30000 }, () => r()));
+
+const remove = () => run("remove", () => {}, async () => {
+  const uninstaller = path.join(DIR, "unins000.exe");
+  if (!fs.existsSync(DIR)) return { ok: true };
+  await killIn(DIR);
+  if (fs.existsSync(uninstaller)) {
+    await new Promise(resolve => execFile(uninstaller, ["/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART"], { windowsHide: true }, () => resolve()));
+    // El desinstalador de Inno Setup se copia a una carpeta temporal y sigue desde ahí: se espera a que termine
+    for (const end = Date.now() + 120000; fs.existsSync(uninstaller) && Date.now() < end;) await new Promise(r => setTimeout(r, 1000));
+  }
+  for (const d of [DIR, ...HOME_DIRS]) await fs.promises.rm(d, { recursive: true, force: true }).catch(() => {});
+  await fs.promises.rm(STARTUP_LNK, { force: true }).catch(() => {});
+  await fs.promises.rm(MARK(), { force: true }).catch(() => {});
+  if (fs.existsSync(DIR)) throw new Error("setup");
+  await cleanPath();
+  return { ok: true };
+});
+
+module.exports = { state, start, install, pull, cancel, remove };

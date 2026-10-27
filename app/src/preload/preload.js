@@ -57,6 +57,7 @@ contextBridge.exposeInMainWorld("chinchero", {
     ollamaStart: () => ipcRenderer.invoke("ai:ollamaStart"),
     ollamaInstall: () => ipcRenderer.invoke("ai:ollamaInstall"),
     ollamaPull: model => ipcRenderer.invoke("ai:ollamaPull", model),
+    ollamaRemove: () => ipcRenderer.invoke("ai:ollamaRemove"),
     cancel: () => ipcRenderer.invoke("ai:cancel"),
     onProgress: cb => ipcRenderer.on("ai:progress", (e, p) => cb(p)),
   },

@@ -78,6 +78,16 @@
   .ai-keyrow .btns.stack { flex-direction: column; align-items: center; }
   .ai-found { margin-top: 8px; padding: 10px 12px; border-radius: 8px; background: var(--accent-soft); display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 13px; }
   .ai-found[hidden] { display: none; }
+  .ai-pick { margin: 10px 0 0; padding: 0; border: 0; display: grid; gap: 6px; }
+  .ai-pick[hidden] { display: none; }
+  .ai-pick legend { padding: 0; margin-bottom: 4px; font-size: 12px; font-weight: 600; color: var(--text-muted); }
+  .ai-pick label { display: flex; gap: 10px; align-items: flex-start; padding: 8px 10px; border: 1px solid var(--border); border-radius: 9px; cursor: pointer; }
+  .ai-pick label[hidden] { display: none; }
+  .ai-pick label:has(:checked) { border-color: var(--accent); background: var(--accent-soft); }
+  .ai-pick label:has(:focus-visible) { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .ai-pick input { margin: 3px 0 0; accent-color: var(--accent); }
+  .ai-pick b { display: block; font-size: 13px; }
+  .ai-pick small { display: block; margin-top: 2px; }
   .ai-progress { margin-top: 8px; }
   .ai-progress[hidden] { display: none; }
   .ai-bar { height: 8px; border-radius: 99px; background: var(--surface-2); overflow: hidden; margin-bottom: 4px; }
@@ -206,9 +216,13 @@
       </div>
       <div class="row" data-ai data-for="ollama">
         <div class="txt"><b>Ollama</b><small id="aiOllama">Buscando Ollama en tu PC…</small>
+          <fieldset class="ai-pick" id="aiOllamaPick" hidden><legend>Modelo para descargar</legend>
+            <label><input type="radio" name="aiOllamaModel" value="qwen3:4b" checked><span><b>Qwen 3 · recomendado</b><small>Arma tableros más completos y escribe ideas más útiles. 2,5 GB; sin tarjeta gráfica tarda alrededor de un minuto por pedido.</small></span></label>
+            <label><input type="radio" name="aiOllamaModel" value="llama3.2"><span><b>Llama 3.2 · liviano</b><small>Responde más rápido en PCs modestas, pero sus respuestas son más simples. 2 GB.</small></span></label>
+          </fieldset>
           <div class="ai-progress" id="aiProg" hidden><div class="ai-bar"><i id="aiProgBar"></i></div><small id="aiProgTxt" role="status"></small></div>
         </div>
-        <div class="btns"><button class="btn btn-primary" id="aiOllamaAct" hidden></button><button class="btn" id="aiCancel" hidden>Cancelar</button><button class="btn" id="aiOllamaGet" hidden>Descargar a mano</button></div>
+        <div class="btns"><button class="btn btn-primary" id="aiOllamaAct" hidden></button><button class="btn" id="aiCancel" hidden>Cancelar</button><button class="btn" id="aiOllamaGet" hidden>Descargar a mano</button><button class="btn" id="aiOllamaDel" hidden>Quitar Ollama</button></div>
       </div>
       <div class="row ai-keyrow" data-ai data-for="gemini">
         <div class="txt"><b>Clave de Gemini</b><small id="aiKeyState"></small>

@@ -66,9 +66,10 @@
 
   // Modelo elegido: se cambia desde el panel (se guarda igual que en Ajustes). La lista se pide una vez por pantalla.
   function modelOptions(list) {
-    const auto = st.provider === "gemini" ? "Automático (el más rápido disponible)" : "Automático (el primero instalado)";
+    const auto = st.provider === "gemini" ? "Automático (el más rápido disponible)" : "Automático (el mejor instalado)";
     if (st.model && !list.includes(st.model)) list = [st.model, ...list];
-    pick.innerHTML = `<option value="">${esc(auto)}</option>` + list.map(m => `<option value="${esc(m)}">${esc(m)}${/-pro\b/.test(m) ? " · sin cupo gratis" : ""}</option>`).join("");
+    const hint = m => /-pro\b/.test(m) ? " · sin cupo gratis" : /^qwen3:4b$/.test(m) ? " · mejor calidad" : /^llama3\.2(:latest)?$/.test(m) ? " · más rápido" : "";
+    pick.innerHTML = `<option value="">${esc(auto)}</option>` + list.map(m => `<option value="${esc(m)}">${esc(m)}${hint(m)}</option>`).join("");
     pick.value = st.model || "";
     pick.title = pick.selectedOptions[0]?.textContent || "";
   }

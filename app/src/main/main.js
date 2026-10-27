@@ -86,6 +86,7 @@ function createWindow() {
 }
 
 app.whenReady().then(async () => {
+  store.rememberDataDir();
   // La app no usa cámara, micrófono, notificaciones ni nada que pida permiso: se niega todo
   session.defaultSession.setPermissionRequestHandler((wc, permission, cb) => cb(false));
   session.defaultSession.setPermissionCheckHandler(() => false);
@@ -178,6 +179,7 @@ handle("data:choose", mode => mode === "new" || mode === "existing", async (e, m
   if (mode === "existing" && !fs.existsSync(path.join(dir, "library.json")) && fs.existsSync(path.join(dir, "Chinchero", "library.json"))) dir = path.join(dir, "Chinchero");
   if (mode === "new") dir = path.join(dir, "Chinchero");
   store.config.set({ dataDir: dir });
+  store.rememberDataDir();
   return dir;
 });
 
@@ -315,6 +317,7 @@ handle("ai:ollamaState", none, () => ollamaSetup.state());
 handle("ai:ollamaStart", none, () => ollamaSetup.start());
 handle("ai:ollamaInstall", none, e => ollamaSetup.install(progressTo(e)));
 handle("ai:ollamaPull", m => is.str(m, 100) && /^[\w.:/-]+$/.test(m), (e, m) => ollamaSetup.pull(m, progressTo(e)));
+handle("ai:ollamaRemove", none, () => ollamaSetup.remove());
 handle("ai:cancel", none, () => ollamaSetup.cancel());
 
 handle("update:check", none, () => updater.check(true));

@@ -81,6 +81,11 @@ const OLLAMA_FORMAT = {
   properties: { plan: { type: "string", maxLength: 600 }, acciones: { type: "array", items: { type: "object" } }, respuesta: { type: "string" } },
 };
 
+// «Automático» con Ollama: el mejor de los que ofrece Ajustes (comparados con los mismos pedidos: qwen3:4b arma
+// tableros completos y útiles; llama3.2 es más rápido pero más simple) o, si no, el primero instalado
+const OLLAMA_BEST = ["qwen3:4b", "llama3.2"];
+const bestOllama = list => OLLAMA_BEST.map(b => list.find(m => m === b || m === b + ":latest")).find(Boolean) || list[0];
+
 const providers = {
   ollama: {
     async models() {
@@ -88,12 +93,13 @@ const providers = {
       return (r.models || []).map(m => m.name);
     },
     async chat(model, system, messages) {
+      // qwen3 razona antes de responder: sin eso es varias veces más rápido y con el plan del JSON alcanza.
       // El texto del sistema más la hoja no entran en el contexto por defecto de Ollama (2048–4096 tokens). El esquema
       // obliga a los modelos chicos a devolver las acciones (con solo "json" a veces responden sin hacer nada) y los
       // topes evitan que se queden escribiendo el plan sin llegar a las acciones.
       const r = await call(OLLAMA + "/api/chat", {
         method: "POST",
-        body: JSON.stringify({ model, stream: false, format: OLLAMA_FORMAT, options: { num_ctx: 8192, num_predict: 4000 }, messages: [{ role: "system", content: system }, ...messages.map(m => ({ role: m.role, content: m.text }))] }),
+        body: JSON.stringify({ model, stream: false, format: OLLAMA_FORMAT, think: false, options: { num_ctx: 8192, num_predict: 4000 }, messages: [{ role: "system", content: system }, ...messages.map(m => ({ role: m.role, content: m.text }))] }),
       });
       return { text: r.message?.content || "", model };
     },
@@ -175,7 +181,7 @@ async function chat({ messages, board }) {
     // Si Ollama está instalado pero no corre (por ejemplo, tras reiniciar la PC), se arranca oculto
     if (c.provider === "ollama") await ollamaSetup.start();
     let model = c.model;
-    if (!model && c.provider === "ollama") model = (await p.models())[0];
+    if (!model && c.provider === "ollama") model = bestOllama(await p.models());
     if (!model && c.provider === "ollama") return { error: "nomodel" };
     const last = messages.length - 1;
     // La hoja va en el último mensaje del usuario: así el modelo siempre ve su estado actual
@@ -206,7 +212,7 @@ async function test() {
   if (!p) return { error: "off" };
   try {
     if (c.provider === "ollama") await ollamaSetup.start();
-    const model = c.model || (c.provider === "ollama" ? (await p.models())[0] : "");
+    const model = c.model || (c.provider === "ollama" ? bestOllama(await p.models()) : "");
     if (!model && c.provider === "ollama") return { error: "nomodel" };
     const r = await p.chat(model, 'Responde solo con este JSON: {"respuesta":"ok","acciones":[]}', [{ role: "user", text: "Prueba de conexión" }]);
     return { ok: true, model: r.model };

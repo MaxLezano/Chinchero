@@ -23,7 +23,9 @@ const ok = (n, c, x = "") => log.push(`${c ? "PASS" : "FAIL"} ${n}${x ? " — " 
 
 // CHINCHERO_EXE prueba la app empaquetada (dist/win-unpacked/Chinchero.exe), con los fuses activados
 const ELECTRON = process.env.CHINCHERO_EXE || path.join(APP, "node_modules/electron/dist/electron.exe");
-const ENV = { ...Object.fromEntries(Object.entries(process.env).filter(([k]) => k !== "ELECTRON_RUN_AS_NODE")), CHINCHERO_USER_DATA: path.join(TMP, "user"), CHINCHERO_DATA_DIR: DATA, CHINCHERO_EXPORT_DIR: EXPORT, CHINCHERO_RESTORE_FILE: RESTORE, CHINCHERO_IMPORT_FILE: IMPORT, LOCALAPPDATA: path.join(TMP, "localappdata") };
+const ENV = { ...Object.fromEntries(Object.entries(process.env).filter(([k]) => k !== "ELECTRON_RUN_AS_NODE")), CHINCHERO_USER_DATA: path.join(TMP, "user"), CHINCHERO_DATA_DIR: DATA, CHINCHERO_EXPORT_DIR: EXPORT, CHINCHERO_RESTORE_FILE: RESTORE, CHINCHERO_IMPORT_FILE: IMPORT, LOCALAPPDATA: path.join(TMP, "localappdata"),
+  // Quitar Ollama borra sus modelos (~/.ollama) y el acceso del inicio de Windows: en las pruebas, carpetas propias
+  USERPROFILE: path.join(TMP, "home"), APPDATA: path.join(TMP, "appdata") };
 
 // Electron lanzado por las pruebas: se cierra con todo su árbol al salir, aunque una prueba falle con una excepción
 const vivos = new Set();
@@ -386,13 +388,25 @@ delete process.env.ELECTRON_RUN_AS_NODE;
   aiFake.ollamaDown = true;
   await page.reload(); await sleep(1500);
   ok("IA: sin Ollama ofrece instalarlo", await page.evaluate(() => { const b = document.getElementById("aiOllamaAct"); return !b.hidden && b.textContent.includes("Instalar") && !document.getElementById("aiOllamaGet").hidden; }));
+  ok("IA: antes de instalar se elige el modelo (Qwen 3 recomendado) y no se ofrece quitar Ollama", await page.evaluate(() => {
+    const pick = document.getElementById("aiOllamaPick"), on = pick.querySelector("input:checked");
+    return !pick.hidden && on?.value === "qwen3:4b" && pick.querySelectorAll("label:not([hidden])").length === 2 && document.getElementById("aiOllamaDel").hidden;
+  }));
+  // Quitar Ollama: con una instalación simulada (sin desinstalador) borra su carpeta, sus modelos y el acceso del inicio
+  const fakeOllama = [path.join(TMP, "localappdata", "Programs", "Ollama"), path.join(TMP, "home", ".ollama", "models"), path.join(TMP, "appdata", "Microsoft", "Windows", "Start Menu", "Programs", "Startup")];
+  fakeOllama.forEach(d => fs.mkdirSync(d, { recursive: true }));
+  fs.writeFileSync(path.join(fakeOllama[0], "ollama.exe"), ""); fs.writeFileSync(path.join(fakeOllama[2], "Ollama.lnk"), "");
+  const removed = await page.evaluate(() => window.chinchero.ai.ollamaRemove());
+  ok("IA: «Quitar Ollama» borra el programa, sus modelos y el acceso del inicio", removed.ok && !fs.existsSync(fakeOllama[0]) && !fs.existsSync(path.join(TMP, "home", ".ollama"))
+    && !fs.existsSync(path.join(fakeOllama[2], "Ollama.lnk")), JSON.stringify(removed));
+  ok("IA: la app deja la carpeta de datos para el desinstalador", fs.readFileSync(path.join(TMP, "user", "carpeta-de-datos.txt")).toString("utf16le") === DATA);
   await page.evaluate(() => { window.__prog = []; window.chinchero.ai.onProgress(p => window.__prog.push(p)); });
   await page.click("#aiOllamaAct");
   const unsignedToast = await page.waitForFunction(() => [...document.querySelectorAll(".toast")].some(e => e.textContent.includes("instalador oficial")), { timeout: 30000 }).then(() => true, () => false);
   await sleep(300);
   const prog2 = await page.evaluate(() => window.__prog);
   ok("IA: baja el instalador con progreso y no ejecuta uno sin la firma de Ollama", unsignedToast && prog2.some(p => p.step === "download" && p.total === 300000) && prog2.some(p => p.step === "verify")
-    && !fs.existsSync(path.join(require("os").tmpdir(), "Chinchero-OllamaSetup.exe")) && !fs.existsSync(path.join(TMP, "localappdata", "Programs")));
+    && !fs.existsSync(path.join(require("os").tmpdir(), "Chinchero-OllamaSetup.exe")) && !fs.existsSync(path.join(TMP, "localappdata", "Programs", "Ollama")));
   aiFake.ollamaDown = false;
   await page.goto(page.url().replace(/03-ajustes\.html.*/, "02-tablero.html?board=" + boardId)); await sleep(1200);
   const count = () => page.evaluate(() => ({ items: document.querySelectorAll("#items .item").length, threads: document.querySelectorAll("#threadLayer .th").length }));

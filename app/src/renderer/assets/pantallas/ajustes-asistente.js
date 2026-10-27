@@ -13,8 +13,11 @@
     return;
   }
   let st = ai.status();
-  // Modelo que se ofrece instalar en Ollama: pequeño (2 GB), rápido y entiende español
-  const OLLAMA_MODEL = "llama3.2";
+  // Modelos que se ofrecen en Ollama (comparados con los mismos pedidos; ver OLLAMA_BEST en main/ai.js)
+  const OLLAMA_MODELS = ["qwen3:4b", "llama3.2"];
+  const HINTS = { "qwen3:4b": "mejor calidad", "llama3.2": "más rápido" };
+  const hint = m => HINTS[m] || HINTS[m.replace(/:latest$/, "")];
+  const installed = (list, m) => list.some(x => x === m || x === m + ":latest");
   const AI_STUDIO = "https://aistudio.google.com/apikey";
 
   // Errores de la prueba y de la instalación en palabras simples
@@ -43,7 +46,7 @@
     document.querySelectorAll("#aiProvider button").forEach(b => { b.classList.toggle("active", b.dataset.v === st.provider); b.setAttribute("aria-pressed", b.dataset.v === st.provider); });
     $("aiProvHelp").textContent = st.provider === "gemini"
       ? "Lo más fácil: no hay que instalar nada. Gratis con tu cuenta de Google, con un límite de uso diario. Necesita internet y el texto de la hoja se envía a Google para responder."
-      : "Para usar sin internet: todo queda en tu PC y nada sale del equipo. Chinchero instala Ollama y un modelo por ti (unos 3 GB en total); responde más lento en PCs sin tarjeta gráfica.";
+      : "Para usar sin internet: todo queda en tu PC y nada sale del equipo. Chinchero instala Ollama y un modelo por ti (unos 4 GB en total); responde más lento en PCs sin tarjeta gráfica.";
     $("aiKeyState").textContent = st.hasKey
       ? `Clave guardada en esta PC (${st.keyHint}), cifrada. Nunca se guarda en tus tableros ni en las copias.`
       : "Haz clic en «Conectar paso a paso»: te guiamos para crear una clave gratis en Google en un par de minutos.";
@@ -55,7 +58,7 @@
   // Modelos que ofrece el proveedor; "" deja que Chinchero elija (el primero de Ollama o el Flash más reciente de Gemini)
   async function loadModels() {
     const sel = $("aiModel"), prov = st.provider;
-    const auto = prov === "gemini" ? "Automático (el más rápido disponible)" : "Automático (el primero instalado)";
+    const auto = prov === "gemini" ? "Automático (el más rápido disponible)" : "Automático (el mejor instalado)";
     sel.innerHTML = `<option value="">${esc(auto)}</option>`;
     $("aiModelHelp").textContent = "Buscando modelos…";
     if (prov === "gemini" && !st.hasKey) { $("aiModelHelp").textContent = "Guarda la clave para ver los modelos disponibles."; sel.value = st.model; return; }
@@ -64,10 +67,10 @@
     const list = r.models || [];
     if (st.model && !list.includes(st.model)) list.unshift(st.model);
     // Los Pro no tienen cupo en el plan gratuito de Gemini
-    sel.insertAdjacentHTML("beforeend", list.map(m => `<option value="${esc(m)}">${esc(m)}${/-pro/.test(m) ? " · sin cupo gratis" : ""}</option>`).join(""));
+    sel.insertAdjacentHTML("beforeend", list.map(m => `<option value="${esc(m)}">${esc(m)}${/-pro\b/.test(m) ? " · sin cupo gratis" : hint(m) ? " · " + hint(m) : ""}</option>`).join(""));
     sel.value = st.model;
     if (prov === "ollama") {
-      $("aiModelHelp").textContent = "Los modelos pequeños responden más rápido; los grandes, mejor.";
+      $("aiModelHelp").textContent = "Qwen 3 arma tableros más completos; Llama 3.2 responde más rápido en PCs modestas.";
       ollamaRender(r);
     } else {
       $("aiModelHelp").textContent = r.error === "403" || r.error === "400" ? "Google no aceptó la clave. Revisa que la copiaste entera."
@@ -77,31 +80,44 @@
 
   /* ---------- Ollama: instalar, abrir y bajar un modelo desde aquí ---------- */
   let ollamaAction = null, busy = false;
+  const pickBox = $("aiOllamaPick");
+  const picked = () => pickBox.querySelector("input:checked")?.value || OLLAMA_MODELS[0];
   async function ollamaRender(r) {
     if (busy) return;
     const act = $("aiOllamaAct"), get = $("aiOllamaGet"), txt = $("aiOllama");
-    const s = r.error ? await ai.ollamaState() : { running: true };
+    const s = await ai.ollamaState();
     if (st.provider !== "ollama" || busy) return;
-    const n = (r.models || []).length;
+    const list = r.models || [], n = list.length;
+    // Se ofrecen solo los modelos que faltan; si el elegido ya está, se marca el siguiente
+    const missing = OLLAMA_MODELS.filter(m => !installed(list, m));
+    pickBox.querySelectorAll("label").forEach(l => l.hidden = !missing.includes(l.querySelector("input").value));
+    if (missing.length && !missing.includes(picked())) pickBox.querySelector(`input[value="${missing[0]}"]`).checked = true;
     get.hidden = !!s.running;
+    $("aiOllamaDel").hidden = !s.installed;
     act.hidden = false;
+    pickBox.hidden = true;
     if (!s.running && !s.installed) {
-      txt.textContent = "Ollama no está instalado. Chinchero puede instalarlo por ti: baja el instalador oficial (cerca de 1 GB) y no pide permisos de administrador.";
+      txt.textContent = "Ollama no está instalado. Chinchero lo instala por ti, sin cuentas ni ventanas: baja el instalador oficial (cerca de 1 GB), no pide permisos de administrador y después descarga el modelo que elijas.";
       act.textContent = "Instalar Ollama"; ollamaAction = install;
+      pickBox.hidden = false;
     } else if (!s.running) {
-      txt.textContent = "Ollama está instalado pero cerrado.";
-      act.textContent = "Abrir Ollama"; ollamaAction = startOllama;
+      txt.textContent = "Ollama está instalado pero detenido.";
+      act.textContent = "Poner en marcha"; ollamaAction = startOllama;
     } else if (!n) {
-      txt.textContent = `Ollama funciona, pero falta un modelo. Te recomendamos Llama 3.2 (2 GB): rápido y entiende español.`;
+      txt.textContent = "Ollama funciona, pero falta un modelo. Elige cuál descargar:";
       act.textContent = "Descargar modelo"; ollamaAction = pull;
+      pickBox.hidden = false;
     } else {
       txt.textContent = `Ollama está funcionando con ${n} modelo${n === 1 ? "" : "s"}.`;
-      act.hidden = true; ollamaAction = null;
+      // El otro modelo se ofrece a pedido, para no llenar la fila
+      act.textContent = "Descargar otro modelo";
+      act.hidden = !missing.length;
+      ollamaAction = () => { pickBox.hidden = false; act.textContent = "Descargar"; ollamaAction = pull; pickBox.querySelector("input:checked").focus(); };
     }
   }
 
   const mb = b => (b / 1024 ** 2).toFixed(0) + " MB";
-  const STEPS = { download: "Descargando Ollama", verify: "Comprobando que es el instalador oficial…", install: "Instalando Ollama… (puede tardar un par de minutos)", start: "Abriendo Ollama…", pull: "Descargando el modelo" };
+  const STEPS = { download: "Descargando Ollama", verify: "Comprobando que es el instalador oficial…", install: "Instalando Ollama… (puede tardar un par de minutos)", start: "Poniendo en marcha Ollama…", pull: "Descargando el modelo" };
   ai.onProgress(p => {
     const bar = $("aiProgBar"), pct = p.total ? Math.round(p.done / p.total * 100) : null;
     bar.parentElement.classList.toggle("indet", pct === null);
@@ -113,7 +129,7 @@
 
   async function task(label, fn) {
     busy = true;
-    $("aiOllamaAct").hidden = $("aiOllamaGet").hidden = true;
+    $("aiOllamaAct").hidden = $("aiOllamaGet").hidden = $("aiOllamaDel").hidden = pickBox.hidden = true;
     $("aiProg").hidden = false;
     $("aiProgBar").parentElement.classList.add("indet");
     $("aiProgTxt").textContent = label;
@@ -129,14 +145,23 @@
     loadModels();
   }
   async function startOllama() {
-    const ok = await task("Abriendo Ollama…", () => ai.ollamaStart().then(ok => ok ? { ok } : { error: "start" }));
+    const ok = await task("Poniendo en marcha Ollama…", () => ai.ollamaStart().then(ok => ok ? { ok } : { error: "start" }));
     if (ok.ok) toast("Ollama está en marcha");
     loadModels();
   }
   async function pull() {
-    const r = await task("Preparando la descarga del modelo…", () => ai.ollamaPull(OLLAMA_MODEL));
+    const r = await task("Preparando la descarga del modelo…", () => ai.ollamaPull(picked()));
     await loadModels();
     if (r.ok) { toast("Modelo instalado"); runTest(); }
+  }
+  async function removeOllama() {
+    if (!confirm("Se quitará Ollama de esta PC junto con todos sus modelos descargados, y se liberará ese espacio. Podrás volver a instalarlo desde aquí. ¿Continuar?")) return;
+    const r = await task("Quitando Ollama…", () => ai.ollamaRemove());
+    if (r.ok) {
+      if (st.model) st = await ai.config({ model: "" });
+      toast("Ollama se quitó de la PC"); announce("Ollama se quitó de la PC");
+    }
+    loadModels();
   }
 
   async function save(patch) {

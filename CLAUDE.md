@@ -22,7 +22,7 @@ App de escritorio para Windows (Electron) tipo tablero de corcho: notas, fotos, 
 - Nada se carga de internet en la app: fuentes y recursos van dentro del proyecto (`assets/fonts`).
 - Sin código inline en el HTML (la CSP es `script-src 'self'`): scripts en `assets/` (los de cada pantalla en `assets/pantallas/`) y eventos con `addEventListener`. Al interpolar datos del modelo en HTML, siempre `esc()`.
 - Cada canal IPC nuevo se registra con `handle`/`onSync` de `main.js`, con su validación de argumentos.
-- Datos del usuario en `Documentos\Chinchero`; nunca borrarlos al desinstalar.
+- Datos del usuario en `Documentos\Chinchero` (o la carpeta elegida en Ajustes). Al desinstalar se pregunta si conservarlos (por defecto, sí; en silencio y al actualizar, siempre se conservan) y solo se borra lo que crea Chinchero (`build/installer.nsh`).
 - Commits: mensajes convencionales, sin líneas de coautoría.
 
 ## Comandos

@@ -47,7 +47,7 @@ nsis:
   createDesktopShortcut: true
   createStartMenuShortcut: true
   shortcutName: Chinchero
-  # Los tableros viven en Documentos\Chinchero: desinstalar nunca los borra
+  # Los tableros viven en Documentos\Chinchero: el desinstalador pregunta si conservarlos (build/installer.nsh)
   deleteAppDataOnUninstall: false
 
 publish:

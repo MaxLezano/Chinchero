@@ -34,6 +34,11 @@ function dataDir() {
   return config.get().dataDir || process.env.CHINCHERO_DATA_DIR || path.join(app.getPath("documents"), "Chinchero");
 }
 
+// El desinstalador (build/installer.nsh) no lee JSON: la carpeta de datos le queda aparte, en UTF-16 (como la lee NSIS)
+function rememberDataDir() {
+  try { fs.writeFileSync(path.join(app.getPath("userData"), "carpeta-de-datos.txt"), Buffer.from(dataDir(), "utf16le")); } catch {}
+}
+
 const paths = {
   library: () => path.join(dataDir(), "library.json"),
   board: id => path.join(dataDir(), "boards", safeName(id) + ".json"),
@@ -365,7 +370,7 @@ function readOrRecover(file, rel, label) {
 }
 
 module.exports = {
-  config, dataDir, getLibrary, saveLibrary, loadBoard, saveBoard, deleteBoard,
+  config, dataDir, rememberDataDir, getLibrary, saveLibrary, loadBoard, saveBoard, deleteBoard,
   importPath, importBuffer, mediaFile, thumbFile, dirStats, unusedMedia, cleanMedia, backupTo, autoBackup, restoreFrom, takeRecovered,
   exportBoard, importBoardFile,
 };
