@@ -16,7 +16,8 @@
     "test:app": "node tests/e2e-app.js",
     "test": "node tests/e2e-ui.js && node tests/e2e-app.js && node tests/carga.js && node tests/offline-fonts.js",
     "test:carga": "node tests/carga.js",
-    "test:offline": "node tests/offline-fonts.js"
+    "test:offline": "node tests/offline-fonts.js",
+    "test:actualizacion": "node tests/actualizacion.js"
   },
   "dependencies": {
     "electron-updater": "^6.8.11",
