@@ -49,6 +49,7 @@
       : "Haz clic en «Conectar paso a paso»: te guiamos para crear una clave gratis en Google en un par de minutos.";
     $("aiGetKey").textContent = st.hasKey ? "Obtener clave" : "Conectar paso a paso";
     $("aiDelKey").hidden = !st.hasKey;
+    $("aiKeyBtns").classList.toggle("stack", st.hasKey);
   }
 
   // Modelos que ofrece el proveedor; "" deja que Chinchero elija (el primero de Ollama o el Flash más reciente de Gemini)

@@ -71,6 +71,10 @@
   .ai-select { font: 13px var(--font); color: var(--text); background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px; max-width: 240px; }
   .ai-key { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
   .ai-key input { flex: 1; min-width: 160px; font: 13px var(--font); color: var(--text); background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; }
+  /* Fila de la clave: el campo + «Guardar» a la izquierda, separado de los botones por un divisor */
+  .ai-keyrow { align-items: stretch; }
+  .ai-keyrow .btns { align-items: center; align-content: center; padding-left: 20px; border-left: 1px solid var(--border); }
+  .ai-keyrow .btns.stack { flex-direction: column; align-items: stretch; }
   .ai-found { margin-top: 8px; padding: 10px 12px; border-radius: 8px; background: var(--accent-soft); display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 13px; }
   .ai-found[hidden] { display: none; }
   .ai-progress { margin-top: 8px; }
@@ -111,6 +115,7 @@
     .tip { left: 16px; }
     .content, .tabs { padding-left: 16px; padding-right: 16px; }
     .row { flex-wrap: wrap; }
+    .ai-keyrow .btns { padding-left: 0; border-left: 0; }
   }
 </style>
 </head>
@@ -204,12 +209,12 @@
         </div>
         <div class="btns"><button class="btn btn-primary" id="aiOllamaAct" hidden></button><button class="btn" id="aiCancel" hidden>Cancelar</button><button class="btn" id="aiOllamaGet" hidden>Descargar a mano</button></div>
       </div>
-      <div class="row" data-ai data-for="gemini">
+      <div class="row ai-keyrow" data-ai data-for="gemini">
         <div class="txt"><b>Clave de Gemini</b><small id="aiKeyState"></small>
           <div class="ai-found" id="aiFound" role="status" hidden><span id="aiFoundTxt"></span><button class="btn btn-primary" id="aiUseClip">Usar esta clave</button></div>
           <div class="ai-key"><input type="password" id="aiKeyInput" placeholder="O pégala aquí (empieza por AQ. o AIza)" aria-label="Clave de Gemini" autocomplete="off" spellcheck="false"><button class="btn" id="aiKeySave">Guardar</button></div>
         </div>
-        <div class="btns"><button class="btn btn-primary" id="aiGetKey">Conectar paso a paso</button><button class="btn" id="aiDelKey">Quitar</button></div>
+        <div class="btns" id="aiKeyBtns"><button class="btn btn-primary" id="aiGetKey">Conectar paso a paso</button><button class="btn" id="aiDelKey">Quitar</button></div>
       </div>
       <div class="row" data-ai>
         <div class="txt"><b>Modelo</b><small id="aiModelHelp"></small></div>
