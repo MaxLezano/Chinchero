@@ -674,6 +674,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
         { op: "crear", ref: "f", tipo: "ficha", titulo: "<b>Resumen</b>", texto: "Hola", cerca: "z" },
         { op: "crear", ref: "l", tipo: "lista", titulo: "Tareas", tareas: ["Uno", { texto: "Dos", hecha: true }] },
         { op: "crear", tipo: "sello", texto: "listo" },
+        { op: "crear", tipo: "nota", titulo: "Tokio", texto: "Shibuya", cerca: "l" },
         { op: "crear", tipo: "foto" }, { op: "volar" }, null, "texto",
         { op: "unir", a: "z", b: "f", etiqueta: "porque" }, { op: "unir", a: "z", b: "f" }, { op: "unir", a: "z", b: "inventado" },
         { op: "agrupar", titulo: "Tema", ids: ["z", "f"], color: "verde" },
@@ -684,14 +685,14 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
         noteHtml: note.innerHTML, img: !!document.querySelector("#items img"),
         cardTitle: document.querySelector(".t-card .card-title").textContent,
         tasks: [...list.querySelectorAll(".task")].map(t => t.textContent).join("|"), done: list.querySelector(".prog").textContent,
-        stamp: document.querySelector(".t-stamp .badge").textContent, zone: document.querySelector(".t-zone .zt").textContent,
+        stamp: document.querySelector(".t-stamp .badge").textContent, titled: [...document.querySelectorAll(".t-note .txt")].some(e => e.innerHTML === "<b>Tokio</b><br>Shibuya"), zone: document.querySelector(".t-zone .zt").textContent,
         board: JSON.parse(Editor.boardForAI()),
       };
     });
-    ok("IA: aplica solo las acciones válidas", r.n === 6 && r.items === 5 && r.threads === 1, JSON.stringify({ n: r.n, items: r.items, threads: r.threads }));
+    ok("IA: aplica solo las acciones válidas", r.n === 7 && r.items === 6 && r.threads === 1, JSON.stringify({ n: r.n, items: r.items, threads: r.threads }));
     ok("IA: el texto del modelo se escapa", !r.img && r.noteHtml.startsWith("&lt;img") && r.noteHtml.includes("<br>") && r.cardTitle === "<b>Resumen</b>", r.noteHtml);
-    ok("IA: listas, sellos y zonas con sus datos", r.tasks === "Uno|Dos" && r.done === "1/2" && r.stamp === "LISTO" && r.zone === "Tema", JSON.stringify(r));
-    ok("IA: la hoja que ve el modelo trae ids, tipos, textos e hilos", r.board.elementos.length === 5 && r.board.elementos.some(e => e.tipo === "lista" && e.texto.includes("Uno")) && r.board.hilos[0].etiqueta === "porque");
+    ok("IA: listas, sellos y zonas con sus datos", r.tasks === "Uno|Dos" && r.done === "1/2" && r.stamp === "LISTO" && r.zone === "Tema" && r.titled, JSON.stringify(r));
+    ok("IA: la hoja que ve el modelo trae ids, tipos, textos e hilos", r.board.elementos.length === 6 && r.board.elementos.some(e => e.tipo === "lista" && e.texto.includes("Uno")) && r.board.hilos[0].etiqueta === "porque");
     ok("IA: «agrupar» deja los elementos dentro de la zona", await p.evaluate(() => {
       const z = document.querySelector(".t-zone").getBoundingClientRect();
       return [".t-note", ".t-card"].every(s => { const b = document.querySelector(s).getBoundingClientRect(); return b.left >= z.left && b.right <= z.right && b.top >= z.top && b.bottom <= z.bottom + 4; });

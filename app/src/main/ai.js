@@ -9,8 +9,10 @@ const store = require("./store");
 // En pruebas se apuntan a un servidor simulado
 const OLLAMA = process.env.CHINCHERO_OLLAMA_URL || "http://127.0.0.1:11434";
 const GEMINI = process.env.CHINCHERO_GEMINI_URL || "https://generativelanguage.googleapis.com";
-const GEMINI_DEFAULT = "gemini-flash-latest";
-const KEY_RE = /^AIza[0-9A-Za-z_-]{35}$/;
+// Automático: el Flash Lite responde en un par de segundos y tiene el cupo gratis más amplio; el Flash, de respaldo
+const GEMINI_AUTO = ["gemini-flash-lite-latest", "gemini-flash-latest"];
+// Formatos de clave de Google: el clásico «AIza…» (39 caracteres) y el nuevo «AQ.…» de AI Studio
+const KEY_RE = /^(AIza[0-9A-Za-z_-]{35}|AQ\.[0-9A-Za-z_-]{30,200})$/;
 let sessionKey = null; // si el sistema no puede cifrar, la clave vive solo mientras la app está abierta
 
 const cfg = () => ({ enabled: false, provider: "ollama", model: "", ...store.config.get().ai });
@@ -83,22 +85,28 @@ const providers = {
       if (!key) throw new AIError("nokey");
       const r = await call(GEMINI + "/v1beta/models?pageSize=200", { headers: { "x-goog-api-key": key } }, 15000);
       return (r.models || [])
-        .filter(m => m.supportedGenerationMethods?.includes("generateContent") && /^models\/gemini/.test(m.name) && !/(tts|image|embedding|live|audio)/.test(m.name))
+        .filter(m => m.supportedGenerationMethods?.includes("generateContent") && /^models\/gemini/.test(m.name) && !/(tts|image|embedding|live|audio|transcribe|banana|customtools|omni|robotics|computer)/.test(m.name))
         .map(m => m.name.slice(7));
     },
+    // En automático se prueba cada modelo de GEMINI_AUTO: si uno está saturado (503), tarda o ya no existe para
+    // claves nuevas (404), se pasa al siguiente. Un modelo elegido a mano no se cambia.
     async chat(model, system, messages) {
       const key = getKey();
       if (!key) throw new AIError("nokey");
-      const r = await call(`${GEMINI}/v1beta/models/${encodeURIComponent(model || GEMINI_DEFAULT)}:generateContent`, {
-        method: "POST",
-        headers: { "x-goog-api-key": key },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: system }] },
-          contents: messages.map(m => ({ role: m.role === "assistant" ? "model" : "user", parts: [{ text: m.text }] })),
-          generationConfig: { responseMimeType: "application/json", temperature: 0.7 },
-        }),
-      }, 60000);
-      return r.candidates?.[0]?.content?.parts?.map(p => p.text || "").join("") || "";
+      const body = JSON.stringify({
+        systemInstruction: { parts: [{ text: system }] },
+        contents: messages.map(m => ({ role: m.role === "assistant" ? "model" : "user", parts: [{ text: m.text }] })),
+        generationConfig: { responseMimeType: "application/json", temperature: 0.7 },
+      });
+      const list = model ? [model] : GEMINI_AUTO;
+      for (let i = 0; ; i++) {
+        try {
+          const r = await call(`${GEMINI}/v1beta/models/${encodeURIComponent(list[i])}:generateContent`, { method: "POST", headers: { "x-goog-api-key": key }, body }, model ? 60000 : 30000);
+          return r.candidates?.[0]?.content?.parts?.map(p => p.text || "").join("") || "";
+        } catch (e) {
+          if (i === list.length - 1 || !(e instanceof AIError) || !/^(5\d\d|404|timeout)$/.test(e.message)) throw e;
+        }
+      }
     },
   },
 };
@@ -152,4 +160,4 @@ async function models(provider) {
   catch (e) { return { error: e instanceof AIError ? e.message : "fail" }; }
 }
 
-module.exports = { status, setConfig, setKey, detectKey, saveClipboardKey, chat, models, GEMINI_DEFAULT };
+module.exports = { status, setConfig, setKey, detectKey, saveClipboardKey, chat, models };

@@ -11,7 +11,6 @@
     rows.forEach(r => r.hidden = true);
     return;
   }
-  const GEMINI_DEFAULT = "gemini-flash-latest";
   let st = ai.status();
 
   function render() {
@@ -30,7 +29,7 @@
   // Modelos que ofrece el proveedor; "" deja que Chinchero elija (el primero de Ollama o el Flash más reciente de Gemini)
   async function loadModels() {
     const sel = $("aiModel"), prov = st.provider;
-    const auto = prov === "gemini" ? `Automático (${GEMINI_DEFAULT})` : "Automático (el primero instalado)";
+    const auto = prov === "gemini" ? "Automático (el más rápido disponible)" : "Automático (el primero instalado)";
     sel.innerHTML = `<option value="">${esc(auto)}</option>`;
     $("aiModelHelp").textContent = "Buscando modelos…";
     if (prov === "gemini" && !st.hasKey) { $("aiModelHelp").textContent = "Guarda la clave para ver los modelos disponibles."; sel.value = st.model; return; }
@@ -85,7 +84,7 @@
   $("aiUseClip").addEventListener("click", async () => { if (await ai.saveClipboardKey()) keySaved(); else toast("La clave ya no está en el portapapeles"); });
   $("aiKeySave").addEventListener("click", async () => {
     const v = $("aiKeyInput").value.trim();
-    if (!(await ai.setKey(v))) return toast("Esa no parece una clave de Gemini: empieza por «AIza» y tiene 39 caracteres");
+    if (!(await ai.setKey(v))) return toast("Esa no parece una clave de Gemini: empieza por «AQ.» o «AIza». Cópiala entera con el botón «Copiar clave» de Google");
     $("aiKeyInput").value = "";
     keySaved();
   });

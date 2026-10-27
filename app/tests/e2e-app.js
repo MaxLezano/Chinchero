@@ -69,6 +69,8 @@ function fakeAI() {
         { name: "models/text-embedding-004", supportedGenerationMethods: ["embedContent"] },
       ] });
       if (/^\/v1beta\/models\/[\w.-]+:generateContent$/.test(req.url)) {
+        // El primero del modo automático está saturado: la app debe pasar sola al siguiente
+        if (req.url.includes("flash-lite")) return send(res, 503, { error: { message: "high demand" } });
         if (r.body.contents.at(-1).parts[0].text.includes("Pedido: cupo")) return send(res, 429, { error: { message: "quota" } });
         return send(res, 200, { candidates: [{ content: { parts: [{ text: JSON.stringify({ respuesta: "Hola desde Gemini", acciones: [] }) }] } }] });
       }
@@ -361,13 +363,14 @@ delete process.env.ELECTRON_RUN_AS_NODE;
   ok("IA: con Gemini se avisa que el texto sale del equipo", await page.evaluate(() => document.getElementById("aiPrivacy").textContent.includes("Google")));
   await page.type("#aiInput", "Hola"); await page.keyboard.press("Enter");
   await page.waitForFunction(() => [...document.querySelectorAll(".ai-msg.assistant")].some(e => e.textContent.includes("Gemini")), { timeout: 8000 }).catch(() => {});
-  const gReq = aiReqs.find(r => r.url.includes(":generateContent"));
-  ok("IA: Gemini responde con la clave guardada", !!gReq && gReq.key === AI_KEY && gReq.url.includes("gemini-flash-latest") && gReq.body.generationConfig.responseMimeType === "application/json"
+  const gReq = aiReqs.find(r => r.url.includes("gemini-flash-latest:generateContent"));
+  ok("IA: Gemini responde con la clave guardada (y si un modelo está saturado prueba el siguiente)", !!gReq && aiReqs.some(r => r.url.includes("flash-lite-latest:generateContent")) && gReq.key === AI_KEY && gReq.body.generationConfig.responseMimeType === "application/json"
     && await page.evaluate(() => [...document.querySelectorAll(".ai-msg.assistant")].some(e => e.textContent.includes("Hola desde Gemini"))));
   await page.type("#aiInput", "cupo"); await page.keyboard.press("Enter");
   await page.waitForSelector(".ai-msg.error", { timeout: 8000 }).catch(() => {});
   ok("IA: sin cupo gratis se explica qué pasa", await page.evaluate(() => document.querySelector(".ai-msg.error")?.textContent.includes("cupo")));
   ok("IA: una clave con otro formato no se acepta", await page.evaluate(() => window.chinchero.ai.setKey("no-es-una-clave")) === false);
+  ok("IA: acepta el formato nuevo de clave de AI Studio («AQ.…»)", await page.evaluate(() => window.chinchero.ai.setKey("AQ.Prueba_0123456789-abcdefghijklmnopqrstuvwxyz")) === true);
   aiSrv.close();
 
   fs.copyFileSync(shareFile, path.join(TMP, "doble-clic.chinchero"));

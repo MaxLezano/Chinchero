@@ -2517,6 +2517,8 @@
     };
     const setFields = (it, a) => {
       if (a.texto != null && ["note", "card"].includes(it.type)) it.text = aiRich(a.texto);
+      // Las notas no tienen título: si el modelo lo manda, va en negrita al principio
+      if (aiStr(a.titulo) && it.type === "note") it.text = `<b>${esc(aiStr(a.titulo, 120))}</b>` + (aiStr(a.texto) ? "<br>" + aiRich(a.texto) : "");
       if (a.texto != null && it.type === "text") it.text = aiStr(a.texto, 120) || it.text;
       if (a.texto != null && it.type === "stamp") it.text = aiStr(a.texto, 24).toUpperCase() || it.text;
       if (a.titulo != null && ["card", "list", "zone"].includes(it.type)) it.title = aiStr(a.titulo, 120);
