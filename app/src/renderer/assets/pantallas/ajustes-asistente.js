@@ -46,7 +46,7 @@
     document.querySelectorAll("#aiProvider button").forEach(b => { b.classList.toggle("active", b.dataset.v === st.provider); b.setAttribute("aria-pressed", b.dataset.v === st.provider); });
     $("aiProvHelp").textContent = st.provider === "gemini"
       ? "Lo más fácil: no hay que instalar nada. Gratis con tu cuenta de Google, con un límite de uso diario. Necesita internet y el texto de la hoja se envía a Google para responder."
-      : "Para usar sin internet: todo queda en tu PC y nada sale del equipo. Chinchero instala Ollama y un modelo por ti (unos 4 GB en total); responde más lento en PCs sin tarjeta gráfica.";
+      : "Para usar sin internet: todo queda en tu PC y nada sale del equipo. Chinchero instala Ollama y un modelo por ti (unos 4 GB de descarga; ocupan cerca de 6 GB); responde más lento en PCs sin tarjeta gráfica.";
     $("aiKeyState").textContent = st.hasKey
       ? `Clave guardada en esta PC (${st.keyHint}), cifrada. Nunca se guarda en tus tableros ni en las copias.`
       : "Haz clic en «Conectar paso a paso»: te guiamos para crear una clave gratis en Google en un par de minutos.";
@@ -97,7 +97,7 @@
     act.hidden = false;
     pickBox.hidden = true;
     if (!s.running && !s.installed) {
-      txt.textContent = "Ollama no está instalado. Chinchero lo instala por ti, sin cuentas ni ventanas: baja el instalador oficial (cerca de 1 GB), no pide permisos de administrador y después descarga el modelo que elijas.";
+      txt.textContent = "Ollama no está instalado. Chinchero lo instala por ti, sin cuentas ni ventanas: baja el instalador oficial (1,7 GB), no pide permisos de administrador y después descarga el modelo que elijas (2 o 2,5 GB más).";
       act.textContent = "Instalar Ollama"; ollamaAction = install;
       pickBox.hidden = false;
     } else if (!s.running) {
