@@ -74,7 +74,8 @@
   /* Fila de la clave: el campo + «Guardar» a la izquierda, separado de los botones por un divisor */
   .ai-keyrow { align-items: stretch; }
   .ai-keyrow .btns { align-items: center; align-content: center; padding-left: 20px; border-left: 1px solid var(--border); }
-  .ai-keyrow .btns.stack { flex-direction: column; align-items: stretch; }
+  /* Apilados: cada botón del ancho de su texto, centrados uno sobre otro */
+  .ai-keyrow .btns.stack { flex-direction: column; align-items: center; }
   .ai-found { margin-top: 8px; padding: 10px 12px; border-radius: 8px; background: var(--accent-soft); display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 13px; }
   .ai-found[hidden] { display: none; }
   .ai-progress { margin-top: 8px; }

@@ -411,6 +411,13 @@ delete process.env.ELECTRON_RUN_AS_NODE;
   const files = d => fs.readdirSync(d, { withFileTypes: true }).flatMap(f => f.isDirectory() ? files(path.join(d, f.name)) : [path.join(d, f.name)]);
   const leaks = files(DATA).filter(f => fs.readFileSync(f).includes(AI_KEY));
   ok("IA: la clave se guarda cifrada y fuera de los tableros", aiSt.hasKey && aiSt.keyHint === "…" + AI_KEY.slice(-4) && !JSON.stringify(aiSt).includes(AI_KEY) && cfgTxt.includes("aiKey") && !cfgTxt.includes(AI_KEY) && !leaks.length, leaks.join(","));
+  ok("IA: con clave guardada, «Obtener clave» y «Quitar» quedan apilados y centrados, cada uno del ancho de su texto", await page.evaluate(() => {
+    const box = document.getElementById("aiKeyBtns"), [a, b] = [...box.querySelectorAll("button:not([hidden])")].map(e => e.getBoundingClientRect());
+    const t = document.getElementById("aiDelKey"), r = document.createRange(); r.selectNodeContents(t); const tx = r.getBoundingClientRect(), bx = t.getBoundingClientRect();
+    return box.classList.contains("stack") && b.top >= a.bottom && b.width < a.width && Math.abs((a.left + a.right) / 2 - (b.left + b.right) / 2) < 1.5
+      && Math.abs((tx.left + tx.right) / 2 - (bx.left + bx.right) / 2) < 1.5;
+  }));
+  await (await page.$(".ai-keyrow")).screenshot({ path: `${SHOTS}/a10-clave-botones.png` });
   ok("IA: lista los modelos de Gemini que sirven para chatear", await page.evaluate(() => { const o = [...document.querySelectorAll("#aiModel option")].map(o => o.value); return o.includes("gemini-prueba-pro") && !o.includes("text-embedding-004"); }));
   await page.goto(page.url().replace(/03-ajustes\.html.*/, "02-tablero.html?board=" + boardId)); await sleep(1200);
   await page.click("#aiBtn"); await sleep(300);
