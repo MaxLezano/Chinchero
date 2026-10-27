@@ -537,6 +537,14 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
       return out;
     });
     ok("a11y: contraste AA en tema claro y oscuro", ratios.light >= 4.5 && ratios.dark >= 4.5, JSON.stringify(ratios));
+    // Barras de desplazamiento propias: regla en theme.css (file:// no deja leer cssRules) y pulgar distinto en cada tema
+    const css = fs.readFileSync(path.join(__dirname, "..", "src", "renderer", "assets", "theme.css"), "utf8");
+    const scroll = await q.evaluate(() => {
+      const thumb = t => { document.documentElement.dataset.theme = t; return getComputedStyle(document.documentElement).getPropertyValue("--scroll-thumb").trim(); };
+      return { light: thumb("light"), dark: thumb("dark") };
+    });
+    scroll.rule = /::-webkit-scrollbar-thumb\s*\{[^}]*var\(--scroll-thumb\)[^}]*border-radius/.test(css);
+    ok("barras de desplazamiento con el color del tema", scroll.rule && scroll.light && scroll.dark && scroll.light !== scroll.dark, JSON.stringify(scroll));
     await q.close();
   }
 
