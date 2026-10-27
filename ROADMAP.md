@@ -23,9 +23,13 @@ Lista de tareas para avanzar de a una. Cada tarea se hace en una sesión de chat
 
 1. **Asistente con IA (gratis)**: que la app sugiera y cree cosas en el tablero (notas, listas, ideas relacionadas, ordenar o resumir lo que hay) y un chat interno para hablar con un agente que pueda actuar sobre el tablero. Sin costo para nadie:
    - **Ollama** (local): corre en la PC del usuario, sin internet ni cuenta. Es la opción que respeta la regla de «nada se carga de internet».
-   - **Gemini API** (Google, plan gratuito): cada usuario pega su propia clave en Ajustes; tiene límites de uso y necesita conexión.
+   - **Gemini API** (Google, plan gratuito): botón «Obtener clave» que abre en el navegador aistudio.google.com/apikey; el usuario inicia sesión, crea la clave y la copia, y la app la detecta en el portapapeles (formato de clave de Google) y ofrece usarla. Cada usuario tiene su propio cupo gratis; tiene límites de uso y necesita conexión. No se usa «Iniciar sesión con Google» (pide verificar la app en Google Cloud y el cupo quedaría compartido).
    - Desactivado de fábrica; la clave se guarda solo en la PC (nunca en el tablero ni en el repo); avisar qué datos salen del equipo cuando se usa un servicio en la nube.
    - Pasos: elegir proveedor(es) y modelo, capa de conexión en el proceso principal (IPC validado y CSP), acciones que la IA puede hacer sobre el modelo `doc → hojas → elementos + hilos`, panel de chat, sugerencias, pruebas con un proveedor simulado.
+2. **Instalador para Windows ARM64** (notebooks con Snapdragon, hoy usan la x64 emulada y más lenta). Electron 45 publica x64 y ARM64; 32 bits no existe y no se hará.
+   - La web elige sola la descarga según la PC (`navigator.userAgentData.getHighEntropyValues(["architecture"])`), porque el usuario no suele saber qué procesador tiene. Si el navegador no lo informa (Firefox), se baja la x64, que también funciona en ARM, y se muestra un enlace «¿PC con procesador ARM?».
+   - Compilar las dos arquitecturas en `release.yml` y cuidar que la actualización automática baje la de cada PC (un `latest.yml` por arquitectura, o un instalador único con las dos y comparar su tamaño).
+   - Actualizar requisitos y preguntas frecuentes de la web.
 
 ### Para hacer a mano (necesitan a una persona)
 - Instalar el `.exe` y abrir un `.chinchero` con doble clic con la app cerrada (con la app abierta ya está probado).
