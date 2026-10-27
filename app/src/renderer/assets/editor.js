@@ -299,8 +299,15 @@
     const r = viewport.getBoundingClientRect();
     return { x: (e.clientX - r.left - view.x) / view.z, y: (e.clientY - r.top - view.y) / view.z };
   }
+  // Ancho y alto del lienzo que se ve: sin la parte que tapa el panel del asistente, si está abierto
+  function visibleSize() {
+    const p = $("#aiPanel"), v = viewport.getBoundingClientRect();
+    const cut = p && !p.hidden ? Math.max(0, v.right - p.getBoundingClientRect().left + 12) : 0;
+    return { w: Math.max(200, viewport.clientWidth - cut), h: viewport.clientHeight };
+  }
   function viewCenter() {
-    return { x: (viewport.clientWidth / 2 - view.x) / view.z, y: (viewport.clientHeight / 2 - view.y) / view.z };
+    const { w, h } = visibleSize();
+    return { x: (w / 2 - view.x) / view.z, y: (h / 2 - view.y) / view.z };
   }
   function itemRect(it) {
     const el = elOf(it.id);
@@ -628,9 +635,21 @@
     applyView();
   }
   function centerOn(it) {
-    const r = itemRect(it);
-    view.x = viewport.clientWidth / 2 - (r.x + r.w / 2) * view.z;
-    view.y = viewport.clientHeight / 2 - (r.y + r.h / 2) * view.z;
+    const r = itemRect(it), { w, h } = visibleSize();
+    view.x = w / 2 - (r.x + r.w / 2) * view.z;
+    view.y = h / 2 - (r.y + r.h / 2) * view.z;
+    applyView();
+  }
+  // Si algo de estos elementos queda fuera de lo que se ve (o debajo del panel del asistente), se centra la vista en
+  // todos ellos, alejando el zoom si no entran
+  function showItems(its) {
+    const rs = its.map(itemRect), { w, h } = visibleSize(), m = 40;
+    const x0 = Math.min(...rs.map(r => r.x)), y0 = Math.min(...rs.map(r => r.y));
+    const x1 = Math.max(...rs.map(r => r.x + r.w)), y1 = Math.max(...rs.map(r => r.y + r.h));
+    const inside = x0 * view.z + view.x >= 0 && y0 * view.z + view.y >= 0 && x1 * view.z + view.x <= w && y1 * view.z + view.y <= h;
+    if (inside) return;
+    const z = clamp(Math.min(view.z, (w - 2 * m) / (x1 - x0 || 1), (h - 2 * m) / (y1 - y0 || 1)), .2, 3);
+    view = { z, x: w / 2 - (x0 + x1) / 2 * z, y: h / 2 - (y0 + y1) / 2 * z };
     applyView();
   }
   function applySurface() {
@@ -2640,10 +2659,7 @@
     const shown = made.filter(o => sh.items.includes(o));
     if (shown.length) {
       setSel(shown.filter(o => o.type !== "zone").map(o => o.id));
-      // Si lo nuevo quedó fuera de la vista, se lleva la vista hasta ahí
-      const r = itemRect(shown[0]), v = viewport.getBoundingClientRect(), right = document.body.classList.contains("ai-open") ? 400 : 100;
-      const sx = r.x * view.z + view.x, sy = r.y * view.z + view.y;
-      if (sx < 0 || sy < 0 || sx > v.width - right || sy > v.height - 100) centerOn(shown[0]);
+      showItems(shown);
       Sound.play("pin");
     }
     return changes;

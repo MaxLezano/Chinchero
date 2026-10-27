@@ -715,6 +715,14 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
       const rs = [...document.querySelectorAll("#items .item")].map(e => e.getBoundingClientRect());
       return rs.length === 8 && rs.every((a, i) => rs.every((b, j) => i === j || a.right <= b.left || b.right <= a.left || a.bottom <= b.top || b.bottom <= a.top));
     }));
+    await p.click("#aiBtn"); await sleep(300);
+    ok("IA: con el panel abierto, lo que crea queda a la vista y no debajo del panel", await p.evaluate(() => {
+      Editor.applyAI([1, 2, 3, 4, 5, 6, 7, 8, 9].map(i => ({ op: "crear", tipo: "nota", texto: "Lejos " + i })));
+      const pr = document.getElementById("aiPanel").getBoundingClientRect(), vr = document.getElementById("viewport").getBoundingClientRect();
+      const rs = [...document.querySelectorAll("#items .item")].filter(e => e.textContent.includes("Lejos")).map(e => e.getBoundingClientRect());
+      return rs.length === 9 && rs.every(r => r.right <= pr.left && r.left >= vr.left && r.top >= vr.top && r.bottom <= vr.bottom);
+    }));
+    await p.keyboard.press("Escape"); await sleep(200);
     const dr = await p.evaluate(() => {
       const n = Editor.applyAI([
         { op: "dibujar", trazos: ["M10 10 L60 10 L35 50 Z", "M35 50 L35 90"], color: "azul", grosor: "grueso" },

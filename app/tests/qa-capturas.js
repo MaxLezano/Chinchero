@@ -84,6 +84,20 @@ function audit() {
         const c = document.querySelector("#items .t-photo .caption");
         c.textContent = "Gemini_Generated_Image_usc7fusc7fusc7f";
       }));
+      await go(ed, "02-asistente", () => page.click("#aiBtn"));
+      // Conversación armada con las mismas clases de asistente.js (en el navegador no hay IA)
+      await go(ed, "02-asistente-chat", async () => {
+        await page.click("#aiBtn");
+        await page.evaluate(() => {
+          const log = document.getElementById("aiLog"), add = (c, h) => log.insertAdjacentHTML("beforeend", `<div class="ai-msg ${c}">${h}</div>`);
+          log.innerHTML = "";
+          add("user", "Dame ideas para el viaje a Japón con presupuesto ajustado");
+          add("assistant", 'Te propongo cuatro ideas y las uní con hilos a «Viaje».<span class="ai-did">4 cambios en la hoja <button data-undo>Deshacer</button></span>');
+          add("user", "Ordénalo por tema");
+          add("error", 'Se agotó el cupo gratis por ahora. Prueba de nuevo en un rato. <button class="ai-link" data-go="ajustes">Abrir Ajustes</button>');
+          add("wait", "Pensando");
+        });
+      });
       await page.close();
     }
     // Web del producto: página entera en escritorio y móvil (sin animaciones de entrada)

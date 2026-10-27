@@ -8,7 +8,7 @@ body { overflow: hidden; user-select: none; }
 .crumb { display: flex; align-items: center; gap: 8px; font-weight: 600; min-width: 0; }
 .crumb .group { color: var(--text-muted); font-weight: 500; display: flex; align-items: center; gap: 6px; white-space: nowrap; }
 .crumb .dot { width: 9px; height: 9px; border-radius: 3px; background: #e8590c; }
-.crumb [contenteditable] { outline: none; padding: 2px 6px; border-radius: 6px; white-space: nowrap; }
+.crumb [contenteditable] { outline: none; padding: 2px 6px; border-radius: 6px; white-space: nowrap; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .crumb [contenteditable]:hover, .crumb [contenteditable]:focus { background: var(--surface-2); }
 .save { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); white-space: nowrap; margin-left: 6px; }
 .save i { width: 7px; height: 7px; border-radius: 50%; background: #40c057; }
@@ -158,6 +158,7 @@ body { overflow: hidden; user-select: none; }
 /* ---------- Barra de herramientas ---------- */
 .toolbar { position: fixed; left: 14px; top: 50%; transform: translateY(-50%); background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 6px; display: grid; gap: 2px; box-shadow: var(--shadow); z-index: 25; }
 .toolbar hr { border: 0; border-top: 1px solid var(--border); margin: 4px 2px; }
+.tip { left: 72px; } /* las sugerencias van junto a la barra de herramientas, sin taparla */
 .toolbar .icon-btn { width: 38px; height: 38px; position: relative; }
 .toolbar .icon-btn.locked::before { content: ""; position: absolute; right: 4px; top: 4px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
 
@@ -277,6 +278,7 @@ body { overflow: hidden; user-select: none; }
 @media (max-width: 720px) {
   .toolbar { top: auto; bottom: 52px; left: 8px; right: 8px; transform: none; grid-auto-flow: column; overflow-x: auto; }
   .toolbar hr { display: none; }
+  .tip { left: 16px; bottom: 116px; }
   .minimap { display: none; }
   .popover { left: 16px; bottom: 110px; top: auto !important; }
 }
@@ -315,4 +317,5 @@ body.exporting [data-tip]::after { display: none !important; }
 .ai-privacy { display: block; padding: 0 14px 10px; font-size: 11.5px; color: var(--text-muted); }
 .ai-panel button:disabled, .ai-panel textarea:disabled { opacity: .5; cursor: default; }
 body.ai-open .minimap { right: 384px; }
+body.ai-open #aiBtn::after { display: none; } /* con el panel abierto, el tooltip quedaría tapado por él */
 @media (prefers-reduced-motion: reduce) { .ai-msg.wait::after { animation: none; width: auto; } }
