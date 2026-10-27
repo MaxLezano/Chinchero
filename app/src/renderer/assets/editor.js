@@ -664,7 +664,18 @@
     // El recuadro de un grupo seleccionado está por encima: se mira qué hay debajo
     const onGroupBox = !!t.closest("#groupBox");
     if (onGroupBox) t = document.elementsFromPoint(e.clientX, e.clientY).find(x => x.closest?.(".item")) || t;
-    if (editing && !editing.el.contains(t)) stopEdit();
+    // Un clic dentro del elemento que se edita (en su borde o debajo del texto) no corta la edición ni lo mueve:
+    // en otro campo del mismo elemento (otra tarea, el título) pasa a editar ese; si no, deja el cursor donde se pueda
+    if (editing && !editing.el.contains(t) && t.closest(".item") === elOf(editing.it.id) && !(editing.it.type === "zone" && !t.closest(".zt")) && !t.matches("input, .pin") && !t.closest(".add-task")) {
+      e.preventDefault();
+      const f = t.closest("[data-edit]");
+      if (f) return edit(editing.it, f, { x: e.clientX, y: e.clientY });
+      const r = document.caretRangeFromPoint?.(e.clientX, e.clientY);
+      if (r && editing.el.contains(r.startContainer)) { const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); }
+      return;
+    }
+    const ended = editing && !editing.el.contains(t) ? editing.it : null;
+    if (ended) stopEdit();
     if (t.isContentEditable || t.matches("input")) return;
     $(".inpop")?.remove();
     stickerPop.classList.remove("open");
@@ -691,7 +702,8 @@
     // Arrastrar dentro del recuadro de un grupo mueve el grupo entero (Ctrl+clic elige el elemento de debajo)
     if (onGroupBox && !(e.ctrlKey && it)) return startMove(e, it && selection.includes(it.id) ? it : byId(selection[0]));
     // Fondo (o el interior de una zona no seleccionada): arrastrar mueve el lienzo; Shift+arrastrar selecciona varios
-    const onCanvas = !it || (it.type === "zone" && !t.closest(".zt") && !selection.includes(it.id));
+    // (el clic que termina de editar el título de una zona tampoco la mueve)
+    const onCanvas = !it || (it.type === "zone" && !t.closest(".zt") && (!selection.includes(it.id) || it === ended));
     if (onCanvas) return e.shiftKey ? startBand(e) : startPan(e, true);
     startMove(e, it);
   });
@@ -1344,6 +1356,9 @@
     fieldEl = fieldEl || elOf(it.id)?.querySelector("[data-edit]");
     if (!fieldEl) return;
     stopEdit();
+    // stopEdit vuelve a dibujar el elemento: si el campo era del DOM anterior, se busca el mismo en el nuevo
+    if (!fieldEl.isConnected) fieldEl = fieldOf(it, fieldEl.dataset.edit, fieldEl.dataset.i);
+    if (!fieldEl) return;
     if (!selection.includes(it.id) || selection.length > 1) { selection = [it.id]; selThread = null; }
     editing = { it, el: fieldEl, field: fieldEl.dataset.edit, i: fieldEl.dataset.i, before: opts.continues ? opts.before ?? null : JSON.stringify(it) };
     els.get(it.id).html = null; // al editar, el DOM ya no coincide con el HTML guardado: el próximo render lo rehace
@@ -1367,6 +1382,8 @@
     hideCtx();
     Tour.emit("edit");
   }
+
+  const fieldOf = (it, field, i) => elOf(it.id)?.querySelector(`[data-edit="${CSS.escape(field)}"]${i != null ? `[data-i="${CSS.escape(i)}"]` : ""}`);
 
   function saveField(it, field, i, el) {
     const val = el.hasAttribute("data-rich") ? el.innerHTML.replace(/^(<br>)+$/, "") : el.textContent.trim();
@@ -1456,7 +1473,7 @@
   function showFmt() {
     const it = editing.it;
     fmt.innerHTML = `<button data-f="bold" aria-label="Negrita (Ctrl+B)" title="Negrita (Ctrl+B)"><b>B</b></button>
-      <button data-f="italic" aria-label="Cursiva (Ctrl+I)" title="Cursiva (Ctrl+I)"><i>I</i></button>
+      <button data-f="italic" aria-label="Cursiva (Ctrl+I)" title="Cursiva (Ctrl+I)"><i class="serif">I</i></button>
       <button data-f="insertUnorderedList" title="Lista con viñetas">• Lista</button>
       ${it.type === "note" ? `<span class="sep"></span>${["s", "m", "l"].map(s => `<button data-fs="${s}" class="${it.fs === s ? "on" : ""}" aria-pressed="${it.fs === s}" title="Tamaño de letra">${{ s: "Pequeña", m: "Normal", l: "Grande" }[s]}</button>`).join("")}` : ""}
       <span class="sep"></span><button data-done title="Terminar (Esc)">Listo</button>`;
@@ -1839,6 +1856,8 @@
     if (tg) { const th = sheet().threads.find(x => x.id === tg.dataset.t); return th && editThreadLabel(th, e.clientX, e.clientY); }
     const itemEl = t.closest(".item");
     const it = itemEl && byId(itemEl.dataset.id);
+    // Mientras se edita, el doble clic selecciona una palabra (lo hace el navegador): no se vuelve a empezar la edición
+    if (editing && it === editing.it) return;
     if (!it || (it.type === "zone" && !t.closest(".zt"))) return;
     if (it.locked) return toast("Está bloqueado. Desbloquéalo para editarlo.");
     if (t.closest(".t-photo .img")) return it.src || it.art ? openLightbox(it) : pickImage(it);
@@ -2027,7 +2046,7 @@
   });
   function renameSheet(i) {
     const n = sheetsEl.children[i]?.querySelector(".name");
-    if (!n) return;
+    if (!n || n.isContentEditable) return; // ya se está renombrando: el doble clic solo selecciona una palabra
     n.contentEditable = "true"; n.focus();
     getSelection().selectAllChildren(n);
     n.onkeydown = e => { if (e.key === "Enter" || e.key === "Escape") { e.preventDefault(); n.blur(); sheetsEl.children[i]?.focus(); } }; // con teclado, el foco sigue en la pestaña

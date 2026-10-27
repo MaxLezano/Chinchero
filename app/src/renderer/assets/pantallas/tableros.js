@@ -71,8 +71,8 @@ function render() {
     const none = !lib.boards.length;
     $("#emptyTitle").textContent = filtering ? "Sin resultados" : none ? "Aún no tienes tableros" : view === "fav" ? "Aún no hay favoritos" : "Este grupo está vacío";
     $("#emptyText").textContent = filtering ? "Prueba con otro nombre o quita los filtros."
-      : view === "fav" ? "Pulsa la ⭐ de un tablero para tenerlo siempre a mano." : "Crea un tablero en blanco o empieza con una plantilla.";
-    $("#emptyBtn").style.display = filtering || view === "fav" ? "none" : "";
+      : view === "fav" && !none ? "Pulsa la ⭐ de un tablero para tenerlo siempre a mano." : "Crea un tablero en blanco o empieza con una plantilla.";
+    $("#emptyBtn").style.display = filtering || (view === "fav" && !none) ? "none" : "";
   }
 }
 

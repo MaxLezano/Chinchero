@@ -193,6 +193,18 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     const b = document.querySelector('.fmt [data-f="bold"]'); b.classList.add("on");
     const on = getComputedStyle(b).backgroundColor; return on !== "rgba(127, 127, 127, 0.35)" && on !== "rgba(0, 0, 0, 0)";
   }));
+  // Editando: doble clic en una palabra la selecciona sin cortar la edición; un clic en la nota fuera del texto no la mueve
+  const noteBox = () => p.evaluate(() => { const r = document.activeElement.closest(".item").getBoundingClientRect(); return [r.x, r.y, r.width, r.height].map(Math.round).join(); });
+  const box0 = await noteBox();
+  const w = await p.evaluate(() => {
+    const t = document.createTreeWalker(document.activeElement, NodeFilter.SHOW_TEXT).nextNode(), r = document.createRange();
+    r.setStart(t, 1); r.collapse(true); const b = r.getBoundingClientRect(); return { x: b.x + 2, y: b.y + b.height / 2 };
+  });
+  await p.mouse.click(w.x, w.y, { clickCount: 1 }); await p.mouse.click(w.x, w.y, { clickCount: 2 }); await sleep(200);
+  ok("editando: doble clic selecciona una palabra sin cerrar la edición", await p.evaluate(() => document.activeElement.isContentEditable && getSelection().toString().trim().length > 0), await p.evaluate(() => document.activeElement.className + " «" + getSelection() + "»"));
+  const nb = await p.evaluate(() => { const r = document.activeElement.closest(".item").getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.bottom - 8 }; });
+  await p.mouse.move(nb.x, nb.y); await p.mouse.down(); await p.mouse.move(nb.x + 40, nb.y + 30, { steps: 5 }); await p.mouse.up(); await sleep(150);
+  ok("editando: clic y arrastre dentro de la nota no corta la edición ni la mueve", await p.evaluate(() => document.activeElement.isContentEditable) && (await noteBox()) === box0, box0 + " → " + await noteBox());
   await p.keyboard.press("Escape"); await sleep(200);
   // La barra contextual se rehace al cambiar algo: el foco vuelve al mismo botón para seguir con teclado
   await p.mouse.click(c.x, c.y); await sleep(200);
@@ -207,6 +219,15 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   c = await center(".t-text .txt");
   await p.mouse.click(c.x, c.y, { clickCount: 2 }); await sleep(200);
   ok("texto existente editable", await p.evaluate(() => document.activeElement.closest(".t-text") !== null));
+  await p.keyboard.press("Escape"); await sleep(150);
+
+  // Lista: editando una tarea, un clic en otra pasa a editar esa (antes cortaba la edición y empezaba a mover la lista)
+  c = await center('.t-list .task[data-i="0"]');
+  await p.mouse.click(c.x, c.y, { clickCount: 2 }); await sleep(200);
+  const listBox0 = await p.$eval(".t-list", e => e.style.left + e.style.top);
+  c = await center('.t-list .task[data-i="1"]');
+  await p.mouse.click(c.x, c.y); await sleep(200);
+  ok("lista: con una tarea en edición, un clic en otra la edita", await p.evaluate(() => document.activeElement.isContentEditable && document.activeElement.dataset.i === "1") && (await p.$eval(".t-list", e => e.style.left + e.style.top)) === listBox0);
   await p.keyboard.press("Escape"); await sleep(150);
 
   // Lista: añadir tarea con Enter
@@ -408,6 +429,14 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   for (const [f, n] of [["01-tableros.html", "v01"], ["03-ajustes.html", "v03"], ["04-papelera.html", "v04"], ["02-tablero.html", "v02"], ["00-bienvenida.html", "v00"]]) {
     const q = await open(f, { theme: "light", prefs: NO_TOURS });
     await shot(q, `${n}-light`);
+    if (n === "v04") ok("papelera vacía: el aviso va en el centro del espacio libre", await q.evaluate(() => {
+      const m = document.querySelector("main").getBoundingClientRect(), e = document.querySelector("#empty svg").getBoundingClientRect();
+      return Math.abs((e.left + e.right) / 2 - (m.left + m.right) / 2) < 4 && e.top > m.top + m.height * .3;
+    }));
+    if (n === "v01") {
+      await q.goto(q.url().replace(/\?.*|$/, "?view=fav"), { waitUntil: "networkidle0" }); await sleep(300);
+      ok("favoritos sin tableros: invita a crear uno", await q.evaluate(() => !Store.library().boards.length ? /Crea un tablero/.test(document.querySelector("#emptyText").textContent) && getComputedStyle(document.querySelector("#emptyBtn")).display !== "none" : true));
+    }
     await q.close();
   }
   {
