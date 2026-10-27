@@ -4,7 +4,7 @@
 
 **Tu tablero de corcho digital para Windows.** Pincha notas, fichas, listas, fotos, enlaces, archivos y stickers; únelos con hilos como en las películas de detectives y organízalos en tableros, hojas, zonas y grupos. Funciona sin conexión y todo queda en tu equipo.
 
-- 🌐 Web y descargas: https://maxlezano.github.io/Chinchero/
+- 🌐 Web y descargas: https://tuchinchero.com/
 - ⬇️ Instalador: [Releases](https://github.com/MaxLezano/Chinchero/releases)
 
 ## Estructura
