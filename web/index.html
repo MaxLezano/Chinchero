@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Chinchero: tablero de corcho digital gratis para Windows</title>
-<meta name="description" content="Tablero de corcho digital gratis para Windows: pincha notas, fotos y stickers, únelos con hilos como un tablero de detective y organiza tus ideas sin conexión.">
-<meta name="keywords" content="tablero de corcho digital, tablero de corcho virtual, tablero de ideas, tablero de detective, notas adhesivas, post-it en el escritorio, moodboard, mapa mental, lluvia de ideas, organizar ideas, organizador de notas, app gratis para Windows, Chinchero">
+<meta name="description" content="Tablero de corcho digital gratis para Windows: pincha notas, fotos y stickers, únelos con hilos como un tablero de detective y pide ideas a un asistente con IA. Funciona sin conexión.">
+<meta name="keywords" content="tablero de corcho digital, tablero de corcho virtual, tablero de ideas, tablero de detective, notas adhesivas, post-it en el escritorio, moodboard, mapa mental, lluvia de ideas, organizar ideas, organizador de notas, asistente con IA, IA local, Ollama, Gemini, app gratis para Windows, Chinchero">
 <meta name="author" content="Max Lezano">
 <meta name="robots" content="index, follow">
 <meta name="theme-color" content="#c2410c">
@@ -13,16 +13,16 @@
 <meta property="og:site_name" content="Chinchero">
 <meta property="og:locale" content="es_LA">
 <meta property="og:title" content="Chinchero: tablero de corcho digital gratis para Windows">
-<meta property="og:description" content="Notas, fotos y stickers unidos con hilos, como en un tablero de verdad. Gratis para Windows y sin conexión.">
+<meta property="og:description" content="Notas, fotos y stickers unidos con hilos, como en un tablero de verdad, y un asistente con IA que te da ideas. Gratis para Windows.">
 <meta property="og:image" content="https://tuchinchero.com/assets/og.jpg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="Tablero de Chinchero con notas, fotos y stickers unidos con hilos">
+<meta property="og:image:alt" content="Tablero de Chinchero con notas unidas con hilos, un dibujo y el asistente con IA abierto">
 <meta property="og:url" content="https://tuchinchero.com/">
 <meta property="og:type" content="website">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Chinchero: tablero de corcho digital gratis para Windows">
-<meta name="twitter:description" content="Notas, fotos y stickers unidos con hilos, como en un tablero de verdad. Gratis para Windows y sin conexión.">
+<meta name="twitter:description" content="Notas, fotos y stickers unidos con hilos, como en un tablero de verdad, y un asistente con IA que te da ideas. Gratis para Windows.">
 <meta name="twitter:image" content="https://tuchinchero.com/assets/og.jpg">
 <script type="application/ld+json">
 {
@@ -31,9 +31,11 @@
   "name": "Chinchero",
   "alternateName": "Tu Chinchero",
   "url": "https://tuchinchero.com/",
-  "description": "Tablero de corcho digital para Windows: notas adhesivas, fotos, listas y stickers unidos con hilos para organizar ideas, proyectos, estudios y viajes. Funciona sin conexión.",
+  "description": "Tablero de corcho digital para Windows: notas adhesivas, fotos, listas, stickers y dibujos unidos con hilos para organizar ideas, proyectos, estudios y viajes, con un asistente con IA opcional. Funciona sin conexión.",
   "applicationCategory": "ProductivityApplication",
   "operatingSystem": "Windows 10, Windows 11",
+  "processorRequirements": "x64, ARM64",
+  "featureList": ["Notas adhesivas, fichas y listas de tareas", "Fotos, enlaces y archivos", "Hilos entre elementos", "Zonas, grupos, tableros y hojas", "Dibujo a mano alzada con goma", "Asistente con IA: Gemini gratis u Ollama sin internet", "Búsqueda en todas las hojas", "Exportar a PNG y PDF", "Copias de seguridad", "Atajos personalizables y lector de pantalla"],
   "inLanguage": "es",
   "image": "https://tuchinchero.com/assets/og.jpg",
   "downloadUrl": "https://github.com/MaxLezano/Chinchero/releases/latest",
@@ -55,7 +57,7 @@
   <div class="wrap">
     <a class="logo" href="#"><img src="assets/icon-256.png" alt="">Chinchero</a>
     <nav class="nav-links" aria-label="Secciones">
-      <a href="#funciones">Funciones</a><a href="#como">Cómo se usa</a><a href="#capturas">Capturas</a><a href="#descargar">Descargar</a><a href="#preguntas">Preguntas</a>
+      <a href="#funciones">Funciones</a><a href="#asistente">Asistente</a><a href="#como">Cómo se usa</a><a href="#capturas">Capturas</a><a href="#descargar">Descargar</a><a href="#preguntas">Preguntas</a>
     </nav>
     <div class="nav-actions">
       <button class="icon-btn" id="themeBtn" aria-label="Cambiar tema">
@@ -73,7 +75,7 @@
       <div>
         <span class="eyebrow">📌 Gratis · Windows · Sin conexión</span>
         <h1>Tu tablero de ideas <span class="hand">digital</span></h1>
-        <p class="lead">Un tablero de corcho digital para tu PC: pincha notas, fotos, listas y stickers. Únelos con hilos como en las pelis de detectives y organiza tus ideas en tableros y hojas. Todo queda en tu equipo.</p>
+        <p class="lead">Un tablero de corcho digital para tu PC: pincha notas, fotos, listas y stickers. Únelos con hilos como en las pelis de detectives y organiza tus ideas en tableros y hojas. Y si te trabas, Chinche, el asistente con IA, te da ideas. Todo queda en tu equipo.</p>
         <div class="cta">
           <a class="btn btn-primary dl-btn" href="#descargar">
             <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 5.5 10.5 4.5v7H3zM11.5 4.4 21 3v8.5h-9.5zM3 12.5h7.5v7L3 18.5zM11.5 12.5H21V21l-9.5-1.4z"/></svg>
@@ -81,7 +83,7 @@
           </a>
           <a class="btn" href="#como">Ver cómo funciona</a>
         </div>
-        <div class="hero-meta"><span>Windows 10 y 11</span><span>Se actualiza sola</span><span>Código abierto</span></div>
+        <div class="hero-meta"><span>Windows 10 y 11 · Intel, AMD y ARM</span><span>Se actualiza sola</span><span>Código abierto</span></div>
       </div>
 
       <div class="board" id="heroBoard" aria-label="Animación: alguien crea notas, une ideas con hilos y las agrupa en una zona">
@@ -115,16 +117,32 @@
         <article class="feature reveal"><div class="fi" style="--c:#ebfbee">📑</div><h3>Tableros y hojas</h3><p>Organiza tableros en grupos y cada tablero en hojas, como pestañas de Excel.</p></article>
         <article class="feature reveal"><div class="fi" style="--c:#fff4e6">🔎</div><h3>Encuentra todo</h3><p>Ctrl+K busca cualquier nota, foto o lista en todas las hojas y salta directo a ella.</p></article>
         <article class="feature reveal"><div class="fi" style="--c:#f8f0e3">🌗</div><h3>Fondos, claro y oscuro</h3><p>Fondo de corcho, puntos o cuadrícula, en tema claro u oscuro. Tú eliges.</p></article>
-        <article class="feature reveal"><div class="fi" style="--c:#e6fcf5">↩️</div><h3>Sin miedo a equivocarte</h3><p>Guardado automático, deshacer y rehacer, copias de seguridad y papelera durante 30 días.</p></article>
+        <article class="feature reveal"><div class="fi" style="--c:#e6fcf5">↩️</div><h3>Sin miedo a equivocarte</h3><p>Guardado automático, deshacer y rehacer, y papelera durante 30 días. Si algo se daña, Chinchero lo recupera.</p></article>
         <article class="feature reveal"><div class="fi" style="--c:#fff0f6">🔒</div><h3>Tus datos son tuyos</h3><p>Sin cuentas ni nube obligatoria. Todo queda en una carpeta que puedes copiar donde quieras.</p></article>
         <article class="feature reveal"><div class="fi" style="--c:#e7f5ff">📤</div><h3>Exporta y comparte</h3><p>Guarda una hoja como imagen PNG o PDF, o pasa un tablero entero en un archivo .chinchero.</p></article>
-        <article class="feature reveal"><div class="fi" style="--c:#fff9db">💾</div><h3>Copias de seguridad</h3><p>Copias en .zip con un clic y automáticas al abrir. Si algo se daña, Chinchero lo recupera.</p></article>
+        <article class="feature reveal"><div class="fi" style="--c:#fff9db">✏️</div><h3>Dibuja a mano</h3><p>Flechas, círculos y garabatos sobre el tablero con el lápiz, y una goma para borrar trazos.</p></article>
         <article class="feature reveal"><div class="fi" style="--c:#f3f0ff">⌨️</div><h3>A tu manera</h3><p>Cambia los atajos, úsalo entero con el teclado o con lector de pantalla y activa sonidos si te gustan.</p></article>
       </div>
+      <p class="sec-note reveal">Y copias de seguridad en .zip con un clic, más una automática cada vez que abres Chinchero.</p>
     </div>
   </section>
 
-  <section id="como" class="alt">
+  <section id="asistente" class="alt">
+    <div class="wrap">
+      <div class="sec-head reveal"><div class="kicker">Chinche, tu asistente con IA</div><h2>Pídele ideas y las pincha por ti</h2><p>Haz clic en la chinche de la esquina y escribe lo que necesitas. Todo lo que hace se deshace con Ctrl+Z.</p></div>
+      <div class="features">
+        <article class="feature reveal"><div class="fi" style="--c:#fff3bf">💡</div><h3>Ideas al instante</h3><p>Propone ideas sobre lo que hay en la hoja o lo que elegiste, como notas unidas con hilos.</p></article>
+        <article class="feature reveal"><div class="fi" style="--c:#ebfbee">🧩</div><h3>Tableros completos</h3><p>«Arma un plan de viaje a Japón»: crea notas, fichas, listas, zonas y hojas nuevas.</p></article>
+        <article class="feature reveal"><div class="fi" style="--c:#f3f0ff">🗂️</div><h3>Resume y ordena</h3><p>Resume una hoja en una ficha, agrupa por tema en zonas o junta las tareas pendientes en una lista.</p></article>
+        <article class="feature reveal"><div class="fi" style="--c:#e7f5ff">🖍️</div><h3>También dibuja</h3><p>Pídele un caballo, un mapa o el monte Fuji y lo dibuja a mano alzada en el tablero.</p></article>
+        <article class="feature reveal"><div class="fi" style="--c:#fff4e6">✨</div><h3>Gemini, gratis</h3><p>Lo más fácil: con tu cuenta de Google y una clave gratuita que Chinchero te ayuda a sacar paso a paso.</p></article>
+        <article class="feature reveal"><div class="fi" style="--c:#e6fcf5">🔌</div><h3>Ollama, sin internet</h3><p>Chinchero lo instala por ti, sin ventanas: la IA corre en tu PC y nada sale del equipo.</p></article>
+      </div>
+      <p class="sec-note reveal">Viene desactivado: lo activas en Ajustes → Asistente con IA solo si lo quieres.</p>
+    </div>
+  </section>
+
+  <section id="como">
     <div class="wrap">
       <div class="sec-head reveal"><div class="kicker">En cuatro gestos</div><h2>Cómo se usa</h2><p>Y si te pierdes, cada pantalla tiene un tutorial guiado y sugerencias que aparecen en el momento justo.</p></div>
       <div class="steps">
@@ -151,11 +169,12 @@
     </div>
   </section>
 
-  <section id="capturas">
+  <section id="capturas" class="alt">
     <div class="wrap">
       <div class="sec-head reveal"><div class="kicker">Así se ve</div><h2>Capturas reales de la app</h2><p>Cambia el tema arriba a la derecha para verlas en claro u oscuro.</p></div>
       <div class="tabs" role="tablist" aria-label="Capturas">
         <button class="tab" role="tab" data-shot="editor">Tablero</button>
+        <button class="tab" role="tab" data-shot="assistant">Asistente</button>
         <button class="tab" role="tab" data-shot="detective">Detective</button>
         <button class="tab" role="tab" data-shot="kanban">Kanban</button>
         <button class="tab" role="tab" data-shot="select">Edición</button>
@@ -168,17 +187,17 @@
     </div>
   </section>
 
-  <section class="alt">
+  <section>
     <div class="wrap">
       <div class="sec-head reveal"><div class="kicker">Para ir rápido</div><h2>Atajos que vas a usar todos los días</h2><p>Y si prefieres otros, los cambias en Ajustes → Atajos.</p></div>
       <div class="keys reveal">
-        <div class="key">Nota nueva <kbd>N</kbd></div><div class="key">Tender hilo <kbd>L</kbd></div><div class="key">Buscar <kbd>Ctrl K</kbd></div><div class="key">Deshacer <kbd>Ctrl Z</kbd></div>
-        <div class="key">Agrupar <kbd>Ctrl G</kbd></div><div class="key">Duplicar <kbd>Ctrl D</kbd></div><div class="key">Zoom <kbd>Rueda</kbd></div><div class="key">Encuadrar todo <kbd>Shift 1</kbd></div>
+        <div class="key">Nota nueva <kbd>N</kbd></div><div class="key">Tender hilo <kbd>L</kbd></div><div class="key">Dibujar <kbd>D</kbd></div><div class="key">Goma <kbd>E</kbd></div>
+        <div class="key">Buscar <kbd>Ctrl K</kbd></div><div class="key">Deshacer <kbd>Ctrl Z</kbd></div><div class="key">Agrupar <kbd>Ctrl G</kbd></div><div class="key">Encuadrar todo <kbd>Shift 1</kbd></div>
       </div>
     </div>
   </section>
 
-  <section id="descargar">
+  <section id="descargar" class="alt">
     <div class="wrap">
       <div class="sec-head reveal"><div class="kicker">Gratis, para siempre</div><h2>Descarga Chinchero</h2><p>Un instalador para Windows. Las versiones nuevas se instalan solas.</p></div>
       <div class="dl">
@@ -186,7 +205,7 @@
         <div>
           <div class="card reveal">
             <h3 style="margin-top:0">Requisitos</h3>
-            <ul class="req"><li>Windows 10 u 11 de 64 bits, con procesador Intel, AMD o ARM</li><li>Unos 400 MB libres</li><li>No necesita internet para usarla</li></ul>
+            <ul class="req"><li>Windows 10 u 11 de 64 bits, con procesador Intel, AMD o ARM</li><li>Unos 400 MB libres</li><li>No necesita internet para usarla</li><li>Asistente con IA (opcional): internet para Gemini, o unos 6 GB más para Ollama sin internet</li></ul>
             <div class="callout"><b>¿Windows muestra un aviso al instalar?</b> Es normal en apps nuevas sin firma comercial: pulsa «Más información» → «Ejecutar de todas formas».</div>
           </div>
           <div class="card reveal" style="margin-top:22px">
@@ -198,11 +217,13 @@
     </div>
   </section>
 
-  <section id="preguntas" class="alt">
+  <section id="preguntas">
     <div class="wrap">
       <div class="sec-head reveal"><div class="kicker">Dudas</div><h2>Preguntas frecuentes</h2></div>
       <div class="faq reveal">
         <details><summary>¿Es gratis?</summary><p>Sí, totalmente. Y el código es abierto: puedes verlo en GitHub.</p></details>
+        <details><summary>¿El asistente con IA cuesta algo?</summary><p>No. Con Gemini usas el plan gratuito de Google con tu propia clave (tiene un cupo por día; si se agota, espera un rato). Con Ollama la IA corre en tu PC, sin cupos ni internet, aunque más lento si no tienes tarjeta gráfica.</p></details>
+        <details><summary>¿Mis tableros se envían a internet?</summary><p>Solo si usas el asistente con Gemini: el texto de la hoja que tienes abierta va a Google para que responda. Con Ollama, o con el asistente desactivado (como viene), nada sale de tu PC.</p></details>
         <details><summary>¿Dónde se guardan mis tableros?</summary><p>En la carpeta Documentos\Chinchero (puedes cambiarla en Ajustes). Las imágenes que pinchas se copian ahí, así no se pierden aunque muevas los originales.</p></details>
         <details><summary>¿Puedo pasar mis tableros a otra computadora?</summary><p>Sí: en Ajustes → Datos haz una copia de seguridad (.zip) y en el otro equipo elige «Restaurar copia». También puedes copiar la carpeta entera y elegir «Abrir datos existentes».</p></details>
         <details><summary>¿Puedo compartir un tablero?</summary><p>Sí: «Exportar tablero…» guarda un archivo .chinchero con sus imágenes, que la otra persona abre con doble clic. También puedes exportar una hoja como imagen PNG o PDF.</p></details>

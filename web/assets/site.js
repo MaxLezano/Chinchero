@@ -100,6 +100,7 @@ $$(".reveal, .demo").forEach(el => io.observe(el));
 /* ---------- Galería de capturas ---------- */
 const SHOTS = {
   editor: ["editor", "Tu tablero: notas, fotos, listas, stickers y zonas, todo unido con hilos."],
+  assistant: ["assistant", "Chinche, el asistente con IA: suma ideas unidas con hilos, una lista y hasta un dibujo."],
   detective: ["detective", "Plantilla Detective sobre corcho: fotos, pistas e hilos con etiquetas."],
   kanban: ["kanban", "Kanban con zonas: mueve una zona y se mueve todo lo que tiene dentro."],
   select: ["editor-select", "Selecciona un elemento para cambiar marco, encuadre, chinche o bloquearlo."],

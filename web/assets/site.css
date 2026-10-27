@@ -116,6 +116,7 @@ section { padding: 90px 0; }
 .sec-head .kicker { font: 700 30px var(--hand); color: var(--accent); }
 .sec-head h2 { font-size: clamp(30px, 3.6vw, 44px); line-height: 1.1; letter-spacing: -.02em; margin: 4px 0 14px; }
 .sec-head p { color: var(--muted); font-size: 17px; margin: 0; }
+.sec-note { text-align: center; color: var(--muted); font-size: 15px; margin: 28px auto 0; max-width: 680px; }
 .alt { background: var(--bg-2); }
 
 .uses { padding: 26px 0 10px; }
