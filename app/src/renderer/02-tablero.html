@@ -40,6 +40,7 @@
   <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
   <symbol id="i-fit" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></symbol>
   <symbol id="i-map" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><rect x="11" y="10" width="7" height="6" rx="1"/></symbol>
+  <symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M19 15l.7 2.3L22 18l-2.3.7L19 21l-.7-2.3L16 18l2.3-.7z"/></symbol>
   <symbol id="i-chev" viewBox="0 0 24 24"><path d="m6 15 6-6 6 6"/></symbol>
 </svg>
 
@@ -62,6 +63,7 @@
       <button class="icon-btn" id="redoBtn" data-key="redo" aria-label="Rehacer" data-tip="Rehacer · Ctrl+Y" data-tip-pos="bottom"><svg class="icon"><use href="#i-redo"/></svg></button>
     </span>
     <span class="sep"></span>
+    <button class="icon-btn" id="aiBtn" aria-label="Asistente con IA" aria-expanded="false" aria-controls="aiPanel" data-tip="Asistente con IA" data-tip-pos="bottom"><svg class="icon"><use href="#i-spark"/></svg></button>
     <button class="icon-btn" id="searchBtn" data-key="search" aria-label="Buscar y acciones" data-tip="Buscar y acciones · Ctrl+K" data-tip-pos="bottom"><svg class="icon"><use href="#i-search"/></svg></button>
     <button class="icon-btn" id="threadsBtn" aria-label="Mostrar hilos" data-tip="Hilos: encima, atenuados u ocultos" data-tip-pos="bottom"><svg class="icon"><use href="#i-thread"/></svg></button>
     <button class="icon-btn" id="exportBtn" aria-label="Exportar" data-tip="Exportar" data-tip-pos="bottom"><svg class="icon"><use href="#i-share"/></svg></button>
@@ -184,6 +186,22 @@
   </div>
 </div>
 
+<aside class="ai-panel" id="aiPanel" aria-label="Asistente con IA" hidden>
+  <header><svg class="icon"><use href="#i-spark"/></svg><b>Asistente</b><small id="aiWho"></small><button class="icon-btn" id="aiClose" aria-label="Cerrar el asistente (Esc)">✕</button></header>
+  <div class="ai-log" id="aiLog" role="log" aria-live="polite"></div>
+  <div class="ai-chips" id="aiChips" role="group" aria-label="Pedidos rápidos">
+    <button class="chip" data-ask="ideas">💡 Ideas relacionadas</button>
+    <button class="chip" data-ask="resumir">📝 Resumir la hoja</button>
+    <button class="chip" data-ask="ordenar">🗂️ Ordenar en zonas</button>
+    <button class="chip" data-ask="tareas">☑️ Sacar tareas</button>
+  </div>
+  <div class="ai-input">
+    <textarea id="aiInput" rows="2" placeholder="Pídele algo: «Crea 5 notas con ideas para el viaje»" aria-label="Mensaje para el asistente"></textarea>
+    <button class="btn btn-primary" id="aiSend">Enviar</button>
+  </div>
+  <small class="ai-privacy" id="aiPrivacy"></small>
+</aside>
+
 <footer class="bottombar">
   <button class="bar-btn" id="allSheets" aria-label="Todas las hojas" data-tip="Todas las hojas" data-tip-pos="top-start"><svg class="icon"><use href="#i-chev"/></svg></button>
   <div class="sheets" id="sheets" role="tablist" aria-label="Hojas"></div>
@@ -203,5 +221,6 @@
 <script src="assets/guide.js"></script>
 <script src="assets/sound.js"></script>
 <script src="assets/editor.js"></script>
+<script src="assets/asistente.js"></script>
 </body>
 </html>

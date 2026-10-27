@@ -661,6 +661,57 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     await q.close();
   }
 
+  // Asistente con IA: sin la app de escritorio no se puede usar; las acciones del modelo se aplican con cuidado
+  {
+    const p = await open("02-tablero.html?template=blank&name=IA", { prefs: NO_TOURS });
+    await p.click("#aiBtn"); await sleep(300);
+    ok("IA: en el navegador el panel avisa que es de la app de escritorio", await p.evaluate(() => !document.getElementById("aiPanel").hidden && document.getElementById("aiLog").textContent.includes("app de escritorio") && document.getElementById("aiInput").disabled));
+    await p.keyboard.press("Escape"); await sleep(200);
+    ok("IA: Esc cierra el panel", await p.evaluate(() => document.getElementById("aiPanel").hidden));
+    const r = await p.evaluate(() => {
+      const n = Editor.applyAI([
+        { op: "crear", ref: "z", tipo: "nota", texto: "<img src=x onerror=alert(1)>\nSegunda línea", color: "rosa" },
+        { op: "crear", ref: "f", tipo: "ficha", titulo: "<b>Resumen</b>", texto: "Hola", cerca: "z" },
+        { op: "crear", ref: "l", tipo: "lista", titulo: "Tareas", tareas: ["Uno", { texto: "Dos", hecha: true }] },
+        { op: "crear", tipo: "sello", texto: "listo" },
+        { op: "crear", tipo: "foto" }, { op: "volar" }, null, "texto",
+        { op: "unir", a: "z", b: "f", etiqueta: "porque" }, { op: "unir", a: "z", b: "f" }, { op: "unir", a: "z", b: "inventado" },
+        { op: "agrupar", titulo: "Tema", ids: ["z", "f"], color: "verde" },
+      ]);
+      const note = document.querySelector(".t-note .txt"), list = document.querySelector(".t-list");
+      return {
+        n, items: document.querySelectorAll("#items .item").length, threads: document.querySelectorAll("#threadLayer .th").length,
+        noteHtml: note.innerHTML, img: !!document.querySelector("#items img"),
+        cardTitle: document.querySelector(".t-card .card-title").textContent,
+        tasks: [...list.querySelectorAll(".task")].map(t => t.textContent).join("|"), done: list.querySelector(".prog").textContent,
+        stamp: document.querySelector(".t-stamp .badge").textContent, zone: document.querySelector(".t-zone .zt").textContent,
+        board: JSON.parse(Editor.boardForAI()),
+      };
+    });
+    ok("IA: aplica solo las acciones válidas", r.n === 6 && r.items === 5 && r.threads === 1, JSON.stringify({ n: r.n, items: r.items, threads: r.threads }));
+    ok("IA: el texto del modelo se escapa", !r.img && r.noteHtml.startsWith("&lt;img") && r.noteHtml.includes("<br>") && r.cardTitle === "<b>Resumen</b>", r.noteHtml);
+    ok("IA: listas, sellos y zonas con sus datos", r.tasks === "Uno|Dos" && r.done === "1/2" && r.stamp === "LISTO" && r.zone === "Tema", JSON.stringify(r));
+    ok("IA: la hoja que ve el modelo trae ids, tipos, textos e hilos", r.board.elementos.length === 5 && r.board.elementos.some(e => e.tipo === "lista" && e.texto.includes("Uno")) && r.board.hilos[0].etiqueta === "porque");
+    ok("IA: «agrupar» deja los elementos dentro de la zona", await p.evaluate(() => {
+      const z = document.querySelector(".t-zone").getBoundingClientRect();
+      return [".t-note", ".t-card"].every(s => { const b = document.querySelector(s).getBoundingClientRect(); return b.left >= z.left && b.right <= z.right && b.top >= z.top && b.bottom <= z.bottom + 4; });
+    }));
+    await shot(p, "ia-acciones");
+    await p.keyboard.down("Control"); await p.keyboard.press("z"); await p.keyboard.up("Control"); await sleep(300);
+    ok("IA: un Ctrl+Z deshace todo lo que hizo", await p.evaluate(() => !document.querySelector("#items .item")));
+    ok("IA: sin acciones válidas no cambia nada", await p.evaluate(() => Editor.applyAI([{ op: "borrar", id: "nada" }, { op: "editar", id: "nada", texto: "x" }]) === 0 && document.getElementById("undoBtn").disabled));
+    ok("IA: lo que crea no queda encima de otra cosa", await p.evaluate(() => {
+      Editor.applyAI([{ op: "crear", ref: "a", tipo: "nota", texto: "Centro" }, { op: "crear", tipo: "lista", titulo: "L", tareas: ["1", "2", "3", "4"] },
+        ...[1, 2, 3, 4, 5].map(i => ({ op: "crear", tipo: i % 2 ? "nota" : "ficha", texto: "Idea " + i, cerca: "a" })), { op: "crear", tipo: "nota", texto: "Suelta" }]);
+      const rs = [...document.querySelectorAll("#items .item")].map(e => e.getBoundingClientRect());
+      return rs.length === 8 && rs.every((a, i) => rs.every((b, j) => i === j || a.right <= b.left || b.right <= a.left || a.bottom <= b.top || b.bottom <= a.top));
+    }));
+    await p.close();
+    const s = await open("03-ajustes.html", { prefs: NO_TOURS });
+    ok("IA: en el navegador los ajustes del asistente están desactivados", await s.evaluate(() => document.getElementById("aiOn").disabled && document.getElementById("aiIntro").textContent.includes("app de escritorio")));
+    await s.close();
+  }
+
   await browser.close();
   fs.writeFileSync(path.join(OUT, "log.txt"), log.join("\n"));
   if (log.some(l => /^FAIL|PAGEERROR|Content Security Policy/.test(l))) process.exitCode = 1;

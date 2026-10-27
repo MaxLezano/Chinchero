@@ -39,8 +39,49 @@ async function launch() {
   return { proc, browser, page };
 }
 
+// Proveedor de IA simulado: imita las API de Ollama y de Gemini y guarda los pedidos para revisarlos
+const AI_KEY = "AIzaPrueba_0123456789abcdefghijklmnopqr";
+const aiReqs = [];
+function fakeAI() {
+  const http = require("http");
+  const send = (res, code, obj) => { res.writeHead(code, { "content-type": "application/json" }); res.end(JSON.stringify(obj)); };
+  const srv = http.createServer((req, res) => {
+    let body = "";
+    req.on("data", c => body += c);
+    req.on("end", () => {
+      const r = { method: req.method, url: req.url, key: req.headers["x-goog-api-key"], body: body ? JSON.parse(body) : null };
+      aiReqs.push(r);
+      if (req.url === "/api/tags") return send(res, 200, { models: [{ name: "llama-prueba" }] });
+      if (req.url === "/api/chat") {
+        // Respuesta envuelta en ```json como hacen algunos modelos pequeños, con una acción sobre un id que no existe
+        const acciones = [
+          { op: "crear", ref: "n1", tipo: "nota", texto: "Idea <b>uno</b>", color: "verde" },
+          { op: "crear", ref: "l1", tipo: "lista", titulo: "Tareas IA", tareas: ["Primera", "Segunda"], cerca: "n1" },
+          { op: "unir", a: "n1", b: "l1", etiqueta: "relación" },
+          { op: "borrar", id: "no-existe" },
+        ];
+        return send(res, 200, { message: { role: "assistant", content: "```json\n" + JSON.stringify({ respuesta: "Creé una idea y una lista.", acciones }) + "\n```" } });
+      }
+      if (r.key !== AI_KEY) return send(res, 403, { error: { message: "API key not valid" } });
+      if (req.url.startsWith("/v1beta/models?")) return send(res, 200, { models: [
+        { name: "models/gemini-flash-latest", supportedGenerationMethods: ["generateContent"] },
+        { name: "models/gemini-prueba-pro", supportedGenerationMethods: ["generateContent"] },
+        { name: "models/text-embedding-004", supportedGenerationMethods: ["embedContent"] },
+      ] });
+      if (/^\/v1beta\/models\/[\w.-]+:generateContent$/.test(req.url)) {
+        if (r.body.contents.at(-1).parts[0].text.includes("Pedido: cupo")) return send(res, 429, { error: { message: "quota" } });
+        return send(res, 200, { candidates: [{ content: { parts: [{ text: JSON.stringify({ respuesta: "Hola desde Gemini", acciones: [] }) }] } }] });
+      }
+      send(res, 404, {});
+    });
+  });
+  return new Promise(r => srv.listen(0, "127.0.0.1", () => r(srv)));
+}
+
 delete process.env.ELECTRON_RUN_AS_NODE;
 (async () => {
+  const aiSrv = await fakeAI();
+  ENV.CHINCHERO_OLLAMA_URL = ENV.CHINCHERO_GEMINI_URL = `http://127.0.0.1:${aiSrv.address().port}`;
   // 1) Primer inicio → Bienvenida
   let { proc, browser, page } = await launch();
   // Espera (hasta 4 s) un toast con ese texto: leerlo una sola vez fallaba a veces si tardaba un poco más
@@ -262,10 +303,72 @@ delete process.env.ELECTRON_RUN_AS_NODE;
       png: await rejects(c.exportPng("no son bytes", "x")),
       pdf: await rejects(c.exportPdf([{ png: new Uint8Array(1), w: 1 }], "x")),
       imp: await rejects(c.importBoard("C:\\Windows\\win.ini")),
+      aiProv: await rejects(c.ai.config({ provider: "otro" })),
+      aiOn: await rejects(c.ai.config({ enabled: "sí" })),
+      aiExtra: await rejects(c.ai.config({ url: "http://evil" })),
+      aiKey: await rejects(c.ai.setKey(123)),
+      aiModels: await rejects(c.ai.models("otro")),
+      aiEmpty: await rejects(c.ai.chat({ messages: [], board: "{}" })),
+      aiRole: await rejects(c.ai.chat({ messages: [{ role: "system", text: "x" }], board: "{}" })),
     };
   });
   ok("IPC: argumentos no válidos se rechazan", Object.values(ipc).every(Boolean), JSON.stringify(ipc));
   ok("IPC: el tablero sigue intacto tras los rechazos", fs.existsSync(path.join(DATA, "library.json")) && !fs.existsSync(path.join(TMP, "fuera.json")));
+
+  // 9) Asistente con IA (proveedor simulado): desactivado de fábrica, Ollama, Gemini con la clave del portapapeles
+  await page.goto(page.url().replace(/02-tablero\.html.*/, "03-ajustes.html")); await sleep(800);
+  ok("IA: desactivada de fábrica", await page.evaluate(() => !document.getElementById("aiOn").checked && !window.chinchero.ai.status().enabled && document.querySelector("#asistente [data-ai]").hidden));
+  await page.click("#aiOn + span"); await sleep(1000);
+  ok("IA: al activarla usa Ollama y encuentra sus modelos", await page.evaluate(() => {
+    const st = window.chinchero.ai.status();
+    return st.enabled && st.provider === "ollama" && document.getElementById("aiOllama").textContent.includes("1 modelo") && [...document.querySelectorAll("#aiModel option")].some(o => o.value === "llama-prueba");
+  }), await page.evaluate(() => document.getElementById("aiOllama").textContent));
+  await page.screenshot({ path: `${SHOTS}/a8-ajustes-ia.png` });
+  await page.goto(page.url().replace(/03-ajustes\.html.*/, "02-tablero.html?board=" + boardId)); await sleep(1200);
+  const count = () => page.evaluate(() => ({ items: document.querySelectorAll("#items .item").length, threads: document.querySelectorAll("#threadLayer .th").length }));
+  const before = await count();
+  await page.click("#aiBtn"); await sleep(300);
+  await page.type("#aiInput", "Dame ideas"); await page.keyboard.press("Enter");
+  await page.waitForSelector(".ai-msg.assistant", { timeout: 8000 }).catch(() => {});
+  await sleep(500);
+  const after = await count();
+  const chatReq = aiReqs.find(r => r.url === "/api/chat");
+  ok("IA: Ollama recibe la hoja y el pedido", !!chatReq && chatReq.body.model === "llama-prueba" && chatReq.body.format === "json" && chatReq.body.messages[0].role === "system"
+    && chatReq.body.messages.at(-1).content.includes("Pedido: Dame ideas") && chatReq.body.messages.at(-1).content.includes("Nota guardada en disco"));
+  ok("IA: aplica las acciones (nota, lista e hilo) y avisa", after.items === before.items + 2 && after.threads === before.threads + 1
+    && await page.evaluate(() => document.querySelector(".ai-msg.assistant").textContent.includes("3 cambios")), JSON.stringify({ before, after }));
+  ok("IA: el texto del modelo no se interpreta como HTML", await page.evaluate(() => [...document.querySelectorAll(".t-note .txt")].some(e => e.innerHTML.includes("&lt;b&gt;uno"))));
+  await page.screenshot({ path: `${SHOTS}/a9-asistente.png` });
+  await page.click(".ai-did button"); await sleep(400);
+  ok("IA: «Deshacer» quita todo lo que hizo de una vez", JSON.stringify(await count()) === JSON.stringify(before));
+
+  // Gemini: la clave copiada se detecta, se guarda cifrada y nunca llega a la pantalla ni a la carpeta de datos
+  await page.evaluate(() => window.chinchero.ai.config({ provider: "gemini" }));
+  await page.goto(page.url().replace(/02-tablero\.html.*/, "03-ajustes.html")); await sleep(1000);
+  // Se copia desde la página (sin lanzar otros programas) y se vuelve a enfocar la ventana, como al volver del navegador
+  await page.evaluate(k => { const t = document.createElement("textarea"); t.value = k; document.body.append(t); t.select(); document.execCommand("copy"); t.remove(); window.dispatchEvent(new Event("focus")); }, AI_KEY);
+  await sleep(600);
+  ok("IA: detecta la clave de Gemini copiada", await page.evaluate(k => !document.getElementById("aiFound").hidden && document.getElementById("aiFoundTxt").textContent.includes(k.slice(-4)), AI_KEY));
+  await page.evaluate(() => document.getElementById("aiUseClip").click()); await sleep(1000);
+  const aiSt = await page.evaluate(() => window.chinchero.ai.status());
+  const cfgTxt = fs.readFileSync(path.join(TMP, "user", "config.json"), "utf8");
+  const files = d => fs.readdirSync(d, { withFileTypes: true }).flatMap(f => f.isDirectory() ? files(path.join(d, f.name)) : [path.join(d, f.name)]);
+  const leaks = files(DATA).filter(f => fs.readFileSync(f).includes(AI_KEY));
+  ok("IA: la clave se guarda cifrada y fuera de los tableros", aiSt.hasKey && aiSt.keyHint === "…" + AI_KEY.slice(-4) && !JSON.stringify(aiSt).includes(AI_KEY) && cfgTxt.includes("aiKey") && !cfgTxt.includes(AI_KEY) && !leaks.length, leaks.join(","));
+  ok("IA: lista los modelos de Gemini que sirven para chatear", await page.evaluate(() => { const o = [...document.querySelectorAll("#aiModel option")].map(o => o.value); return o.includes("gemini-prueba-pro") && !o.includes("text-embedding-004"); }));
+  await page.goto(page.url().replace(/03-ajustes\.html.*/, "02-tablero.html?board=" + boardId)); await sleep(1200);
+  await page.click("#aiBtn"); await sleep(300);
+  ok("IA: con Gemini se avisa que el texto sale del equipo", await page.evaluate(() => document.getElementById("aiPrivacy").textContent.includes("Google")));
+  await page.type("#aiInput", "Hola"); await page.keyboard.press("Enter");
+  await page.waitForFunction(() => [...document.querySelectorAll(".ai-msg.assistant")].some(e => e.textContent.includes("Gemini")), { timeout: 8000 }).catch(() => {});
+  const gReq = aiReqs.find(r => r.url.includes(":generateContent"));
+  ok("IA: Gemini responde con la clave guardada", !!gReq && gReq.key === AI_KEY && gReq.url.includes("gemini-flash-latest") && gReq.body.generationConfig.responseMimeType === "application/json"
+    && await page.evaluate(() => [...document.querySelectorAll(".ai-msg.assistant")].some(e => e.textContent.includes("Hola desde Gemini"))));
+  await page.type("#aiInput", "cupo"); await page.keyboard.press("Enter");
+  await page.waitForSelector(".ai-msg.error", { timeout: 8000 }).catch(() => {});
+  ok("IA: sin cupo gratis se explica qué pasa", await page.evaluate(() => document.querySelector(".ai-msg.error")?.textContent.includes("cupo")));
+  ok("IA: una clave con otro formato no se acepta", await page.evaluate(() => window.chinchero.ai.setKey("no-es-una-clave")) === false);
+  aiSrv.close();
 
   fs.copyFileSync(shareFile, path.join(TMP, "doble-clic.chinchero"));
   spawn(ELECTRON, [APP, path.join(TMP, "doble-clic.chinchero")], { env: ENV, stdio: "ignore" });

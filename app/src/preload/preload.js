@@ -41,4 +41,15 @@ contextBridge.exposeInMainWorld("chinchero", {
   checkUpdates: () => ipcRenderer.invoke("update:check"),
   installUpdate: () => ipcRenderer.invoke("update:install"),
   onUpdate: cb => ipcRenderer.on("update", (e, payload) => cb(payload)),
+
+  // Asistente con IA: la clave se guarda o se toma del portapapeles en el proceso principal; aquí solo llega una pista
+  ai: {
+    status: () => ipcRenderer.sendSync("ai:status"),
+    config: patch => ipcRenderer.invoke("ai:config", patch),
+    setKey: key => ipcRenderer.invoke("ai:setKey", key),
+    detectKey: () => ipcRenderer.invoke("ai:detectKey"),
+    saveClipboardKey: () => ipcRenderer.invoke("ai:saveClipboardKey"),
+    models: provider => ipcRenderer.invoke("ai:models", provider),
+    chat: req => ipcRenderer.invoke("ai:chat", req),
+  },
 });

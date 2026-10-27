@@ -5,6 +5,7 @@ const os = require("os");
 const { pathToFileURL } = require("url");
 const store = require("./store");
 const updater = require("./updater");
+const ai = require("./ai");
 
 const RENDERER = path.join(__dirname, "..", "renderer");
 // Las pantallas se sirven con un esquema propio (no file://): así file:// no necesita privilegios extra para leer el asar
@@ -292,6 +293,19 @@ handle("export:pdf", (pages, name) => Array.isArray(pages) && pages.length > 0 &
     fs.rmSync(tmp, { recursive: true, force: true });
   }
 });
+
+// Asistente con IA (ver ai.js): la clave nunca vuelve a la pantalla
+const AI_PROVIDERS = ["ollama", "gemini"];
+onSync("ai:status", none, e => { e.returnValue = ai.status(); });
+handle("ai:config", p => is.obj(p) && Object.keys(p).every(k => ["enabled", "provider", "model"].includes(k))
+  && (p.enabled === undefined || typeof p.enabled === "boolean") && (p.provider === undefined || AI_PROVIDERS.includes(p.provider))
+  && (p.model === undefined || (is.str(p.model, 100) && /^[\w.:/-]*$/.test(p.model))), (e, p) => ai.setConfig(p));
+handle("ai:setKey", k => k === null || is.str(k, 100), (e, k) => ai.setKey(k && k.trim()));
+handle("ai:detectKey", none, () => ai.detectKey());
+handle("ai:saveClipboardKey", none, () => ai.saveClipboardKey());
+handle("ai:models", p => AI_PROVIDERS.includes(p), (e, p) => ai.models(p));
+handle("ai:chat", r => is.obj(r) && is.str(r.board, 200000) && Array.isArray(r.messages) && r.messages.length > 0 && r.messages.length <= 40
+  && r.messages.every(m => is.obj(m) && (m.role === "user" || m.role === "assistant") && is.str(m.text, 8000)), (e, r) => ai.chat(r));
 
 handle("update:check", none, () => updater.check(true));
 handle("update:install", none, () => updater.install());

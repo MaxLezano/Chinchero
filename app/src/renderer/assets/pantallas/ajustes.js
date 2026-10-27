@@ -107,6 +107,7 @@ Tour.define("settings", [
   { el: null, title: "Ajustes", text: "Aquí personalizas Chinchero. Todo se guarda al instante, no hay botón Guardar." },
   { el: "#apariencia", before: scrollTo("#apariencia"), place: "right", title: "Apariencia", text: "Tema claro u oscuro, color de los hilos, letra de las notas y sonidos. La vista previa cambia mientras eliges." },
   { el: "#tablero", before: scrollTo("#tablero"), place: "right", title: "Comportamiento del tablero", text: "El fondo para hojas nuevas, si los elementos aparecen un poco girados y si se alinean a la cuadrícula." },
+  { el: "#asistente", before: scrollTo("#asistente"), place: "right", title: "Asistente con IA", text: "Viene apagado. Si lo activas, cada tablero tiene un chat que propone ideas, resume y ordena la hoja. Con <b>Ollama</b> todo queda en tu PC; con <b>Gemini</b> usas una clave gratuita de Google." },
   { el: "#datos", before: scrollTo("#datos"), place: "right", title: "Tus datos son tuyos", text: "Todo vive en esta carpeta, imágenes incluidas. Haz una <b>copia de seguridad</b> (.zip) de vez en cuando y recupérala con <b>Restaurar copia</b>, o abre la carpeta desde otro equipo con <b>Abrir datos existentes</b>." },
   { el: "#ayuda", before: scrollTo("#ayuda"), place: "right", title: "Tutoriales y sugerencias", text: "Si ya conoces la app, desactívalos. Si quieres repasar, reinícialos." },
 ]);

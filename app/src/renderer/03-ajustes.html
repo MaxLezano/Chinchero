@@ -67,6 +67,12 @@
   .vol input { width: 160px; accent-color: var(--accent); }
   .vol output { width: 34px; text-align: right; font-size: 12px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
   .row.off { opacity: .5; }
+  .row[hidden], .btn[hidden] { display: none; }
+  .ai-select { font: 13px var(--font); color: var(--text); background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px; max-width: 240px; }
+  .ai-key { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+  .ai-key input { flex: 1; min-width: 160px; font: 13px var(--font); color: var(--text); background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; }
+  .ai-found { margin-top: 8px; padding: 10px 12px; border-radius: 8px; background: var(--accent-soft); display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 13px; }
+  .ai-found[hidden] { display: none; }
   .about { display: flex; gap: 16px; align-items: center; padding: 20px; }
   .about .brand-mark { width: 48px; height: 48px; border-radius: 12px; position: relative; flex: none; }
   .about small { color: var(--text-muted); }
@@ -85,7 +91,7 @@
   <div class="topbar"><h1>Ajustes</h1></div>
   <div class="layout">
   <nav class="tabs" aria-label="Secciones">
-    <a href="#apariencia">Apariencia</a><a href="#tablero">Tablero</a><a href="#datos">Datos</a><a href="#ayuda">Ayuda</a><a href="#atajos">Atajos</a><a href="#acerca">Acerca de</a>
+    <a href="#apariencia">Apariencia</a><a href="#tablero">Tablero</a><a href="#asistente">Asistente</a><a href="#datos">Datos</a><a href="#ayuda">Ayuda</a><a href="#atajos">Atajos</a><a href="#acerca">Acerca de</a>
   </nav>
 
   <div class="content">
@@ -149,6 +155,33 @@
       <div class="row">
         <div class="txt"><b>Abrir el último tablero al iniciar</b></div>
         <label class="switch"><input type="checkbox" data-pref="lastboard" data-default="1" aria-label="Abrir el último tablero al iniciar"><span></span></label>
+      </div>
+    </section>
+
+    <section id="asistente">
+      <h2>Asistente con IA</h2>
+      <div class="row">
+        <div class="txt"><b>Activar el asistente</b><small id="aiIntro">Un chat en cada tablero que propone ideas, resume, ordena la hoja en zonas y crea notas, listas e hilos. Es gratis y viene desactivado.</small></div>
+        <label class="switch"><input type="checkbox" id="aiOn" aria-label="Activar el asistente con IA"><span></span></label>
+      </div>
+      <div class="row" data-ai>
+        <div class="txt"><b>Proveedor</b><small id="aiProvHelp"></small></div>
+        <div class="seg" id="aiProvider"><button data-v="ollama">Ollama (en tu PC)</button><button data-v="gemini">Gemini (Google)</button></div>
+      </div>
+      <div class="row" data-ai data-for="ollama">
+        <div class="txt"><b>Ollama</b><small id="aiOllama">Buscando Ollama en tu PC…</small></div>
+        <div class="btns"><button class="btn" id="aiOllamaGet">Descargar Ollama</button></div>
+      </div>
+      <div class="row" data-ai data-for="gemini">
+        <div class="txt"><b>Clave de Gemini</b><small id="aiKeyState"></small>
+          <div class="ai-found" id="aiFound" role="status" hidden><span id="aiFoundTxt"></span><button class="btn btn-primary" id="aiUseClip">Usar esta clave</button></div>
+          <div class="ai-key"><input type="password" id="aiKeyInput" placeholder="O pégala aquí (empieza por AIza…)" aria-label="Clave de Gemini" autocomplete="off" spellcheck="false"><button class="btn" id="aiKeySave">Guardar</button></div>
+        </div>
+        <div class="btns"><button class="btn btn-primary" id="aiGetKey">Obtener clave</button><button class="btn" id="aiDelKey">Quitar</button></div>
+      </div>
+      <div class="row" data-ai>
+        <div class="txt"><b>Modelo</b><small id="aiModelHelp"></small></div>
+        <select class="ai-select" id="aiModel" aria-label="Modelo"></select>
       </div>
     </section>
 
@@ -235,5 +268,6 @@
 <script src="assets/pantallas/ajustes.js"></script>
 <script src="assets/pantallas/ajustes-opciones.js"></script>
 <script src="assets/pantallas/ajustes-atajos.js"></script>
+<script src="assets/pantallas/ajustes-asistente.js"></script>
 </body>
 </html>

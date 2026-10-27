@@ -1792,6 +1792,7 @@
     m.push({ label: "Duplicar", kbd: Keys.label("duplicate"), action: duplicateSel }, "-",
       { label: "Traer al frente", kbd: Keys.label("front"), action: () => restack(1) },
       { label: "Enviar al fondo", kbd: Keys.label("back"), action: () => restack(-1) });
+    if (window.Asistente?.enabled()) m.push("-", { label: "Ideas relacionadas (IA)", action: () => Asistente.ideas() });
     if (its.some(o => o.rot)) m.push({ label: "Enderezar", action: () => mutate(() => its.forEach(o => o.rot = 0)) });
     if (it && PINNABLE.has(it.type)) {
       const toPin = it.fix !== "pin";
@@ -2414,6 +2415,7 @@
       ...doc.sheets.map((s, i) => ({ icon: "📄", label: `Ir a la hoja «${s.name}»`, sub: i === doc.active ? "actual" : "", run: () => switchSheet(i) })),
       { icon: "➕", label: "Nueva hoja", sub: "", run: addSheet },
       { icon: "📅", label: "Nueva hoja con plantilla Semana", sub: "", run: addWeekSheet },
+      { icon: "✨", label: "Asistente con IA", sub: "", run: () => Asistente.open() },
       { icon: "🔍", label: "Ajustar a la vista", sub: Keys.label("fit"), run: fit },
       { icon: "🌗", label: "Cambiar tema claro/oscuro", sub: "", run: () => toggleTheme() },
       { icon: "⌨️", label: "Ver atajos de teclado", sub: Keys.label("shortcuts"), run: () => showShortcuts(shortcutGroups()) },
@@ -2452,6 +2454,143 @@
   });
   cmdkList.addEventListener("click", e => { const li = e.target.closest("li[data-k]"); if (li) runCmdk(+li.dataset.k); });
   cmdk.addEventListener("click", e => { if (e.target === cmdk) closeCmdk(); });
+
+  /* ---------- Asistente con IA: la hoja para el modelo y sus acciones (el panel está en asistente.js) ---------- */
+  const AI_TYPES = { nota: "note", ficha: "card", lista: "list", texto: "text", zona: "zone", sello: "stamp" };
+  const AI_NAMES = { ...Object.fromEntries(Object.entries(AI_TYPES).map(([k, v]) => [v, k])), photo: "foto", link: "enlace", file: "archivo", sticker: "sticker", draw: "dibujo" };
+  const AI_NOTE = { amarillo: "yellow", azul: "blue", rosa: "pink", verde: "green", violeta: "purple", naranja: "orange", blanco: "white" };
+  const AI_HEX = {
+    zone: { azul: "#4dabf7", rosa: "#f783ac", verde: "#69db7c", naranja: "#ffa94d", violeta: "#9775fa", gris: "#868e96" },
+    stamp: { rojo: "#e03131", verde: "#2f9e44", azul: "#1c7ed6", naranja: "#f08c00", violeta: "#7048e8", gris: "#495057" },
+  };
+  const aiNoteName = Object.fromEntries(Object.entries(AI_NOTE).map(([k, v]) => [v, k]));
+  const aiStr = (v, max = 500) => typeof v === "string" ? v.trim().slice(0, max) : "";
+  const aiRich = v => esc(aiStr(v, 1000)).replace(/\n/g, "<br>"); // el texto de notas y fichas se pinta como HTML
+
+  function boardForAI() {
+    const s = sheet();
+    const elementos = s.items.slice(-200).map(o => {
+      const r = itemRect(o);
+      return { id: o.id, tipo: AI_NAMES[o.type] || o.type, texto: (itemText(o) || "").slice(0, 300), x: Math.round(o.x), y: Math.round(o.y), w: Math.round(r.w), h: Math.round(r.h), ...(o.type === "note" && { color: aiNoteName[o.color] }) };
+    });
+    return JSON.stringify({ hoja: s.name, elementos, hilos: s.threads.map(t => ({ a: t.a, b: t.b, ...(t.label && { etiqueta: t.label }) })), seleccion: selection });
+  }
+
+  // Aplica lo que pidió el modelo como un solo cambio (un Ctrl+Z lo deshace entero). Lo que no se entiende se ignora.
+  // Devuelve cuántos cambios hizo.
+  function applyAI(actions) {
+    const sh = sheet(), refs = new Map(), made = [], tilt = getPref("tilt") !== "0";
+    const find = k => typeof k === "string" ? refs.get(k) || sh.items.find(o => o.id === k) : null;
+    let changes = 0;
+    const before = snapshot();
+    // Hueco libre: columnas a la derecha de lo que ya hay (o en el centro de la vista si la hoja está vacía)
+    const rs = sh.items.map(itemRect);
+    const free = rs.length ? { x: Math.max(...rs.map(r => r.x + r.w)) + 100, y: Math.min(...rs.map(r => r.y)) } : viewCenter();
+    let freeN = 0;
+    const nearN = new Map();
+    // Los creados aquí aún no se dibujaron: se estima su tamaño
+    const rectOf = o => elOf(o.id) ? itemRect(o) : { x: o.x, y: o.y, w: o.w || 200, h: o.type === "list" ? 60 + 28 * o.tasks.length : o.h || 170 };
+    const busy = (x, y, w, h) => sh.items.some(o => {
+      if (o.type === "zone") return false;
+      const r = rectOf(o);
+      return x < r.x + r.w + 30 && x + w + 30 > r.x && y < r.y + r.h + 30 && y + h + 30 > r.y;
+    });
+    // Junto a otro elemento (alrededor, cada vez más lejos) o en la siguiente casilla libre; se salta lo ocupado
+    const place = (it, near) => {
+      const { w, h } = rectOf(it);
+      for (let tries = 0; tries < 40; tries++) {
+        let x, y;
+        if (near) {
+          const r = rectOf(near), k = nearN.get(near.id) || 0;
+          const ring = [[1, 0], [0, 1], [-1, 0], [0, -1], [1, 1], [-1, 1], [1, -1], [-1, -1]][k % 8], far = 1 + Math.floor(k / 8);
+          nearN.set(near.id, k + 1);
+          x = r.x + ring[0] * (r.w + 80) * far;
+          y = r.y + ring[1] * (Math.max(r.h, 170) + 70) * far;
+        } else {
+          x = free.x + (freeN % 3) * 280;
+          y = free.y + Math.floor(freeN / 3) * 260;
+          freeN++;
+        }
+        it.x = Math.round(x); it.y = Math.round(y);
+        if (!busy(x, y, w, h)) return;
+      }
+    };
+    const setFields = (it, a) => {
+      if (a.texto != null && ["note", "card"].includes(it.type)) it.text = aiRich(a.texto);
+      if (a.texto != null && it.type === "text") it.text = aiStr(a.texto, 120) || it.text;
+      if (a.texto != null && it.type === "stamp") it.text = aiStr(a.texto, 24).toUpperCase() || it.text;
+      if (a.titulo != null && ["card", "list", "zone"].includes(it.type)) it.title = aiStr(a.titulo, 120);
+      if (Array.isArray(a.tareas) && it.type === "list") it.tasks = a.tareas.slice(0, 30).map(t => ({ text: aiStr(typeof t === "string" ? t : t?.texto, 200), done: !!t?.hecha }));
+      if (a.color != null) {
+        const c = aiStr(a.color, 20).toLowerCase();
+        if (it.type === "note" && (AI_NOTE[c] || NOTE_COLORS[c])) it.color = AI_NOTE[c] || c;
+        if (AI_HEX[it.type]?.[c]) it.color = AI_HEX[it.type][c];
+      }
+    };
+    for (const a of actions) {
+      if (!a || typeof a !== "object") continue;
+      if (a.op === "crear" && AI_TYPES[a.tipo]) {
+        const type = AI_TYPES[a.tipo], it = mk(type, 0, 0);
+        if (type === "list") it.tasks = [];
+        setFields(it, a);
+        if (type === "list" && !it.tasks.length) it.tasks = [{ text: "", done: false }];
+        it.rot = type === "zone" ? 0 : type === "stamp" ? (tilt ? rand(-14, 14) : 0) : tilt ? rand(-3.5, 3.5) : 0;
+        it.pin.color = getPref("lastPin") || "#e03131";
+        place(it, find(a.cerca));
+        sh.items.push(it); made.push(it); changes++;
+        if (typeof a.ref === "string") refs.set(a.ref, it);
+      } else if (a.op === "unir") {
+        const x = find(a.a), y = find(a.b);
+        if (!x || !y || x === y || x.fix !== "pin" || y.fix !== "pin") continue;
+        if (sh.threads.some(t => (t.a === x.id && t.b === y.id) || (t.a === y.id && t.b === x.id))) continue;
+        sh.threads.push(th(x, y, { label: aiStr(a.etiqueta, 40) })); changes++;
+      } else if (a.op === "editar") {
+        const it = find(a.id);
+        if (!it || it.locked) continue;
+        setFields(it, a); changes++;
+      } else if (a.op === "mover") {
+        const it = find(a.id);
+        if (!it || it.locked || !Number.isFinite(a.x) || !Number.isFinite(a.y)) continue;
+        it.x = Math.round(clamp(a.x, -1e4, 1e5)); it.y = Math.round(clamp(a.y, -1e4, 1e5)); changes++;
+      } else if (a.op === "agrupar" && Array.isArray(a.ids)) {
+        render(); // los recién creados necesitan su tamaño real
+        const its = [...new Set(a.ids.map(find))].filter(o => o && o.type !== "zone" && !o.locked);
+        if (!its.length) continue;
+        const sz = its.map(itemRect), cols = Math.ceil(Math.sqrt(its.length));
+        const cw = Math.max(...sz.map(r => r.w)) + 30, rh = Math.max(...sz.map(r => r.h)) + 30;
+        const x0 = Math.min(...sz.map(r => r.x)), y0 = Math.min(...sz.map(r => r.y));
+        its.forEach((o, i) => { o.x = x0 + 40 + (i % cols) * cw; o.y = y0 + 56 + Math.floor(i / cols) * rh; });
+        const z = mk("zone", x0, y0, { w: cols * cw + 50, h: Math.ceil(its.length / cols) * rh + 76, title: aiStr(a.titulo, 120) || "Zona", color: AI_HEX.zone[aiStr(a.color).toLowerCase()] || ZONE_COLORS[zZoneTop % ZONE_COLORS.length] });
+        sh.items.push(z); made.push(z); changes++;
+      } else if (a.op === "borrar") {
+        const it = find(a.id);
+        if (!it || it.locked) continue;
+        sh.items = sh.items.filter(o => o !== it);
+        sh.threads = sh.threads.filter(t => t.a !== it.id && t.b !== it.id); changes++;
+      }
+    }
+    if (!changes) return 0;
+    undoStack.push(before);
+    if (undoStack.length > 200) undoStack.shift();
+    redoStack.length = 0;
+    updateUndoButtons();
+    render(); saved();
+    const shown = made.filter(o => sh.items.includes(o));
+    if (shown.length) {
+      setSel(shown.filter(o => o.type !== "zone").map(o => o.id));
+      // Si lo nuevo quedó fuera de la vista, se lleva la vista hasta ahí
+      const r = itemRect(shown[0]), v = viewport.getBoundingClientRect(), right = document.body.classList.contains("ai-open") ? 400 : 100;
+      const sx = r.x * view.z + view.x, sy = r.y * view.z + view.y;
+      if (sx < 0 || sy < 0 || sx > v.width - right || sy > v.height - 100) centerOn(shown[0]);
+      Sound.play("pin");
+    }
+    return changes;
+  }
+  window.Editor = {
+    boardForAI, applyAI, undo,
+    // Texto de los elementos elegidos, para los pedidos rápidos del asistente
+    selected: () => selection.map(byId).filter(Boolean).map(describe),
+  };
 
   /* ---------- Hoja vacía: sugerencias para empezar ---------- */
   $("#canvasEmpty").addEventListener("click", e => {
