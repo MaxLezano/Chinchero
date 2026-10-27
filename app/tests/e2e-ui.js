@@ -669,6 +669,53 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     await q.close();
   }
 
+  // Asistente con IA: hojas, zonas con su contenido, stickers y el registro de lo hecho para el historial
+  {
+    const p = await open("02-tablero.html?template=blank&name=IA-hojas", { prefs: NO_TOURS });
+    const r = await p.evaluate(() => {
+      const did = [];
+      const n = Editor.applyAI([
+        { op: "crear", tipo: "texto", texto: "Cuentas del local" },
+        { op: "crear", ref: "m1", tipo: "ficha", titulo: "Mesa 1", texto: "Total: $45" },
+        { op: "crear", ref: "m2", tipo: "ficha", titulo: "Mesa 2", texto: "Total: $30" },
+        { op: "crear", ref: "l", tipo: "lista", titulo: "Cobros", tareas: ["Mesa 1", "Mesa 2"] },
+        { op: "crear", ref: "z1", tipo: "zona", titulo: "Mesas", dentro: ["m1", "m2"] },
+        { op: "crear", ref: "z2", tipo: "zona", titulo: "Caja", dentro: ["l"] },
+        { op: "crear", tipo: "zona", titulo: "Vacía" }, { op: "crear", tipo: "zona", titulo: "Extra", dentro: [{ tipo: "nota", texto: "Escrita dentro" }] },
+        { op: "crear", tipo: "sticker", emoji: "🐴" }, { op: "crear", tipo: "sticker", emoji: "<b>x</b>" },
+      ], did);
+      const zones = [...document.querySelectorAll(".t-zone")].map(z => ({ t: z.textContent, r: z.getBoundingClientRect() }));
+      const inZone = (el, t) => { const z = zones.find(z => z.t === t).r, b = el.getBoundingClientRect(); return b.left >= z.left && b.right <= z.right && b.top >= z.top && b.bottom <= z.bottom + 4; };
+      const [a, b] = zones.filter(z => z.t !== "Vacía").map(z => z.r);
+      return {
+        n, did, zones: zones.map(z => z.t), stickers: [...document.querySelectorAll(".t-sticker")].map(e => e.textContent),
+        inside: [...document.querySelectorAll(".t-card")].every(c => inZone(c, "Mesas")) && inZone(document.querySelector(".t-list"), "Caja"),
+        apart: !!a && !!b && (a.right <= b.left || b.right <= a.left || a.bottom <= b.top || b.bottom <= a.top),
+      };
+    });
+    ok("IA: las zonas se arman con su contenido y no se pisan", r.zones.includes("Mesas") && r.zones.includes("Caja") && r.inside && r.apart, JSON.stringify(r));
+    ok("IA: una zona con el elemento escrito dentro lo crea", await p.evaluate(() => [...document.querySelectorAll(".t-note .txt")].some(e => e.textContent === "Escrita dentro") && [...document.querySelectorAll(".t-zone")].some(z => z.textContent === "Extra")));
+    ok("IA: stickers solo con emoji", r.stickers.includes("🐴") && !r.stickers.some(s => s.includes("x")), JSON.stringify(r.stickers));
+    ok("IA: deja registro de lo que hizo, con ids", r.did.some(d => /^creé ficha e\d+ «Mesa 1/.test(d)) && r.did.some(d => d.startsWith("creé zona")), JSON.stringify(r.did));
+    const h = await p.evaluate(() => {
+      const ids = JSON.parse(Editor.boardForAI()).elementos.filter(e => e.tipo === "ficha").map(e => e.id), did = [];
+      const n = Editor.applyAI([{ op: "hoja", nombre: "Pagos", nueva: true, llevar: ids }, { op: "crear", tipo: "nota", texto: "Revisar propinas" }], did);
+      const b = JSON.parse(Editor.boardForAI());
+      return { n, did, hoja: b.hoja, hojas: b.hojas, tipos: b.elementos.map(e => e.tipo).sort().join(","), tab: document.querySelector(".sheet.active")?.textContent || "" };
+    });
+    ok("IA: crea una hoja, lleva elementos y sigue trabajando en ella", h.hoja === "Pagos" && h.hojas.length === 2 && h.tipos === "ficha,ficha,nota" && h.tab.includes("Pagos") && h.did.some(d => d.startsWith("llevé")), JSON.stringify(h));
+    const back = await p.evaluate(() => {
+      const before = JSON.parse(Editor.boardForAI()).elementos.length;
+      Editor.applyAI([{ op: "hoja", nombre: "Hoja 1" }, { op: "crear", tipo: "nota", texto: "De vuelta" }]);
+      const b = JSON.parse(Editor.boardForAI());
+      return { before, hoja: b.hoja, sinFichas: !b.elementos.some(e => e.tipo === "ficha"), nota: b.elementos.some(e => e.texto === "De vuelta") };
+    });
+    ok("IA: va a una hoja que ya existe por su nombre", back.hoja === "Hoja 1" && back.sinFichas && back.nota, JSON.stringify(back));
+    await p.keyboard.down("Control"); await p.keyboard.press("z"); await p.keyboard.press("z"); await p.keyboard.up("Control"); await sleep(300);
+    ok("IA: deshacer quita la hoja nueva y devuelve lo que se llevó", await p.evaluate(() => { const b = JSON.parse(Editor.boardForAI()); return b.hojas.length === 1 && b.elementos.filter(e => e.tipo === "ficha").length === 2; }));
+    await p.close();
+  }
+
   // Asistente con IA: sin la app de escritorio no se puede usar; las acciones del modelo se aplican con cuidado
   {
     const p = await open("02-tablero.html?template=blank&name=IA", { prefs: NO_TOURS });

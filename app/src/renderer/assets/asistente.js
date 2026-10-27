@@ -33,7 +33,7 @@
       off: "El asistente está desactivado. Actívalo en Ajustes.",
       nokey: "Falta la clave de Gemini. Ve a Ajustes → Asistente con IA.",
       nomodel: "Ollama no tiene ningún modelo instalado. Descarga uno en Ajustes → Asistente con IA.",
-      offline: local ? "No se pudo conectar con Ollama. ¿Está abierto en tu PC?" : "No se pudo conectar con Google. Revisa tu conexión a internet.",
+      offline: local ? "No se pudo poner en marcha Ollama. Revísalo en Ajustes → Asistente con IA." : "No se pudo conectar con Google. Revisa tu conexión a internet.",
       timeout: "El modelo tardó demasiado en responder. Prueba de nuevo o con un pedido más corto.",
       400: "Google rechazó el pedido: revisa la clave y el modelo en Ajustes.",
       403: "La clave de Gemini no es válida o no tiene permiso. Revísala en Ajustes.",
@@ -99,7 +99,7 @@
       if (!ai) bubble("info", "El asistente está disponible en la app de escritorio.");
       else if (!st.enabled) bubble("info", `El asistente con IA viene desactivado. Lo más fácil es <b>Gemini</b> de Google, gratis y sin instalar nada: en Ajustes te guiamos paso a paso. Si prefieres usarlo sin internet, Chinchero puede instalar <b>Ollama</b>. ${settingsLink}`);
       else if (!ready) bubble("info", `Falta la clave de Gemini. ${settingsLink}`);
-      else if (!msgs.length) bubble("info", "Pídeme ideas, que resuma u ordene la hoja, o que convierta notas en tareas. Puedo crear notas, fichas, listas, zonas e hilos. Todo lo que haga se deshace con Ctrl+Z.");
+      else if (!msgs.length) bubble("info", "Pídeme ideas, que resuma u ordene la hoja, o que convierta notas en tareas. Puedo armar tableros completos con notas, fichas, listas, zonas, hilos y dibujos, y trabajar en otras hojas. Todo lo que haga se deshace con Ctrl+Z.");
       msgs.forEach(showMsg);
     }
     return ready;
@@ -116,7 +116,9 @@
     const wait = bubble("wait", "Pensando");
     // Un modelo saturado puede tardar casi un minuto antes de que se pruebe otro
     const slow = setTimeout(() => wait.textContent = "Está tardando más de lo normal" + (st.provider === "gemini" ? "; si no responde, probaré con otro modelo" : ""), 12000);
-    const r = await ai.chat({ messages: msgs.slice(-12).map(({ role, text }) => ({ role, text })), board: Editor.boardForAI() }).catch(() => ({ error: "fail" }));
+    // Lo que hizo cada respuesta (con ids) va junto a su texto: así el modelo sabe a qué se refiere «hazlo» o «eso»
+    const toModel = m => ({ role: m.role, text: m.did ? `${m.text}\n[${m.undone ? "Deshecho por el usuario" : "Hecho"}: ${m.did}]` : m.text });
+    const r = await ai.chat({ messages: msgs.slice(-12).map(toModel), board: Editor.boardForAI() }).catch(() => ({ error: "fail" }));
     clearTimeout(slow);
     wait.remove();
     busy = false;
@@ -124,9 +126,10 @@
       msgs.pop();
       bubble("error", esc(errorText(r.error)) + (["off", "nokey", "nomodel", "400", "403"].includes(r.error) ? " " + settingsLink : ""));
     } else {
-      const n = r.actions.length ? Editor.applyAI(r.actions) : 0;
+      const did = [];
+      const n = r.actions.length ? Editor.applyAI(r.actions, did) : 0;
       const reply = r.text || (n ? "Listo." : "No entendí el pedido. ¿Puedes decirlo de otra forma?");
-      msgs.push({ role: "assistant", text: reply, ...(n && { n }) });
+      msgs.push({ role: "assistant", text: reply, ...(n && { n, did: did.join("; ").slice(0, 1500) }) });
       const b = bubble("assistant", esc(reply));
       if (n) {
         b.insertAdjacentHTML("beforeend", `<span class="ai-did">${changes(n)} en la hoja <button data-undo="${msgs.length - 1}">Deshacer</button></span>`);

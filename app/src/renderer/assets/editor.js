@@ -2475,7 +2475,7 @@
   cmdk.addEventListener("click", e => { if (e.target === cmdk) closeCmdk(); });
 
   /* ---------- Asistente con IA: la hoja para el modelo y sus acciones (el panel está en asistente.js) ---------- */
-  const AI_TYPES = { nota: "note", ficha: "card", lista: "list", texto: "text", zona: "zone", sello: "stamp" };
+  const AI_TYPES = { nota: "note", ficha: "card", lista: "list", texto: "text", zona: "zone", sello: "stamp", sticker: "sticker" };
   const AI_NAMES = { ...Object.fromEntries(Object.entries(AI_TYPES).map(([k, v]) => [v, k])), photo: "foto", link: "enlace", file: "archivo", sticker: "sticker", draw: "dibujo" };
   const AI_NOTE = { amarillo: "yellow", azul: "blue", rosa: "pink", verde: "green", violeta: "purple", naranja: "orange", blanco: "white" };
   const AI_HEX = {
@@ -2496,7 +2496,7 @@
       const r = itemRect(o);
       return { id: o.id, tipo: AI_NAMES[o.type] || o.type, texto: (itemText(o) || "").slice(0, 300), x: Math.round(o.x), y: Math.round(o.y), w: Math.round(r.w), h: Math.round(r.h), ...(o.type === "note" && { color: aiNoteName[o.color] }) };
     });
-    return JSON.stringify({ hoja: s.name, elementos, hilos: s.threads.map(t => ({ a: t.a, b: t.b, ...(t.label && { etiqueta: t.label }) })), seleccion: selection });
+    return JSON.stringify({ hoja: s.name, hojas: doc.sheets.map(h => h.name), elementos, hilos: s.threads.map(t => ({ a: t.a, b: t.b, ...(t.label && { etiqueta: t.label }) })), seleccion: selection });
   }
 
   // Desplaza un trazo SVG (dx, dy): solo se mueven las coordenadas absolutas. Un «m» al principio del trazo se pasa
@@ -2549,20 +2549,23 @@
     return mk("draw", 0, 0, { w: Math.round(vw * k), h: Math.round(vh * k), vw, vh, d, color: AI_DRAW[aiStr(a.color).toLowerCase()] || "#e03131", sw });
   }
 
-  // Aplica lo que pidió el modelo como un solo cambio (un Ctrl+Z lo deshace entero). Lo que no se entiende se ignora.
-  // Devuelve cuántos cambios hizo.
-  function applyAI(actions) {
-    const sh = sheet(), refs = new Map(), made = [], tilt = getPref("tilt") !== "0";
+  // Aplica lo que pidió el modelo como un solo cambio (un Ctrl+Z lo deshace entero, también entre hojas). Lo que no
+  // se entiende se ignora. Devuelve cuántos cambios hizo; en «did» deja qué hizo, con ids, para el historial del chat.
+  function applyAI(actions, did = []) {
+    const refs = new Map(), made = [], tilt = getPref("tilt") !== "0", active0 = doc.active, zonesLater = [];
+    let sh = sheet(), changes = 0;
     const find = k => typeof k === "string" ? refs.get(k) || sh.items.find(o => o.id === k) : null;
-    let changes = 0;
     const before = snapshot();
-    // Hueco libre: columnas a la derecha de lo que ya hay (o en el centro de la vista si la hoja está vacía)
-    const rs = sh.items.map(itemRect);
-    const free = rs.length ? { x: Math.max(...rs.map(r => r.x + r.w)) + 100, y: Math.min(...rs.map(r => r.y)) } : viewCenter();
-    let freeN = 0;
-    const nearN = new Map();
-    // Los creados aquí aún no se dibujaron: se estima su tamaño
+    // Los creados aquí (o los de otra hoja) aún no se dibujaron: se estima su tamaño
     const rectOf = o => elOf(o.id) ? itemRect(o) : { x: o.x, y: o.y, w: o.w || 200, h: o.type === "list" ? 60 + 28 * o.tasks.length : o.h || 170 };
+    // Hueco libre: columnas a la derecha de lo que ya hay (o en el centro de la vista si la hoja está vacía)
+    let free, freeN, nearN;
+    const resetFree = () => {
+      const rs = sh.items.map(rectOf);
+      free = rs.length ? { x: Math.max(...rs.map(r => r.x + r.w)) + 100, y: Math.min(...rs.map(r => r.y)) } : viewCenter();
+      freeN = 0; nearN = new Map();
+    };
+    resetFree();
     const busy = (x, y, w, h) => sh.items.some(o => {
       if (o.type === "zone") return false;
       const r = rectOf(o);
@@ -2588,6 +2591,26 @@
         if (!busy(x, y, w, h)) return;
       }
     };
+    const tell = (verb, it) => {
+      const t = (itemText(it) || "").replace(/\s+/g, " ").trim();
+      did.push(`${verb} ${AI_NAMES[it.type] || it.type} ${it.id}${t ? ` «${t.length > 40 ? t.slice(0, 40) + "…" : t}»` : ""}`);
+    };
+    // Una zona alrededor de esos elementos, ordenados en cuadrícula desde x0, y0
+    const zoneOf = (its, x0, y0, a) => {
+      const sz = its.map(rectOf), cols = Math.ceil(Math.sqrt(its.length));
+      const cw = Math.max(...sz.map(r => r.w)) + 30, rh = Math.max(...sz.map(r => r.h)) + 30;
+      its.forEach((o, i) => { o.x = x0 + 40 + (i % cols) * cw; o.y = y0 + 56 + Math.floor(i / cols) * rh; });
+      const z = mk("zone", x0, y0, { w: cols * cw + 50, h: Math.ceil(its.length / cols) * rh + 76, title: aiStr(a.titulo, 120) || "Zona", color: AI_HEX.zone[aiStr(a.color).toLowerCase()] || ZONE_COLORS[zZoneTop % ZONE_COLORS.length] });
+      sh.items.push(z); made.push(z); changes++;
+      tell("creé", z);
+      return z;
+    };
+    const goSheet = i => {
+      sh.view = { ...view };
+      doc.active = i; sh = sheet();
+      view = sh.view ? { ...sh.view } : { x: 40, y: 20, z: 1 };
+      resetFree();
+    };
     const setFields = (it, a) => {
       if (a.texto != null && ["note", "card"].includes(it.type)) it.text = aiRich(a.texto);
       // Las notas no tienen título: si el modelo lo manda, va en negrita al principio
@@ -2596,58 +2619,112 @@
       if (a.texto != null && it.type === "stamp") it.text = aiStr(a.texto, 24).toUpperCase() || it.text;
       if (a.titulo != null && ["card", "list", "zone"].includes(it.type)) it.title = aiStr(a.titulo, 120);
       if (Array.isArray(a.tareas) && it.type === "list") it.tasks = a.tareas.slice(0, 30).map(t => ({ text: aiStr(typeof t === "string" ? t : t?.texto, 200), done: !!t?.hecha }));
+      // Los stickers solo aceptan emojis (nada de texto ni imágenes)
+      if (it.type === "sticker" && /^\p{Extended_Pictographic}/u.test(aiStr(a.emoji, 16))) it.emoji = aiStr(a.emoji, 16);
       if (a.color != null) {
         const c = aiStr(a.color, 20).toLowerCase();
         if (it.type === "note" && (AI_NOTE[c] || NOTE_COLORS[c])) it.color = AI_NOTE[c] || c;
         if (AI_HEX[it.type]?.[c]) it.color = AI_HEX[it.type][c];
       }
     };
+    const create = a => {
+      const type = AI_TYPES[a.tipo], it = mk(type, 0, 0);
+      if (type === "list") it.tasks = [];
+      setFields(it, a);
+      if (type === "list" && !it.tasks.length) it.tasks = [{ text: "", done: false }];
+      it.rot = type === "zone" ? 0 : ["stamp", "sticker"].includes(type) ? (tilt ? rand(-14, 14) : 0) : tilt ? rand(-3.5, 3.5) : 0;
+      it.pin.color = getPref("lastPin") || "#e03131";
+      place(it, find(a.cerca));
+      sh.items.push(it); made.push(it); changes++;
+      if (typeof a.ref === "string") refs.set(a.ref, it);
+      tell("creé", it);
+      return it;
+    };
     for (const a of actions) {
       if (!a || typeof a !== "object") continue;
-      if (a.op === "crear" && AI_TYPES[a.tipo]) {
-        const type = AI_TYPES[a.tipo], it = mk(type, 0, 0);
-        if (type === "list") it.tasks = [];
-        setFields(it, a);
-        if (type === "list" && !it.tasks.length) it.tasks = [{ text: "", done: false }];
-        it.rot = type === "zone" ? 0 : type === "stamp" ? (tilt ? rand(-14, 14) : 0) : tilt ? rand(-3.5, 3.5) : 0;
-        it.pin.color = getPref("lastPin") || "#e03131";
-        place(it, find(a.cerca));
-        sh.items.push(it); made.push(it); changes++;
-        if (typeof a.ref === "string") refs.set(a.ref, it);
+      if (a.op === "crear" && a.tipo === "zona" && Array.isArray(a.dentro) && a.dentro.length) {
+        // La zona se arma al final, cuando ya existe lo que va dentro. Los modelos chicos a veces escriben ahí los
+        // elementos enteros en vez de sus refs: se crean en ese momento
+        const dentro = a.dentro.slice(0, 40).map(d => d && typeof d === "object" ? (AI_TYPES[d.tipo] && d.tipo !== "zona" ? create(d).id : null) : d);
+        zonesLater.push({ a: { ...a, dentro }, sh });
+      } else if (a.op === "crear" && AI_TYPES[a.tipo]) {
+        create(a);
       } else if (a.op === "dibujar" && Array.isArray(a.trazos)) {
-        const it = drawFromAI(a.trazos.slice(0, 40).filter(t => typeof t === "string" && t.length <= 4000 && AI_PATH.test(t)), a);
+        const it = drawFromAI(a.trazos.slice(0, 60).filter(t => typeof t === "string" && t.length <= 4000 && AI_PATH.test(t)), a);
         if (!it) continue;
         place(it, find(a.cerca));
         sh.items.push(it); made.push(it); changes++;
         if (typeof a.ref === "string") refs.set(a.ref, it);
+        tell("dibujé", it);
       } else if (a.op === "unir") {
         const x = find(a.a), y = find(a.b);
         if (!x || !y || x === y || x.fix !== "pin" || y.fix !== "pin") continue;
         if (sh.threads.some(t => (t.a === x.id && t.b === y.id) || (t.a === y.id && t.b === x.id))) continue;
         sh.threads.push(th(x, y, { label: aiStr(a.etiqueta, 40) })); changes++;
+        did.push(`uní ${x.id} con ${y.id}`);
       } else if (a.op === "editar") {
         const it = find(a.id);
         if (!it || it.locked) continue;
         setFields(it, a); changes++;
+        tell("edité", it);
       } else if (a.op === "mover") {
         const it = find(a.id);
         if (!it || it.locked || !Number.isFinite(a.x) || !Number.isFinite(a.y)) continue;
         it.x = Math.round(clamp(a.x, -1e4, 1e5)); it.y = Math.round(clamp(a.y, -1e4, 1e5)); changes++;
+        did.push(`moví ${it.id}`);
       } else if (a.op === "agrupar" && Array.isArray(a.ids)) {
         render(); // los recién creados necesitan su tamaño real
         const its = [...new Set(a.ids.map(find))].filter(o => o && o.type !== "zone" && !o.locked);
         if (!its.length) continue;
-        const sz = its.map(itemRect), cols = Math.ceil(Math.sqrt(its.length));
-        const cw = Math.max(...sz.map(r => r.w)) + 30, rh = Math.max(...sz.map(r => r.h)) + 30;
-        const x0 = Math.min(...sz.map(r => r.x)), y0 = Math.min(...sz.map(r => r.y));
-        its.forEach((o, i) => { o.x = x0 + 40 + (i % cols) * cw; o.y = y0 + 56 + Math.floor(i / cols) * rh; });
-        const z = mk("zone", x0, y0, { w: cols * cw + 50, h: Math.ceil(its.length / cols) * rh + 76, title: aiStr(a.titulo, 120) || "Zona", color: AI_HEX.zone[aiStr(a.color).toLowerCase()] || ZONE_COLORS[zZoneTop % ZONE_COLORS.length] });
-        sh.items.push(z); made.push(z); changes++;
+        const sz = its.map(rectOf);
+        zoneOf(its, Math.min(...sz.map(r => r.x)), Math.min(...sz.map(r => r.y)), a);
+      } else if (a.op === "hoja") {
+        // Crea una hoja (o va a la que tenga ese nombre) y lo que sigue ocurre ahí; «llevar» pasa elementos con sus hilos
+        const name = aiStr(a.nombre, 60);
+        const moving = Array.isArray(a.llevar) ? [...new Set(a.llevar.map(find))].filter(o => o && !o.locked) : [];
+        let i = a.nueva === true || !name ? -1 : doc.sheets.findIndex(s => s.name.toLowerCase() === name.toLowerCase());
+        if (i === doc.active) continue;
+        if (i < 0) {
+          doc.sheets.push(newSheet(name || `Hoja ${doc.sheets.length + 1}`, { color: Object.keys(NOTE_COLORS)[doc.sheets.length % 5] }));
+          i = doc.sheets.length - 1;
+          did.push(`creé la hoja «${doc.sheets[i].name}» y fui a ella`);
+        } else did.push(`fui a la hoja «${doc.sheets[i].name}»`);
+        const from = sh, ids = new Set(moving.map(o => o.id)), rs = moving.map(rectOf);
+        goSheet(i);
+        if (moving.length) {
+          // Conservan cómo estaban entre sí; si la hoja ya tiene cosas, van a su derecha
+          const has = sh.items.length > 0, x0 = Math.min(...rs.map(r => r.x)), y0 = Math.min(...rs.map(r => r.y));
+          moving.forEach(o => { if (has) { o.x += free.x - x0; o.y += free.y - y0; } });
+          sh.items.push(...moving);
+          sh.threads.push(...from.threads.filter(t => ids.has(t.a) && ids.has(t.b)));
+          from.items = from.items.filter(o => !ids.has(o.id));
+          from.threads = from.threads.filter(t => !ids.has(t.a) && !ids.has(t.b));
+          made.push(...moving);
+          did.push(`llevé ${[...ids].join(", ")} a esa hoja`);
+          resetFree();
+        }
+        changes++;
       } else if (a.op === "borrar") {
         const it = find(a.id);
         if (!it || it.locked) continue;
         sh.items = sh.items.filter(o => o !== it);
         sh.threads = sh.threads.filter(t => t.a !== it.id && t.b !== it.id); changes++;
+        did.push(`borré ${it.id}`);
+      }
+    }
+    // Zonas con contenido: cada una en su bloque, en fila a la derecha de lo demás, para que no se pisen
+    const later = zonesLater.filter(z => z.sh === sh)
+      .map(({ a }) => ({ a, its: [...new Set(a.dentro.map(find))].filter(o => o && o.type !== "zone" && !o.locked) })).filter(g => g.its.length);
+    if (later.length) {
+      render();
+      const inside = new Set(later.flatMap(g => g.its)), rest = sh.items.filter(o => !inside.has(o) && o.type !== "zone").map(rectOf);
+      const c = viewCenter(), x0 = rest.length ? Math.max(...rest.map(r => r.x + r.w)) + 120 : Math.round(c.x - 400);
+      let x = x0, y = rest.length ? Math.min(...rest.map(r => r.y)) : Math.round(c.y - 250), rowH = 0;
+      for (const g of later) {
+        const z = zoneOf(g.its, x, y, g.a);
+        rowH = Math.max(rowH, z.h);
+        x += z.w + 80;
+        if (x - x0 > 2200) { x = x0; y += rowH + 80; rowH = 0; }
       }
     }
     if (!changes) return 0;
@@ -2655,7 +2732,13 @@
     if (undoStack.length > 200) undoStack.shift();
     redoStack.length = 0;
     updateUndoButtons();
-    render(); saved();
+    if (doc.active !== active0) {
+      selection = []; selThread = null;
+      renderAll();
+      sheetsEl.children[doc.active]?.scrollIntoView({ block: "nearest" });
+      announce(`Hoja «${sh.name}»`);
+    } else render();
+    saved();
     const shown = made.filter(o => sh.items.includes(o));
     if (shown.length) {
       setSel(shown.filter(o => o.type !== "zone").map(o => o.id));

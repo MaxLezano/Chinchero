@@ -6,6 +6,7 @@
 const { net, safeStorage, clipboard } = require("electron");
 const crypto = require("crypto");
 const store = require("./store");
+const ollamaSetup = require("./ollama-setup");
 
 // En pruebas se apuntan a un servidor simulado
 const OLLAMA = process.env.CHINCHERO_OLLAMA_URL || "http://127.0.0.1:11434";
@@ -75,6 +76,11 @@ async function call(url, opts = {}, ms = 120000) {
   return res.json();
 }
 
+const OLLAMA_FORMAT = {
+  type: "object", required: ["plan", "acciones", "respuesta"],
+  properties: { plan: { type: "string", maxLength: 600 }, acciones: { type: "array", items: { type: "object" } }, respuesta: { type: "string" } },
+};
+
 const providers = {
   ollama: {
     async models() {
@@ -82,9 +88,12 @@ const providers = {
       return (r.models || []).map(m => m.name);
     },
     async chat(model, system, messages) {
+      // El texto del sistema más la hoja no entran en el contexto por defecto de Ollama (2048–4096 tokens). El esquema
+      // obliga a los modelos chicos a devolver las acciones (con solo "json" a veces responden sin hacer nada) y los
+      // topes evitan que se queden escribiendo el plan sin llegar a las acciones.
       const r = await call(OLLAMA + "/api/chat", {
         method: "POST",
-        body: JSON.stringify({ model, stream: false, format: "json", messages: [{ role: "system", content: system }, ...messages.map(m => ({ role: m.role, content: m.text }))] }),
+        body: JSON.stringify({ model, stream: false, format: OLLAMA_FORMAT, options: { num_ctx: 8192, num_predict: 4000 }, messages: [{ role: "system", content: system }, ...messages.map(m => ({ role: m.role, content: m.text }))] }),
       });
       return { text: r.message?.content || "", model };
     },
@@ -121,27 +130,50 @@ const providers = {
   },
 };
 
-// Lo que se le explica al modelo: qué es la hoja y cómo responder (siempre JSON con su respuesta y las acciones)
-const SYSTEM = `Eres el asistente de Chinchero, un tablero de corcho digital con notas, fichas, listas, zonas y hilos que unen elementos.
-Respondes en español neutro, breve y amable. Recibes la hoja actual en JSON (elementos con id, tipo, texto y posición; hilos entre ids; "seleccion" con los ids elegidos por el usuario).
-Responde SIEMPRE con un único objeto JSON: {"respuesta": "texto para el usuario", "acciones": [...]}. Si no hace falta cambiar nada, "acciones" es [].
-Acciones posibles (usa solo estas):
-- {"op":"crear","ref":"n1","tipo":"nota|ficha|lista|texto|zona|sello","texto":"...","titulo":"...","tareas":["..."],"color":"...","cerca":"id o ref"}
-  nota: "texto" y color amarillo|azul|rosa|verde|violeta|naranja|blanco. ficha: "titulo" y "texto". lista: "titulo" y "tareas". texto: un título grande en "texto". zona: "titulo" (agrupa elementos). sello: "texto" corto en mayúsculas.
-  "cerca" coloca el elemento junto a otro; sin "cerca" va a un hueco libre. "ref" es un nombre tuyo para usarlo en otras acciones.
-- {"op":"dibujar","ref":"d1","trazos":["M10 80 Q50 10 90 80", "..."],"color":"rojo|azul|negro|amarillo|verde|blanco","grosor":"fino|medio|grueso","cerca":"id o ref"}
-  un dibujo a mano alzada (flecha, estrella, casa, cara, esquema...): cada trazo es el "d" de un path SVG (M, L, Q, C, A, Z) en un lienzo de unos 200x200 que empieza en 0,0. Solo líneas, sin relleno ni texto.
-- {"op":"unir","a":"id o ref","b":"id o ref","etiqueta":"opcional"} tiende un hilo entre dos elementos.
-- {"op":"editar","id":"...","texto":"...","titulo":"...","tareas":["..."],"color":"..."} cambia solo los campos que pongas.
-- {"op":"mover","id":"...","x":0,"y":0} mueve un elemento (coordenadas del tablero).
-- {"op":"agrupar","titulo":"...","ids":["..."],"color":"..."} crea una zona alrededor de esos elementos y los ordena dentro.
-- {"op":"borrar","id":"..."} solo si el usuario lo pide expresamente.
-No inventes ids: usa los de la hoja o tus "ref". Textos cortos, como en notas adhesivas (máximo unas 25 palabras por nota).`;
+// Lo que se le explica al modelo: qué es el tablero, cómo trabajar bien y cómo responder (siempre JSON). Pensar en
+// «plan» antes de las acciones y escribir «respuesta» al final mejora mucho a los modelos rápidos y sin razonamiento.
+const SYSTEM = `Eres Chinche, el asistente de Chinchero: un tablero de corcho digital con hojas (pestañas) y, en cada hoja, notas, fichas, listas, textos, zonas, sellos, stickers, dibujos e hilos que unen elementos.
+Hablas en español neutro, cercano y claro. Recibes el tablero en JSON: "hoja" (la que está abierta), "hojas" (todas), "elementos" (id, tipo, texto, posición y tamaño), "hilos" y "seleccion" (ids que eligió el usuario).
+
+Responde SIEMPRE con un único objeto JSON con estas claves, en este orden:
+{"plan": "...", "acciones": [...], "respuesta": "..."}
+- "plan": piensa antes de actuar (el usuario no lo ve). Qué pide de verdad, qué piezas hacen falta, con qué contenido concreto y cómo se organizan. Para un dibujo, sus partes con coordenadas aproximadas.
+- "acciones": los cambios en el tablero, en orden. [] si solo conversas o respondes una pregunta.
+- "respuesta": para el usuario, de 1 a 3 frases. Cuenta exactamente lo que hiciste (nunca algo que no esté en "acciones") y, si aporta, sugiere un siguiente paso.
+
+Cómo trabajar bien:
+- Haz el pedido completo y con contenido real y específico, nunca de relleno («Idea 1», «Tarea pendiente», «Mesa X»). Si falta un dato, usa ejemplos razonables y dilo en la respuesta.
+- Si piden un tablero, plan, proyecto u organizar algo, arma algo útil de verdad: un título (texto), zonas por tema con su contenido dentro, listas con pasos concretos, fichas con datos y notas con ideas, unas 8 a 20 piezas según el pedido. Une con hilos lo que está relacionado.
+- Elige el tipo justo: lista para pasos o tareas, ficha para información con título, nota para ideas sueltas, texto para el título, sello para estados (URGENTE, LISTO), sticker para un toque visual.
+- «Hazlo», «eso» o «ahí» se refieren a lo último que hiciste o a la selección: en la conversación verás [Hecho: …] con los ids de lo que creaste.
+- Si piden otra hoja (pestaña), usa "hoja". Si piden pasar a otra hoja lo que ya existe, usa "hoja" con "llevar": no lo vuelvas a crear.
+- No borres nada salvo que lo pidan. No inventes ids: usa los de la hoja o tus "ref".
+
+Acciones (usa solo estas):
+- {"op":"crear","ref":"n1","tipo":"nota","texto":"...","color":"amarillo|azul|rosa|verde|violeta|naranja|blanco","cerca":"id o ref"} hasta unas 30 palabras.
+- {"op":"crear","ref":"f1","tipo":"ficha","titulo":"...","texto":"línea 1\\nlínea 2"}
+- {"op":"crear","ref":"l1","tipo":"lista","titulo":"...","tareas":["...", {"texto":"...","hecha":true}]}
+- {"op":"crear","tipo":"texto","texto":"Título grande"}
+- {"op":"crear","tipo":"sello","texto":"URGENTE","color":"rojo|verde|azul|naranja|violeta|gris"}
+- {"op":"crear","tipo":"sticker","emoji":"🐴"}
+- {"op":"crear","tipo":"zona","titulo":"...","color":"azul|rosa|verde|naranja|violeta|gris","dentro":["refs o ids"]} la zona se arma alrededor de esos elementos y los ordena; ponla después de crearlos. Nunca una zona vacía.
+  "ref" es un nombre tuyo para usarlo en otras acciones. "cerca" coloca el elemento junto a otro; sin "cerca" va a un hueco libre.
+- {"op":"dibujar","ref":"d1","trazos":["M120 200 C120 150 280 150 280 200", "..."],"color":"rojo|azul|negro|amarillo|verde|blanco","grosor":"fino|medio|grueso","cerca":"id o ref"}
+- {"op":"unir","a":"id o ref","b":"id o ref","etiqueta":"opcional"} hilo entre notas, fichas, listas, fotos, enlaces o archivos.
+- {"op":"editar","id":"...","texto":"...","titulo":"...","tareas":[...],"color":"..."} cambia solo los campos que pongas.
+- {"op":"mover","id":"...","x":0,"y":0} coordenadas del tablero.
+- {"op":"agrupar","titulo":"...","ids":["..."],"color":"..."} zona alrededor de elementos que ya existen.
+- {"op":"hoja","nombre":"...","nueva":true,"llevar":["ids o refs"]} crea una hoja (sin "nueva", va a la que tenga ese nombre si existe) y las acciones siguientes ocurren en ella. "llevar" pasa esos elementos de la hoja actual a esa hoja, con sus hilos.
+- {"op":"borrar","id":"..."}
+
+Dibujos: a mano alzada, con trazos de path SVG (M, L, Q, C, A, Z) en un lienzo de 400x400; 0,0 es arriba a la izquierda y la y crece hacia abajo. Solo líneas, sin relleno ni texto. Planea las partes y sus proporciones en "plan" y dibuja cada parte como un trazo propio, con curvas (C, Q, A) para formas orgánicas: tiene que reconocerse a simple vista. Por ejemplo, un caballo de perfil: cuerpo ovalado y largo, cuello grueso que sube en diagonal, cabeza alargada con hocico, ojo, orejas en punta, crin, cuatro patas largas con rodillas y cascos, y cola. Usa entre 8 y 30 trazos. Si piden algo muy difícil de dibujar con líneas (una foto, un retrato realista), haz un dibujo simple y añade un sticker con su emoji.`;
 
 async function chat({ messages, board }) {
   const c = cfg(), p = providers[c.provider];
   if (!c.enabled || !p) return { error: "off" };
   try {
+    // Si Ollama está instalado pero no corre (por ejemplo, tras reiniciar la PC), se arranca oculto
+    if (c.provider === "ollama") await ollamaSetup.start();
     let model = c.model;
     if (!model && c.provider === "ollama") model = (await p.models())[0];
     if (!model && c.provider === "ollama") return { error: "nomodel" };
@@ -161,7 +193,8 @@ function parse(raw) {
   for (const t of [s, s.slice(s.indexOf("{"), s.lastIndexOf("}") + 1)]) {
     try {
       const o = JSON.parse(t);
-      if (o && typeof o === "object") return { text: String(o.respuesta ?? o.reply ?? ""), actions: Array.isArray(o.acciones ?? o.actions) ? (o.acciones ?? o.actions).slice(0, 60) : [] };
+      // Algunos modelos copian en su respuesta la marca [Hecho: …] que ven en el historial (ver asistente.js)
+      if (o && typeof o === "object") return { text: String(o.respuesta ?? o.reply ?? "").replace(/\s*\[(Hecho|Deshecho)[^\]]*\]/g, "").trim(), actions: Array.isArray(o.acciones ?? o.actions) ? (o.acciones ?? o.actions).slice(0, 120) : [] };
     } catch {}
   }
   return { text: s.trim().slice(0, 4000), actions: [] };
@@ -172,6 +205,7 @@ async function test() {
   const c = cfg(), p = providers[c.provider];
   if (!p) return { error: "off" };
   try {
+    if (c.provider === "ollama") await ollamaSetup.start();
     const model = c.model || (c.provider === "ollama" ? (await p.models())[0] : "");
     if (!model && c.provider === "ollama") return { error: "nomodel" };
     const r = await p.chat(model, 'Responde solo con este JSON: {"respuesta":"ok","acciones":[]}', [{ role: "user", text: "Prueba de conexión" }]);

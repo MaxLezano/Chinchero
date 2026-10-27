@@ -9,22 +9,26 @@ const os = require("os");
 
 const OLLAMA = process.env.CHINCHERO_OLLAMA_URL || "http://127.0.0.1:11434";
 const SETUP_URL = process.env.CHINCHERO_OLLAMA_SETUP_URL || "https://ollama.com/download/OllamaSetup.exe";
-const APP_EXE = path.join(process.env.LOCALAPPDATA || path.join(os.homedir(), "AppData", "Local"), "Programs", "Ollama", "ollama app.exe");
+const DIR = path.join(process.env.LOCALAPPDATA || path.join(os.homedir(), "AppData", "Local"), "Programs", "Ollama");
+const SERVER_EXE = path.join(DIR, "ollama.exe");
 const SETUP_FILE = path.join(os.tmpdir(), "Chinchero-OllamaSetup.exe");
+// La app de escritorio de Ollama abre su propia ventana (cuenta, chat) y se pone en el inicio de Windows
+const STARTUP_LNK = path.join(process.env.APPDATA || path.join(os.homedir(), "AppData", "Roaming"), "Microsoft", "Windows", "Start Menu", "Programs", "Startup", "Ollama.lnk");
 
 let job = null; // { kind, ctrl, child }
 
 const alive = () => net.fetch(OLLAMA + "/api/tags", { signal: AbortSignal.timeout(3000) }).then(r => r.ok, () => false);
 
 async function state() {
-  return { running: await alive(), installed: fs.existsSync(APP_EXE), busy: job?.kind || null };
+  return { running: await alive(), installed: fs.existsSync(SERVER_EXE), busy: job?.kind || null };
 }
 
-// Abre la app de Ollama (queda en la bandeja) y espera a que su API responda
+// Arranca solo el servidor de Ollama, oculto (sin la ventana de su app), y espera a que su API responda.
+// Sigue en marcha al cerrar Chinchero; sin pedidos ocupa poca memoria y libera el modelo a los pocos minutos.
 async function start(ms = 30000) {
   if (await alive()) return true;
-  if (!fs.existsSync(APP_EXE)) return false;
-  spawn(APP_EXE, [], { detached: true, stdio: "ignore" }).unref();
+  if (!fs.existsSync(SERVER_EXE)) return false;
+  spawn(SERVER_EXE, ["serve"], { detached: true, stdio: "ignore", windowsHide: true }).unref();
   for (const end = Date.now() + ms; Date.now() < end;) {
     if (job?.ctrl.signal.aborted) return false;
     await new Promise(r => setTimeout(r, 1000));
@@ -79,9 +83,17 @@ async function run(kind, progress, fn) {
   finally { job = null; }
 }
 
+// El instalador abre la app de Ollama al terminar (también en silencio): se cierra, con su servidor, y se quita
+// del inicio de Windows. Chinchero arranca el servidor oculto cuando hace falta (ver start).
+function quietApp() {
+  return new Promise(resolve => execFile("taskkill", ["/im", "ollama app.exe", "/f", "/t"], { windowsHide: true }, () => {
+    fs.rm(STARTUP_LNK, { force: true }, () => resolve());
+  }));
+}
+
 const install = progress => run("install", progress, async ctrl => {
   if (await alive()) return { ok: true };
-  if (!fs.existsSync(APP_EXE)) {
+  if (!fs.existsSync(SERVER_EXE)) {
     try {
       await download(ctrl, progress);
       progress({ step: "verify" });
@@ -90,6 +102,9 @@ const install = progress => run("install", progress, async ctrl => {
       // Desde aquí no se cancela: cortar un instalador a medias deja Ollama roto
       progress({ step: "install" });
       await runSetup();
+      // La app tarda un momento en abrirse tras el instalador: se espera antes de cerrarla
+      await new Promise(r => setTimeout(r, 3000));
+      await quietApp();
     } finally {
       fs.rm(SETUP_FILE, { force: true }, () => {});
     }

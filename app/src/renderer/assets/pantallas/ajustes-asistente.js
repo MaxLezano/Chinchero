@@ -23,7 +23,7 @@
     return {
       nokey: "Falta la clave de Gemini.",
       nomodel: "Ollama no tiene ningún modelo instalado.",
-      offline: local ? "No se pudo conectar con Ollama. ¿Está abierto?" : "No se pudo conectar con Google. Revisa tu conexión a internet.",
+      offline: local ? "No se pudo poner en marcha Ollama. Prueba a instalarlo de nuevo." : "No se pudo conectar con Google. Revisa tu conexión a internet.",
       timeout: "Tardó demasiado en responder. Prueba de nuevo en un momento.",
       400: "Google no aceptó la clave. Revisa que la copiaste entera.",
       403: "Google no aceptó la clave. Revisa que la copiaste entera.",
@@ -130,7 +130,7 @@
   }
   async function startOllama() {
     const ok = await task("Abriendo Ollama…", () => ai.ollamaStart().then(ok => ok ? { ok } : { error: "start" }));
-    if (ok.ok) toast("Ollama está abierto");
+    if (ok.ok) toast("Ollama está en marcha");
     loadModels();
   }
   async function pull() {

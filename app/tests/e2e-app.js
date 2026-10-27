@@ -403,7 +403,7 @@ delete process.env.ELECTRON_RUN_AS_NODE;
   await sleep(500);
   const after = await count();
   const chatReq = aiReqs.filter(r => r.url === "/api/chat").at(-1);
-  ok("IA: Ollama recibe la hoja y el pedido", !!chatReq && chatReq.body.model === "llama-prueba" && chatReq.body.format === "json" && chatReq.body.messages[0].role === "system"
+  ok("IA: Ollama recibe la hoja y el pedido", !!chatReq && chatReq.body.model === "llama-prueba" && chatReq.body.format?.required?.includes("acciones") && chatReq.body.messages[0].role === "system"
     && chatReq.body.messages.at(-1).content.includes("Pedido: Dame ideas") && chatReq.body.messages.at(-1).content.includes("Nota guardada en disco"));
   ok("IA: aplica las acciones (nota, lista e hilo) y avisa", after.items === before.items + 2 && after.threads === before.threads + 1
     && await page.evaluate(() => document.querySelector(".ai-msg.assistant").textContent.includes("3 cambios")), JSON.stringify({ before, after }));
