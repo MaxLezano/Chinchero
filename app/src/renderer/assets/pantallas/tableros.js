@@ -139,6 +139,7 @@ function duplicate(id) {
 function remove(id) {
   const entry = Store.trashBoard(id);
   render();
+  Sound.play("trash");
   toast("Tablero enviado a la papelera", "Deshacer", () => { Store.restore(entry.id); render(); });
 }
 

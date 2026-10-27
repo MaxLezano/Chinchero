@@ -67,6 +67,12 @@
       tone(out, t, 0.035, "triangle", 2200, 1500, 0.25);
       burst(out, t, 0.02, "highpass", 5000, 0.7, 0.18);
     },
+    // Papelera: papel que se arruga (crujidos irregulares) y cae al fondo del tacho con un golpe sordo
+    trash(out, t) {
+      for (let i = 0; i < 6; i++) burst(out, t + i * 0.026 + Math.random() * 0.012, 0.03, "bandpass", 1400 + Math.random() * 1800, 1.4, 0.3);
+      tone(out, t + 0.2, 0.12, "sine", 140, 55, 0.5);
+      burst(out, t + 0.2, 0.07, "lowpass", 500, 0.7, 0.3);
+    },
   };
 
   const Sound = {

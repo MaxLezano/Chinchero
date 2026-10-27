@@ -422,6 +422,13 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     await sleep(150);
     const n2 = await q.evaluate(() => { for (let i = 0; i < 10; i++) Sound.play("pin"); return window.__sonidos; });
     ok("sonidos: deshacer/rehacer no suena y una ráfaga suena una vez", n2 === n1 + 1, `sonidos=${n2}`);
+    await sleep(600); // pasa el límite anti-ráfaga
+    await q.evaluate(() => { const play = Sound.play; window.__pedidos = []; Sound.play = (n, f) => { window.__pedidos.push(n); return play(n, f); }; });
+    const nt = await q.$eval(".t-note", e => { const r = e.getBoundingClientRect(); return { x: r.left + r.width * .85, y: r.top + r.height * .85 }; });
+    await q.mouse.click(nt.x, nt.y); await sleep(150);
+    const n3 = await q.evaluate(() => window.__sonidos);
+    await q.keyboard.press("Delete"); await sleep(150);
+    ok("sonidos: eliminar un elemento suena a papelera", await q.evaluate(n => window.__pedidos.at(-1) === "trash" && window.__sonidos > n, n3), await q.evaluate(() => window.__pedidos.join()));
     await q.close();
   }
 
@@ -434,6 +441,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
       return Math.abs((e.left + e.right) / 2 - (m.left + m.right) / 2) < 4 && e.top > m.top + m.height * .3;
     }));
     if (n === "v01") {
+      ok("tableros: enviar a la papelera puede sonar (sound.js cargado)", await q.evaluate(() => typeof Sound?.play === "function"));
       await q.goto(q.url().replace(/\?.*|$/, "?view=fav"), { waitUntil: "networkidle0" }); await sleep(300);
       ok("favoritos sin tableros: invita a crear uno", await q.evaluate(() => !Store.library().boards.length ? /Crea un tablero/.test(document.querySelector("#emptyText").textContent) && getComputedStyle(document.querySelector("#emptyBtn")).display !== "none" : true));
     }

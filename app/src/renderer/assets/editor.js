@@ -1719,7 +1719,7 @@
       sheet().threads = sheet().threads.filter(t => t.id !== selThread);
       selThread = null;
       applySelection(); saved();
-      if (!quiet) toast("Hilo eliminado", "Deshacer", undo);
+      if (!quiet) { toast("Hilo eliminado", "Deshacer", undo); Sound.play("trash"); }
       else announce("Hilo eliminado");
       return;
     }
@@ -1730,7 +1730,7 @@
     selection = [];
     render(); saved();
     const msg = ids.length > 1 ? `${ids.length} elementos eliminados` : "Elemento eliminado";
-    if (!quiet) toast(msg, "Deshacer", undo);
+    if (!quiet) { toast(msg, "Deshacer", undo); Sound.play("trash"); } // cortar (quiet) no suena: no es tirarlo
     else announce(msg);
     checkTips("delete");
   }
