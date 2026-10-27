@@ -304,6 +304,7 @@ handle("ai:config", p => is.obj(p) && Object.keys(p).every(k => ["enabled", "pro
 handle("ai:setKey", k => k === null || is.str(k, 100), (e, k) => ai.setKey(k && k.trim()));
 handle("ai:detectKey", none, () => ai.detectKey());
 handle("ai:saveClipboardKey", none, () => ai.saveClipboardKey());
+handle("ai:ignoreClipboardKey", none, () => ai.ignoreClipboardKey());
 handle("ai:models", p => AI_PROVIDERS.includes(p), (e, p) => ai.models(p));
 handle("ai:chat", r => is.obj(r) && is.str(r.board, 200000) && Array.isArray(r.messages) && r.messages.length > 0 && r.messages.length <= 40
   && r.messages.every(m => is.obj(m) && (m.role === "user" || m.role === "assistant") && is.str(m.text, 8000)), (e, r) => ai.chat(r));

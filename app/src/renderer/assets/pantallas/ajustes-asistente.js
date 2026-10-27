@@ -63,7 +63,8 @@
     if (prov !== st.provider) return;
     const list = r.models || [];
     if (st.model && !list.includes(st.model)) list.unshift(st.model);
-    sel.insertAdjacentHTML("beforeend", list.map(m => `<option value="${esc(m)}">${esc(m)}</option>`).join(""));
+    // Los Pro no tienen cupo en el plan gratuito de Gemini
+    sel.insertAdjacentHTML("beforeend", list.map(m => `<option value="${esc(m)}">${esc(m)}${/-pro/.test(m) ? " · sin cupo gratis" : ""}</option>`).join(""));
     sel.value = st.model;
     if (prov === "ollama") {
       $("aiModelHelp").textContent = "Los modelos pequeños responden más rápido; los grandes, mejor.";
@@ -150,7 +151,9 @@
     out.textContent = "Probando…";
     const r = await ai.test();
     out.className = r.ok ? "ok-txt" : "err-txt";
-    out.textContent = r.ok ? "✓ Listo, el asistente funciona. Ábrelo con el botón de la chispa, arriba en cualquier tablero." : errorText(r.error);
+    out.textContent = !r.ok ? errorText(r.error)
+      : st.model && r.model !== st.model ? `${st.model} no respondió (suele pasar cuando está saturado), así que contestó ${r.model}. El asistente funciona: usará ese de respaldo cuando haga falta.`
+      : "✓ Listo, el asistente funciona. Ábrelo con el botón de la chispa, arriba en cualquier tablero.";
     return r;
   }
 
@@ -263,6 +266,7 @@
   $("aiOllamaGet").addEventListener("click", () => window.chinchero.openExternal("https://ollama.com/download"));
   $("aiGetKey").addEventListener("click", openGuide);
   $("aiTest").addEventListener("click", () => runTest());
+  $("aiSkipClip").addEventListener("click", async () => { await ai.ignoreClipboardKey(); $("aiFound").hidden = true; });
   $("aiUseClip").addEventListener("click", async () => { if (await ai.saveClipboardKey()) keySaved(); else toast("La clave ya no está en el portapapeles"); });
   $("aiKeySave").addEventListener("click", async () => {
     const v = $("aiKeyInput").value.trim();

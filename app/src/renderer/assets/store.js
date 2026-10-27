@@ -75,7 +75,10 @@
 
     loadBoard(id) { return native ? native.loadBoard(id) : ls.get("board-" + id, null); },
     saveBoard(id, doc) { return native ? native.saveBoard(id, doc) : ls.set("board-" + id, doc); },
-    deleteBoardFile(id) { native ? native.deleteBoard(id) : ls.del("board-" + id); },
+    deleteBoardFile(id) {
+      native ? native.deleteBoard(id) : ls.del("board-" + id);
+      try { localStorage.removeItem("chinchero-chat-" + id); } catch (e) {} // conversación con el asistente (asistente.js)
+    },
 
     // Copia una imagen o archivo a la carpeta de datos y devuelve la URL persistente
     importFile(file) {

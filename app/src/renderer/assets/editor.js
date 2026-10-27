@@ -2666,6 +2666,7 @@
   }
   window.Editor = {
     boardForAI, applyAI, undo,
+    boardId: () => boardId,
     // Texto de los elementos elegidos, para los pedidos rápidos del asistente
     selected: () => selection.map(byId).filter(Boolean).map(describe),
   };

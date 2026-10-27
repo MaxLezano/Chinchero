@@ -294,8 +294,15 @@ body.exporting [data-tip]::after { display: none !important; }
 .ai-panel { position: fixed; top: 64px; right: 12px; bottom: 52px; width: 360px; max-width: calc(100vw - 24px); display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow); z-index: 42; }
 .ai-panel[hidden] { display: none; }
 .ai-panel header { display: flex; align-items: center; gap: 8px; padding: 10px 10px 10px 14px; border-bottom: 1px solid var(--border); }
-.ai-panel header .icon { color: var(--accent); }
-.ai-panel header small { color: var(--text-muted); font-size: 12px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ai-panel header > .icon { color: var(--accent); }
+.ai-panel header b { flex: 1; }
+.ai-panel header .icon-btn[aria-pressed="true"] { color: var(--accent); background: var(--accent-soft); }
+.ai-model { display: flex; align-items: center; gap: 8px; padding: 6px 14px; border-bottom: 1px solid var(--border); font-size: 12px; color: var(--text-muted); }
+.ai-model[hidden] { display: none; }
+.ai-model span { flex: none; }
+.ai-model select { flex: 1; min-width: 0; font: 12px var(--font); color: var(--text); background: var(--surface-2); border: 1px solid var(--border); border-radius: 7px; padding: 4px 6px; text-overflow: ellipsis; }
+.ai-model select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.ai-msg .ai-note { display: block; margin-top: 6px; font-size: 11.5px; color: var(--text-muted); white-space: normal; }
 .ai-log { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px; font-size: 13.5px; line-height: 1.45; }
 .ai-msg { max-width: 88%; padding: 8px 12px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--border); white-space: pre-wrap; overflow-wrap: anywhere; }
 .ai-msg.user { align-self: flex-end; background: var(--accent-soft); border-color: transparent; }
@@ -305,6 +312,7 @@ body.exporting [data-tip]::after { display: none !important; }
 .ai-msg .ai-did button, .ai-msg .ai-link { border: 0; background: none; padding: 0; color: var(--accent); font: inherit; font-weight: 600; cursor: pointer; text-decoration: underline; }
 .ai-msg.wait::after { content: "…"; display: inline-block; animation: ai-dots 1s steps(4) infinite; width: 1.2em; overflow: hidden; vertical-align: bottom; }
 @keyframes ai-dots { from { width: 0; } to { width: 1.2em; } }
+.ai-chips[hidden] { display: none; }
 .ai-chips { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 10px 14px; border-top: 1px solid var(--border); }
 .ai-chips .chip { display: flex; align-items: center; gap: 6px; text-align: left; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); border-radius: 9px; padding: 7px 10px; font-size: 12px; line-height: 1.2; min-height: 34px; }
 .ai-chips .chip:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }

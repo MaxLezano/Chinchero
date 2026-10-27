@@ -29,6 +29,11 @@ const ENV = { ...Object.fromEntries(Object.entries(process.env).filter(([k]) => 
 const vivos = new Set();
 const lanzar = (...a) => { const p = spawn(...a); vivos.add(p); p.on("exit", () => vivos.delete(p)); return p; };
 process.on("exit", () => { for (const p of vivos) spawnSync("taskkill", ["/pid", String(p.pid), "/T", "/F"], { stdio: "ignore" }); });
+// Las pruebas copian claves falsas al portapapeles del sistema: al salir se deja como estaba (o vacío si no era texto),
+// si no, Chinchero de verdad ofrecería después «usar» la clave de prueba
+const ps = (cmd, input) => spawnSync("powershell", ["-NoProfile", "-NonInteractive", "-Command", "[Console]::InputEncoding = [Console]::OutputEncoding = [Text.Encoding]::UTF8; " + cmd], { input, encoding: "utf8" });
+const clipAntes = ps("Get-Clipboard -Raw").stdout?.replace(/\r?\n$/, "") || "";
+process.on("exit", () => ps(clipAntes ? "[Console]::In.ReadToEnd() | Set-Clipboard" : "Add-Type -A System.Windows.Forms; [Windows.Forms.Clipboard]::Clear()", clipAntes));
 
 async function launch() {
   const proc = lanzar(ELECTRON, [APP, "--remote-debugging-port=9333"], { env: ENV, stdio: "ignore" });
@@ -87,7 +92,7 @@ function fakeAI() {
       ] });
       if (/^\/v1beta\/models\/[\w.-]+:generateContent$/.test(req.url)) {
         // El primero del modo automático está saturado: la app debe pasar sola al siguiente
-        if (req.url.includes("flash-lite")) return send(res, 503, { error: { message: "high demand" } });
+        if (req.url.includes("flash-lite") || req.url.includes("saturado")) return send(res, 503, { error: { message: "high demand" } });
         if (r.body.contents.at(-1).parts[0].text.includes("Pedido: cupo")) return send(res, 429, { error: { message: "quota" } });
         return send(res, 200, { candidates: [{ content: { parts: [{ text: JSON.stringify({ respuesta: "Hola desde Gemini", acciones: [] }) }] } }] });
       }
@@ -434,6 +439,13 @@ delete process.env.ELECTRON_RUN_AS_NODE;
   }));
   await (await page.$(".ai-keyrow")).screenshot({ path: `${SHOTS}/a10-clave-botones.png` });
   ok("IA: lista los modelos de Gemini que sirven para chatear", await page.evaluate(() => { const o = [...document.querySelectorAll("#aiModel option")].map(o => o.value); return o.includes("gemini-prueba-pro") && !o.includes("text-embedding-004"); }));
+  // Otra clave copiada que el usuario no quiere: «Ahora no» y no se vuelve a ofrecer
+  await copy("AQ.Otra_clave_0123456789-abcdefghijklmnopqrstuvwxyz");
+  await page.evaluate(() => window.dispatchEvent(new Event("focus"))); await sleep(600);
+  const ofrecida = await page.evaluate(() => !document.getElementById("aiFound").hidden);
+  await page.click("#aiSkipClip"); await sleep(300);
+  await page.evaluate(() => window.dispatchEvent(new Event("focus"))); await sleep(600);
+  ok("IA: «Ahora no» descarta la clave copiada y no la vuelve a ofrecer", ofrecida && await page.evaluate(() => document.getElementById("aiFound").hidden));
   await page.goto(page.url().replace(/03-ajustes\.html.*/, "02-tablero.html?board=" + boardId)); await sleep(1200);
   await page.click("#aiBtn"); await sleep(300);
   ok("IA: con Gemini se avisa que el texto sale del equipo", await page.evaluate(() => document.getElementById("aiPrivacy").textContent.includes("Google")));
@@ -445,6 +457,27 @@ delete process.env.ELECTRON_RUN_AS_NODE;
   await page.type("#aiInput", "cupo"); await page.keyboard.press("Enter");
   await page.waitForSelector(".ai-msg.error", { timeout: 8000 }).catch(() => {});
   ok("IA: sin cupo gratis se explica qué pasa", await page.evaluate(() => document.querySelector(".ai-msg.error")?.textContent.includes("cupo")));
+  ok("IA: tras el primer mensaje se ocultan los pedidos rápidos y la bombilla los vuelve a mostrar", await page.evaluate(async () => {
+    const c = document.getElementById("aiChips"), hid = c.hidden;
+    document.getElementById("aiTips").click(); const vis = !c.hidden;
+    document.getElementById("aiTips").click();
+    return hid && vis && c.hidden;
+  }));
+  await page.evaluate(() => window.chinchero.ai.config({ model: "gemini-saturado" }));
+  await page.reload(); await sleep(1200);
+  await page.click("#aiBtn"); await sleep(800);
+  ok("IA: la conversación se recuerda al volver a abrir el tablero", await page.evaluate(() => [...document.querySelectorAll(".ai-msg.user")].some(e => e.textContent === "Hola")
+    && [...document.querySelectorAll(".ai-msg.assistant")].some(e => e.textContent.includes("Hola desde Gemini")) && document.getElementById("aiChips").hidden));
+  ok("IA: el panel muestra el modelo elegido y la lista de modelos", await page.evaluate(() => { const p = document.getElementById("aiModelPick"); return p.value === "gemini-saturado" && [...p.options].some(o => o.value === "gemini-prueba-pro" && o.textContent.includes("sin cupo")); }));
+  await page.screenshot({ path: `${SHOTS}/a9-asistente-historial.png` });
+  await page.type("#aiInput", "Otra"); await page.keyboard.press("Enter");
+  await page.waitForFunction(() => document.querySelector(".ai-msg.assistant:last-child .ai-note"), { timeout: 8000 }).catch(() => {});
+  ok("IA: si el modelo elegido está saturado contesta otro de respaldo y lo avisa", aiReqs.some(r => r.url.includes("gemini-saturado:generateContent"))
+    && await page.evaluate(() => document.querySelector(".ai-msg.assistant:last-child .ai-note")?.textContent.includes("gemini-saturado")));
+  await page.click("#aiNew"); await sleep(300);
+  ok("IA: «Nueva conversación» borra la charla y vuelve a mostrar los pedidos rápidos", await page.evaluate(id => !document.querySelector(".ai-msg.user") && !document.getElementById("aiChips").hidden
+    && !localStorage.getItem("chinchero-chat-" + id), boardId));
+  await page.evaluate(() => window.chinchero.ai.config({ model: "" }));
   ok("IA: una clave con otro formato no se acepta", await page.evaluate(() => window.chinchero.ai.setKey("no-es-una-clave")) === false);
   ok("IA: acepta el formato nuevo de clave de AI Studio («AQ.…»)", await page.evaluate(() => window.chinchero.ai.setKey("AQ.Prueba_0123456789-abcdefghijklmnopqrstuvwxyz")) === true);
   aiSrv.close();

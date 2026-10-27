@@ -4,12 +4,14 @@
 // La configuración va en config.json (carpeta del perfil, no en la de datos, que puede estar en la nube) y la clave,
 // cifrada con safeStorage (DPAPI de Windows): nunca vuelve a las pantallas, solo una pista de sus últimos caracteres.
 const { net, safeStorage, clipboard } = require("electron");
+const crypto = require("crypto");
 const store = require("./store");
 
 // En pruebas se apuntan a un servidor simulado
 const OLLAMA = process.env.CHINCHERO_OLLAMA_URL || "http://127.0.0.1:11434";
 const GEMINI = process.env.CHINCHERO_GEMINI_URL || "https://generativelanguage.googleapis.com";
-// Automático: el Flash Lite responde en un par de segundos y tiene el cupo gratis más amplio; el Flash, de respaldo
+// Automático: el Flash Lite responde en un par de segundos y tiene el cupo gratis más amplio; el Flash, de respaldo.
+// También son el respaldo de un modelo elegido a mano: los nuevos suelen estar saturados (503) o tardar mucho.
 const GEMINI_AUTO = ["gemini-flash-lite-latest", "gemini-flash-latest"];
 // Formatos de clave de Google: el clásico «AIza…» (39 caracteres) y el nuevo «AQ.…» de AI Studio
 const KEY_RE = /^(AIza[0-9A-Za-z_-]{35}|AQ\.[0-9A-Za-z_-]{30,200})$/;
@@ -48,11 +50,18 @@ function setKey(key) {
 // La clave copiada de aistudio.google.com: se detecta sin pasarla a la pantalla (solo la pista) y se guarda al aceptar
 // (readText puede devolver una promesa según la versión de Electron)
 const clipKey = async () => { const t = String(await clipboard.readText() ?? "").trim(); return KEY_RE.test(t) ? t : null; };
+// Una clave que el usuario dijo que no quiere usar no se vuelve a ofrecer (se recuerda solo un resumen, no la clave)
+const tag = k => crypto.createHash("sha256").update(k).digest("hex").slice(0, 16);
 async function detectKey() {
   const k = await clipKey();
-  return k && k !== getKey() ? "…" + k.slice(-4) : null;
+  return k && k !== getKey() && tag(k) !== store.config.get().aiClipIgnored ? "…" + k.slice(-4) : null;
 }
 const saveClipboardKey = async () => { const k = await clipKey(); return !!k && setKey(k); };
+async function ignoreClipboardKey() {
+  const k = await clipKey();
+  if (k) store.config.set({ aiClipIgnored: tag(k) });
+  return true;
+}
 
 class AIError extends Error {}
 async function call(url, opts = {}, ms = 120000) {
@@ -77,7 +86,7 @@ const providers = {
         method: "POST",
         body: JSON.stringify({ model, stream: false, format: "json", messages: [{ role: "system", content: system }, ...messages.map(m => ({ role: m.role, content: m.text }))] }),
       });
-      return r.message?.content || "";
+      return { text: r.message?.content || "", model };
     },
   },
   gemini: {
@@ -89,8 +98,8 @@ const providers = {
         .filter(m => m.supportedGenerationMethods?.includes("generateContent") && /^models\/gemini/.test(m.name) && !/(tts|image|embedding|live|audio|transcribe|banana|customtools|omni|robotics|computer)/.test(m.name))
         .map(m => m.name.slice(7));
     },
-    // En automático se prueba cada modelo de GEMINI_AUTO: si uno está saturado (503), tarda o ya no existe para
-    // claves nuevas (404), se pasa al siguiente. Un modelo elegido a mano no se cambia.
+    // Se prueba el modelo elegido y después los de GEMINI_AUTO: si uno está saturado (503), tarda, no tiene cupo gratis
+    // (429, los Pro) o ya no existe para claves nuevas (404), se pasa al siguiente. Se devuelve el que respondió.
     async chat(model, system, messages) {
       const key = getKey();
       if (!key) throw new AIError("nokey");
@@ -99,13 +108,13 @@ const providers = {
         contents: messages.map(m => ({ role: m.role === "assistant" ? "model" : "user", parts: [{ text: m.text }] })),
         generationConfig: { responseMimeType: "application/json", temperature: 0.7 },
       });
-      const list = model ? [model] : GEMINI_AUTO;
+      const list = [...new Set([model, ...GEMINI_AUTO].filter(Boolean))];
       for (let i = 0; ; i++) {
         try {
-          const r = await call(`${GEMINI}/v1beta/models/${encodeURIComponent(list[i])}:generateContent`, { method: "POST", headers: { "x-goog-api-key": key }, body }, model ? 60000 : 30000);
-          return r.candidates?.[0]?.content?.parts?.map(p => p.text || "").join("") || "";
+          const r = await call(`${GEMINI}/v1beta/models/${encodeURIComponent(list[i])}:generateContent`, { method: "POST", headers: { "x-goog-api-key": key }, body }, list[i] === model ? 45000 : 30000);
+          return { text: r.candidates?.[0]?.content?.parts?.map(p => p.text || "").join("") || "", model: list[i] };
         } catch (e) {
-          if (i === list.length - 1 || !(e instanceof AIError) || !/^(5\d\d|404|timeout)$/.test(e.message)) throw e;
+          if (i === list.length - 1 || !(e instanceof AIError) || !/^(5\d\d|404|429|timeout)$/.test(e.message)) throw e;
         }
       }
     },
@@ -139,8 +148,8 @@ async function chat({ messages, board }) {
     const last = messages.length - 1;
     // La hoja va en el último mensaje del usuario: así el modelo siempre ve su estado actual
     const msgs = messages.map((m, i) => i === last ? { ...m, text: `Hoja actual:\n${board}\n\nPedido: ${m.text}` } : m);
-    const raw = await p.chat(model, SYSTEM, msgs);
-    return parse(raw);
+    const r = await p.chat(model, SYSTEM, msgs);
+    return { ...parse(r.text), model: r.model };
   } catch (e) {
     return { error: e instanceof AIError ? e.message : "fail" };
   }
@@ -165,8 +174,8 @@ async function test() {
   try {
     const model = c.model || (c.provider === "ollama" ? (await p.models())[0] : "");
     if (!model && c.provider === "ollama") return { error: "nomodel" };
-    await p.chat(model, 'Responde solo con este JSON: {"respuesta":"ok","acciones":[]}', [{ role: "user", text: "Prueba de conexión" }]);
-    return { ok: true };
+    const r = await p.chat(model, 'Responde solo con este JSON: {"respuesta":"ok","acciones":[]}', [{ role: "user", text: "Prueba de conexión" }]);
+    return { ok: true, model: r.model };
   } catch (e) {
     return { error: e instanceof AIError ? e.message : "fail" };
   }
@@ -177,4 +186,4 @@ async function models(provider) {
   catch (e) { return { error: e instanceof AIError ? e.message : "fail" }; }
 }
 
-module.exports = { status, setConfig, setKey, detectKey, saveClipboardKey, chat, models, test };
+module.exports = { status, setConfig, setKey, detectKey, saveClipboardKey, ignoreClipboardKey, chat, models, test };

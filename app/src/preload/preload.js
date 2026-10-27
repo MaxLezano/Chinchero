@@ -49,6 +49,7 @@ contextBridge.exposeInMainWorld("chinchero", {
     setKey: key => ipcRenderer.invoke("ai:setKey", key),
     detectKey: () => ipcRenderer.invoke("ai:detectKey"),
     saveClipboardKey: () => ipcRenderer.invoke("ai:saveClipboardKey"),
+    ignoreClipboardKey: () => ipcRenderer.invoke("ai:ignoreClipboardKey"),
     models: provider => ipcRenderer.invoke("ai:models", provider),
     chat: req => ipcRenderer.invoke("ai:chat", req),
     test: () => ipcRenderer.invoke("ai:test"),
