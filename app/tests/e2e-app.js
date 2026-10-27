@@ -54,7 +54,10 @@ async function launch() {
 // Proveedor de IA simulado: imita las API de Ollama y de Gemini y guarda los pedidos para revisarlos
 // La clave falsa se arma por partes para que los escáneres de secretos no la tomen por una real
 const AI_KEY = ["AIza", "Prueba_0123456789abcdefghijklmnopqr"].join("");
-const aiReqs = [], aiFake = { ollamaDown: false };
+const aiReqs = [], aiFake = { ollamaDown: false, zipSha: "" };
+// Ollama falso para instalar: un .zip con un ollama.exe sin firma (la app debe negarse a usarlo)
+const FAKE_ZIP = Buffer.from(require("fflate").zipSync({ "ollama.exe": new Uint8Array(300000).fill(77), "lib/ollama/ggml.dll": new Uint8Array(10) }));
+const FAKE_ZIP_SHA = require("crypto").createHash("sha256").update(FAKE_ZIP).digest("hex");
 function fakeAI() {
   const http = require("http");
   const send = (res, code, obj) => { res.writeHead(code, { "content-type": "application/json" }); res.end(JSON.stringify(obj)); };
@@ -74,8 +77,10 @@ function fakeAI() {
           .forEach((m, i) => setTimeout(() => { res.write(JSON.stringify(m) + "\n"); if (i === 3) res.end(); }, 150 * i));
         return;
       }
-      // Instalador falso (sin firma): la app debe negarse a ejecutarlo
-      if (req.url === "/OllamaSetup.exe") { res.writeHead(200, { "content-length": 300000 }); return res.end(Buffer.alloc(300000, 77)); }
+      // Última versión de Ollama, como la API de GitHub, y su .zip
+      if (req.url === "/ollama-release") return send(res, 200, { assets: [{ name: `ollama-windows-${process.arch === "arm64" ? "arm64" : "amd64"}.zip`,
+        browser_download_url: `http://127.0.0.1:${srv.address().port}/ollama.zip`, size: FAKE_ZIP.length, digest: "sha256:" + aiFake.zipSha }] });
+      if (req.url === "/ollama.zip") { res.writeHead(200, { "content-length": FAKE_ZIP.length }); return res.end(FAKE_ZIP); }
       if (req.url === "/api/chat") {
         // Respuesta envuelta en ```json como hacen algunos modelos pequeños, con una acción sobre un id que no existe
         const acciones = [
@@ -108,7 +113,7 @@ delete process.env.ELECTRON_RUN_AS_NODE;
 (async () => {
   const aiSrv = await fakeAI();
   ENV.CHINCHERO_OLLAMA_URL = ENV.CHINCHERO_GEMINI_URL = `http://127.0.0.1:${aiSrv.address().port}`;
-  ENV.CHINCHERO_OLLAMA_SETUP_URL = ENV.CHINCHERO_OLLAMA_URL + "/OllamaSetup.exe";
+  ENV.CHINCHERO_OLLAMA_RELEASE_URL = ENV.CHINCHERO_OLLAMA_URL + "/ollama-release";
   // 1) Primer inicio → Bienvenida
   let { proc, browser, page } = await launch();
   // Espera (hasta 4 s) un toast con ese texto: leerlo una sola vez fallaba a veces si tardaba un poco más
@@ -400,13 +405,26 @@ delete process.env.ELECTRON_RUN_AS_NODE;
   ok("IA: «Quitar Ollama» borra el programa, sus modelos y el acceso del inicio", removed.ok && !fs.existsSync(fakeOllama[0]) && !fs.existsSync(path.join(TMP, "home", ".ollama"))
     && !fs.existsSync(path.join(fakeOllama[2], "Ollama.lnk")), JSON.stringify(removed));
   ok("IA: la app deja la carpeta de datos para el desinstalador", fs.readFileSync(path.join(TMP, "user", "carpeta-de-datos.txt")).toString("utf16le") === DATA);
-  await page.evaluate(() => { window.__prog = []; window.chinchero.ai.onProgress(p => window.__prog.push(p)); });
-  await page.click("#aiOllamaAct");
-  const unsignedToast = await page.waitForFunction(() => [...document.querySelectorAll(".toast")].some(e => e.textContent.includes("instalador oficial")), { timeout: 30000 }).then(() => true, () => false);
-  await sleep(300);
-  const prog2 = await page.evaluate(() => window.__prog);
-  ok("IA: baja el instalador con progreso y no ejecuta uno sin la firma de Ollama", unsignedToast && prog2.some(p => p.step === "download" && p.total === 300000) && prog2.some(p => p.step === "verify")
-    && !fs.existsSync(path.join(require("os").tmpdir(), "Chinchero-OllamaSetup.exe")) && !fs.existsSync(path.join(TMP, "localappdata", "Programs", "Ollama")));
+  // Instalar Ollama: primero con un .zip que no coincide con el SHA-256 publicado, después con uno que coincide
+  // pero cuyo ollama.exe no tiene la firma de Ollama. En los dos casos no debe quedar nada.
+  const tryInstall = async () => {
+    await page.evaluate(() => { document.querySelectorAll(".toast").forEach(t => t.remove()); window.__prog = []; window.chinchero.ai.onProgress(p => window.__prog.push(p)); });
+    await page.click("#aiOllamaAct");
+    const toast = await page.waitForFunction(() => [...document.querySelectorAll(".toast")].some(e => e.textContent.includes("versión oficial")), { timeout: 60000 }).then(() => true, () => false);
+    await sleep(500);
+    const prog = await page.evaluate(() => window.__prog);
+    const clean = !fs.existsSync(path.join(require("os").tmpdir(), "Chinchero-Ollama.zip")) && !fs.existsSync(path.join(TMP, "localappdata", "Programs", "Ollama"))
+      && !fs.existsSync(path.join(TMP, "localappdata", "Programs", "Ollama-nuevo"));
+    await page.reload(); await sleep(1500);
+    return { toast, prog, clean };
+  };
+  aiFake.zipSha = "0".repeat(64);
+  const bad = await tryInstall();
+  ok("IA: baja Ollama con progreso y no usa un .zip que no coincide con el oficial", bad.toast && bad.clean && bad.prog.some(p => p.step === "download" && p.total === FAKE_ZIP.length)
+    && bad.prog.some(p => p.step === "verify") && !bad.prog.some(p => p.step === "install"), JSON.stringify(bad));
+  aiFake.zipSha = FAKE_ZIP_SHA;
+  const unsigned = await tryInstall();
+  ok("IA: descomprime aparte y no instala un ollama.exe sin la firma de Ollama", unsigned.toast && unsigned.clean && unsigned.prog.some(p => p.step === "install"), JSON.stringify(unsigned));
   aiFake.ollamaDown = false;
   await page.goto(page.url().replace(/03-ajustes\.html.*/, "02-tablero.html?board=" + boardId)); await sleep(1200);
   const count = () => page.evaluate(() => ({ items: document.querySelectorAll("#items .item").length, threads: document.querySelectorAll("#threadLayer .th").length }));

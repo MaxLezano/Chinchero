@@ -34,7 +34,7 @@
       429: "Se agotó el cupo gratis por ahora. Prueba de nuevo en un rato.",
       busy: "Ya hay una descarga en curso.",
       cancel: "Cancelado.",
-      unsigned: "La descarga no es el instalador oficial de Ollama, así que no se ejecutó. Prueba de nuevo o descárgalo a mano.",
+      unsigned: "La descarga no coincide con la versión oficial de Ollama, así que no se usó. Prueba de nuevo o descárgalo a mano.",
       setup: "El instalador de Ollama no terminó bien. Prueba de nuevo o descárgalo a mano.",
       start: "Ollama se instaló pero no arrancó. Ábrelo desde el menú Inicio y vuelve aquí.",
     }[code] || (/^5\d\d$/.test(code) ? "El servicio no responde en este momento. Prueba en un rato." : "Algo falló. Prueba de nuevo.");
@@ -79,7 +79,7 @@
   }
 
   /* ---------- Ollama: instalar, abrir y bajar un modelo desde aquí ---------- */
-  let ollamaAction = null, busy = false;
+  let ollamaAction = null, busy = false, autoStarted = false;
   const pickBox = $("aiOllamaPick");
   const picked = () => pickBox.querySelector("input:checked")?.value || OLLAMA_MODELS[0];
   async function ollamaRender(r) {
@@ -97,10 +97,12 @@
     act.hidden = false;
     pickBox.hidden = true;
     if (!s.running && !s.installed) {
-      txt.textContent = "Ollama no está instalado. Chinchero lo instala por ti, sin cuentas ni ventanas: baja el instalador oficial (1,7 GB), no pide permisos de administrador y después descarga el modelo que elijas (2 o 2,5 GB más).";
+      txt.textContent = "Ollama no está instalado. Chinchero lo instala por ti, en segundo plano y sin abrir ventanas ni pedir cuentas o permisos: baja la versión oficial (1,6 GB) y después el modelo que elijas (2 o 2,5 GB más).";
       act.textContent = "Instalar Ollama"; ollamaAction = install;
       pickBox.hidden = false;
     } else if (!s.running) {
+      // Ollama se cierra junto con Chinchero: aquí se pone en marcha solo, una vez, sin pedir nada
+      if (!autoStarted) { autoStarted = true; startOllama(true); return; }
       txt.textContent = "Ollama está instalado pero detenido.";
       act.textContent = "Poner en marcha"; ollamaAction = startOllama;
     } else if (!n) {
@@ -117,7 +119,7 @@
   }
 
   const mb = b => (b / 1024 ** 2).toFixed(0) + " MB";
-  const STEPS = { download: "Descargando Ollama", verify: "Comprobando que es el instalador oficial…", install: "Instalando Ollama… (puede tardar un par de minutos)", start: "Poniendo en marcha Ollama…", pull: "Descargando el modelo" };
+  const STEPS = { download: "Descargando Ollama", verify: "Comprobando que es la descarga oficial…", install: "Preparando Ollama…", start: "Poniendo en marcha Ollama…", pull: "Descargando el modelo" };
   ai.onProgress(p => {
     const bar = $("aiProgBar"), pct = p.total ? Math.round(p.done / p.total * 100) : null;
     bar.parentElement.classList.toggle("indet", pct === null);
@@ -144,9 +146,9 @@
     if (r.ok) { toast("Ollama instalado"); return pull(); }
     loadModels();
   }
-  async function startOllama() {
+  async function startOllama(quiet) {
     const ok = await task("Poniendo en marcha Ollama…", () => ai.ollamaStart().then(ok => ok ? { ok } : { error: "start" }));
-    if (ok.ok) toast("Ollama está en marcha");
+    if (ok.ok && quiet !== true) toast("Ollama está en marcha");
     loadModels();
   }
   async function pull() {

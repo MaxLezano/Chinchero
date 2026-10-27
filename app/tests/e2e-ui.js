@@ -703,7 +703,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
       const b = JSON.parse(Editor.boardForAI());
       return { n, did, hoja: b.hoja, hojas: b.hojas, tipos: b.elementos.map(e => e.tipo).sort().join(","), tab: document.querySelector(".sheet.active")?.textContent || "" };
     });
-    ok("IA: crea una hoja, lleva elementos y sigue trabajando en ella", h.hoja === "Pagos" && h.hojas.length === 2 && h.tipos === "ficha,ficha,nota" && h.tab.includes("Pagos") && h.did.some(d => d.startsWith("llevé")), JSON.stringify(h));
+    ok("IA: crea una hoja, lleva elementos (con su zona) y sigue trabajando en ella", h.hoja === "Pagos" && h.hojas.length === 2 && h.tipos === "ficha,ficha,nota,zona" && h.tab.includes("Pagos") && h.did.some(d => d.startsWith("llevé")), JSON.stringify(h));
     const back = await p.evaluate(() => {
       const before = JSON.parse(Editor.boardForAI()).elementos.length;
       Editor.applyAI([{ op: "hoja", nombre: "Hoja 1" }, { op: "crear", tipo: "nota", texto: "De vuelta" }]);
@@ -713,6 +713,14 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     ok("IA: va a una hoja que ya existe por su nombre", back.hoja === "Hoja 1" && back.sinFichas && back.nota, JSON.stringify(back));
     await p.keyboard.down("Control"); await p.keyboard.press("z"); await p.keyboard.press("z"); await p.keyboard.up("Control"); await sleep(300);
     ok("IA: deshacer quita la hoja nueva y devuelve lo que se llevó", await p.evaluate(() => { const b = JSON.parse(Editor.boardForAI()); return b.hojas.length === 1 && b.elementos.filter(e => e.tipo === "ficha").length === 2; }));
+    ok("IA: renombra la hoja abierta", await p.evaluate(() => Editor.applyAI([{ op: "hoja", nombre: "Caja", renombrar: true }]) === 1
+      && JSON.parse(Editor.boardForAI()).hoja === "Caja" && document.querySelector(".sheet.active").textContent.includes("Caja")));
+    ok("IA: llevar todo a una hoja nueva renombra la actual en vez de dejarla vacía", await p.evaluate(() => {
+      const ids = JSON.parse(Editor.boardForAI()).elementos.map(e => e.id);
+      Editor.applyAI([{ op: "hoja", nombre: "Todo", nueva: true, llevar: ids }]);
+      const b = JSON.parse(Editor.boardForAI());
+      return b.hojas.length === 1 && b.hoja === "Todo" && b.elementos.length === ids.length;
+    }));
     await p.close();
   }
 
@@ -813,8 +821,8 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
       return { n, count: ds.length, d: paths[0]?.getAttribute("d"), d2: paths[1]?.getAttribute("d"), stroke: paths[0]?.getAttribute("stroke"), sw: paths[0]?.getAttribute("stroke-width"),
         sizes: ds.map(e => Math.max(e.offsetWidth, e.offsetHeight)), script: !!document.querySelector("#items script") };
     });
-    ok("IA: «dibujar» crea dibujos con los trazos válidos", dr.n === 2 && dr.count === 2 && dr.d === "M8 8 L58 8 L33 48 Z M33 48 L33 88" && dr.d2 === "M1.2 1.2 l20 0 M1.2 21.2 l20 0" && dr.stroke === "#1c7ed6" && dr.sw === "8" && !dr.script, JSON.stringify(dr));
-    ok("IA: los dibujos de la IA tienen un tamaño visible", dr.sizes.every(s => s >= 120 && s <= 480), JSON.stringify(dr.sizes));
+    ok("IA: «dibujar» crea dibujos con los trazos válidos", dr.n === 2 && dr.count === 2 && dr.d === "M3.7 3.7 L53.7 3.7 L28.7 43.7 Z M28.7 43.7 L28.7 83.7" && dr.d2 === "M0.5 0.5 l20 0 M0.5 20.5 l20 0" && dr.stroke === "#1c7ed6" && dr.sw === "8" && !dr.script, JSON.stringify(dr));
+    ok("IA: los dibujos de la IA tienen un tamaño visible", dr.sizes.every(s => s >= 260 && s <= 480), JSON.stringify(dr.sizes));
     await shot(p, "ia-dibujo");
     await p.close();
     const s = await open("03-ajustes.html", { prefs: NO_TOURS });

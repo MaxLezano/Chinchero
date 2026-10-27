@@ -300,14 +300,16 @@
     return { x: (e.clientX - r.left - view.x) / view.z, y: (e.clientY - r.top - view.y) / view.z };
   }
   // Ancho y alto del lienzo que se ve: sin la parte que tapa el panel del asistente, si está abierto
+  // «left»: lo que tapa la barra de herramientas a la izquierda (en ventanas angostas va abajo y no cuenta)
   function visibleSize() {
-    const p = $("#aiPanel"), v = viewport.getBoundingClientRect();
+    const p = $("#aiPanel"), v = viewport.getBoundingClientRect(), tb = $(".toolbar")?.getBoundingClientRect();
     const cut = p && !p.hidden ? Math.max(0, v.right - p.getBoundingClientRect().left + 12) : 0;
-    return { w: Math.max(200, viewport.clientWidth - cut), h: viewport.clientHeight };
+    const left = tb && tb.height > tb.width ? Math.max(0, tb.right - v.left + 8) : 0;
+    return { w: Math.max(200, viewport.clientWidth - cut), h: viewport.clientHeight, left: Math.min(left, 120) };
   }
   function viewCenter() {
-    const { w, h } = visibleSize();
-    return { x: (w / 2 - view.x) / view.z, y: (h / 2 - view.y) / view.z };
+    const { w, h, left } = visibleSize();
+    return { x: ((left + w) / 2 - view.x) / view.z, y: (h / 2 - view.y) / view.z };
   }
   function itemRect(it) {
     const el = elOf(it.id);
@@ -635,21 +637,21 @@
     applyView();
   }
   function centerOn(it) {
-    const r = itemRect(it), { w, h } = visibleSize();
-    view.x = w / 2 - (r.x + r.w / 2) * view.z;
+    const r = itemRect(it), { w, h, left } = visibleSize();
+    view.x = (left + w) / 2 - (r.x + r.w / 2) * view.z;
     view.y = h / 2 - (r.y + r.h / 2) * view.z;
     applyView();
   }
   // Si algo de estos elementos queda fuera de lo que se ve (o debajo del panel del asistente), se centra la vista en
   // todos ellos, alejando el zoom si no entran
   function showItems(its) {
-    const rs = its.map(itemRect), { w, h } = visibleSize(), m = 40;
+    const rs = its.map(itemRect), { w, h, left } = visibleSize(), m = 40;
     const x0 = Math.min(...rs.map(r => r.x)), y0 = Math.min(...rs.map(r => r.y));
     const x1 = Math.max(...rs.map(r => r.x + r.w)), y1 = Math.max(...rs.map(r => r.y + r.h));
-    const inside = x0 * view.z + view.x >= 0 && y0 * view.z + view.y >= 0 && x1 * view.z + view.x <= w && y1 * view.z + view.y <= h;
+    const inside = x0 * view.z + view.x >= left && y0 * view.z + view.y >= 0 && x1 * view.z + view.x <= w && y1 * view.z + view.y <= h;
     if (inside) return;
-    const z = clamp(Math.min(view.z, (w - 2 * m) / (x1 - x0 || 1), (h - 2 * m) / (y1 - y0 || 1)), .2, 3);
-    view = { z, x: w / 2 - (x0 + x1) / 2 * z, y: h / 2 - (y0 + y1) / 2 * z };
+    const z = clamp(Math.min(view.z, (w - left - 2 * m) / (x1 - x0 || 1), (h - 2 * m) / (y1 - y0 || 1)), .2, 3);
+    view = { z, x: (left + w) / 2 - (x0 + x1) / 2 * z, y: h / 2 - (y0 + y1) / 2 * z };
     applyView();
   }
   function applySurface() {
@@ -2543,21 +2545,27 @@
     path.remove();
     if (!b || ![b.x, b.y, b.width, b.height].every(Number.isFinite) || b.width > 1e4 || b.height > 1e4) return null;
     // El margen es de unos píxeles en pantalla, ya con la escala aplicada
-    const m = Math.max(b.width, b.height, 1), k = clamp(1, 120 / m, 480 / m), pad = (sw + 4) / k;
+    const m = Math.max(b.width, b.height, 1), k = clamp(1, 260 / m, 480 / m), pad = (sw + 4) / k;
     const vw = Math.ceil(b.width + 2 * pad), vh = Math.ceil(b.height + 2 * pad);
     const d = trazos.map(t => shiftPath(t, pad - b.x, pad - b.y)).filter(Boolean).join(" ");
-    return mk("draw", 0, 0, { w: Math.round(vw * k), h: Math.round(vh * k), vw, vh, d, color: AI_DRAW[aiStr(a.color).toLowerCase()] || "#e03131", sw });
+    // «negro» o «blanco» casi no se ven sobre la hoja oscura o clara: se usa el que contrasta con el tema actual
+    let color = aiStr(a.color).toLowerCase();
+    if (["negro", "blanco"].includes(color)) color = document.documentElement.dataset.theme === "dark" ? "blanco" : "negro";
+    return mk("draw", 0, 0, { w: Math.round(vw * k), h: Math.round(vh * k), vw, vh, d, color: AI_DRAW[color] || "#e03131", sw: Math.max(sw, 3) });
   }
 
   // Aplica lo que pidió el modelo como un solo cambio (un Ctrl+Z lo deshace entero, también entre hojas). Lo que no
   // se entiende se ignora. Devuelve cuántos cambios hizo; en «did» deja qué hizo, con ids, para el historial del chat.
   function applyAI(actions, did = []) {
     const refs = new Map(), made = [], tilt = getPref("tilt") !== "0", active0 = doc.active, zonesLater = [];
-    let sh = sheet(), changes = 0;
+    let sh = sheet(), changes = 0, renamed = false;
     const find = k => typeof k === "string" ? refs.get(k) || sh.items.find(o => o.id === k) : null;
     const before = snapshot();
     // Los creados aquí (o los de otra hoja) aún no se dibujaron: se estima su tamaño
-    const rectOf = o => elOf(o.id) ? itemRect(o) : { x: o.x, y: o.y, w: o.w || 200, h: o.type === "list" ? 60 + 28 * o.tasks.length : o.h || 170 };
+    const est = o => o.type === "text" ? { w: 40 + o.text.length * 24 * (o.s || 1), h: 70 * (o.s || 1) }
+      : o.type === "stamp" ? { w: 40 + o.text.length * 13, h: 44 } : o.type === "sticker" ? { w: 90, h: 90 }
+      : { w: o.w || 200, h: o.type === "list" ? 60 + 28 * o.tasks.length : o.h || 170 };
+    const rectOf = o => elOf(o.id) ? itemRect(o) : { x: o.x, y: o.y, ...est(o) };
     // Hueco libre: columnas a la derecha de lo que ya hay (o en el centro de la vista si la hoja está vacía)
     let free, freeN, nearN;
     const resetFree = () => {
@@ -2681,9 +2689,30 @@
       } else if (a.op === "hoja") {
         // Crea una hoja (o va a la que tenga ese nombre) y lo que sigue ocurre ahí; «llevar» pasa elementos con sus hilos
         const name = aiStr(a.nombre, 60);
+        if (a.renombrar === true) {
+          // Renombra la hoja abierta (mejor que crear otra y dejar esta vacía)
+          if (!name || name === sh.name) continue;
+          did.push(`renombré la hoja «${sh.name}» a «${name}»`);
+          sh.name = name; renamed = true; changes++;
+          continue;
+        }
         const moving = Array.isArray(a.llevar) ? [...new Set(a.llevar.map(find))].filter(o => o && !o.locked) : [];
+        // Una zona viaja con lo que tiene dentro si se llevan todos sus elementos (si no, quedaría vacía)
+        const within = (z, o) => { const r = rectOf(o); return r.x >= z.x && r.y >= z.y && r.x + r.w <= z.x + z.w && r.y + r.h <= z.y + z.h; };
+        if (moving.length) {
+          for (const z of sh.items.filter(o => o.type === "zone" && !moving.includes(o) && !o.locked)) {
+            const inside = sh.items.filter(o => o.type !== "zone" && within(z, o));
+            if (inside.length && inside.every(o => moving.includes(o))) moving.push(z);
+          }
+        }
         let i = a.nueva === true || !name ? -1 : doc.sheets.findIndex(s => s.name.toLowerCase() === name.toLowerCase());
         if (i === doc.active) continue;
+        // Llevar todo a una hoja nueva dejaría esta vacía: se renombra (los modelos lo piden así aunque se les explique)
+        if (i < 0 && name && moving.length && sh.items.every(o => moving.includes(o))) {
+          did.push(`renombré la hoja «${sh.name}» a «${name}» (tenía solo eso)`);
+          sh.name = name; renamed = true; changes++;
+          continue;
+        }
         if (i < 0) {
           doc.sheets.push(newSheet(name || `Hoja ${doc.sheets.length + 1}`, { color: Object.keys(NOTE_COLORS)[doc.sheets.length % 5] }));
           i = doc.sheets.length - 1;
@@ -2737,7 +2766,10 @@
       renderAll();
       sheetsEl.children[doc.active]?.scrollIntoView({ block: "nearest" });
       announce(`Hoja «${sh.name}»`);
-    } else render();
+    } else {
+      render();
+      if (renamed) renderSheets();
+    }
     saved();
     const shown = made.filter(o => sh.items.includes(o));
     if (shown.length) {

@@ -1,21 +1,27 @@
-// Instalación guiada de Ollama: la app baja el instalador oficial, comprueba su firma, lo ejecuta en silencio
-// (se instala para el usuario, sin permisos de administrador) y descarga un modelo con /api/pull.
-// Solo hay una tarea a la vez; el progreso se envía a la pantalla que la pidió.
+// Instalación guiada de Ollama, sin instalador ni ventanas: la app baja el .zip oficial de la última versión (solo el
+// servidor, sin la app de escritorio de Ollama), comprueba su SHA-256 con el que publica GitHub, lo descomprime oculto,
+// comprueba la firma de ollama.exe y lo deja en la carpeta de siempre. No toca el PATH, el registro ni el inicio de
+// Windows. Después descarga un modelo con /api/pull. Solo hay una tarea a la vez; el progreso va a la pantalla que la pidió.
 const { app, net } = require("electron");
 const { execFile, spawn } = require("child_process");
+const crypto = require("crypto");
 const path = require("path");
 const fs = require("fs");
 const os = require("os");
 
 const OLLAMA = process.env.CHINCHERO_OLLAMA_URL || "http://127.0.0.1:11434";
-const SETUP_URL = process.env.CHINCHERO_OLLAMA_SETUP_URL || "https://ollama.com/download/OllamaSetup.exe";
-const DIR = path.join(process.env.LOCALAPPDATA || path.join(os.homedir(), "AppData", "Local"), "Programs", "Ollama");
+const RELEASE_URL = process.env.CHINCHERO_OLLAMA_RELEASE_URL || "https://api.github.com/repos/ollama/ollama/releases/latest";
+const ZIP_NAME = `ollama-windows-${process.arch === "arm64" ? "arm64" : "amd64"}.zip`;
+const LOCAL = process.env.LOCALAPPDATA || path.join(os.homedir(), "AppData", "Local");
+// La misma carpeta que usa el instalador oficial: así se reconoce un Ollama ya instalado y se quita igual
+const DIR = path.join(LOCAL, "Programs", "Ollama");
 const SERVER_EXE = path.join(DIR, "ollama.exe");
-const SETUP_FILE = path.join(os.tmpdir(), "Chinchero-OllamaSetup.exe");
-// La app de escritorio de Ollama abre su propia ventana (cuenta, chat) y se pone en el inicio de Windows
+const ZIP_FILE = path.join(os.tmpdir(), "Chinchero-Ollama.zip");
+const STAGING = DIR + "-nuevo";
+// La app de escritorio de Ollama (si lo instaló el instalador oficial) se pone en el inicio de Windows
 const STARTUP_LNK = path.join(process.env.APPDATA || path.join(os.homedir(), "AppData", "Roaming"), "Microsoft", "Windows", "Start Menu", "Programs", "Startup", "Ollama.lnk");
 // Modelos descargados, registros y configuración de Ollama
-const HOME_DIRS = [path.join(os.homedir(), ".ollama"), path.join(process.env.LOCALAPPDATA || path.join(os.homedir(), "AppData", "Local"), "Ollama")];
+const HOME_DIRS = [path.join(os.homedir(), ".ollama"), path.join(LOCAL, "Ollama")];
 // Marca de que Ollama lo instaló Chinchero: el desinstalador de Chinchero (build/installer.nsh) solo quita Ollama si existe
 const MARK = () => path.join(app.getPath("userData"), "ollama-de-chinchero");
 
@@ -27,12 +33,13 @@ async function state() {
   return { running: await alive(), installed: fs.existsSync(SERVER_EXE), busy: job?.kind || null };
 }
 
-// Arranca solo el servidor de Ollama, oculto (sin la ventana de su app), y espera a que su API responda.
-// Sigue en marcha al cerrar Chinchero; sin pedidos ocupa poca memoria y libera el modelo a los pocos minutos.
+// Arranca el servidor de Ollama oculto y espera a que su API responda. No va «detached»: así hereda una consola
+// oculta y los procesos que lanza al cargar un modelo no abren ventanas (detached abría una por cada uno). Por lo
+// mismo se cierra con Chinchero y libera la memoria; el chat lo vuelve a arrancar cuando hace falta.
 async function start(ms = 30000) {
   if (await alive()) return true;
   if (!fs.existsSync(SERVER_EXE)) return false;
-  spawn(SERVER_EXE, ["serve"], { detached: true, stdio: "ignore", windowsHide: true }).unref();
+  spawn(SERVER_EXE, ["serve"], { stdio: "ignore", windowsHide: true }).unref();
   for (const end = Date.now() + ms; Date.now() < end;) {
     if (job?.ctrl.signal.aborted) return false;
     await new Promise(r => setTimeout(r, 1000));
@@ -41,7 +48,7 @@ async function start(ms = 30000) {
   return false;
 }
 
-// Firma Authenticode válida y emitida a Ollama: así no se ejecuta nada que no sea el instalador oficial
+// Firma Authenticode válida y emitida a Ollama: así no se ejecuta nada que no sea el Ollama oficial
 function signedByOllama(file) {
   return new Promise(resolve => {
     const ps = "$s = Get-AuthenticodeSignature -LiteralPath $env:CH_FILE; if ($s.Status -eq 'Valid') { $s.SignerCertificate.Subject }";
@@ -50,14 +57,26 @@ function signedByOllama(file) {
   });
 }
 
-async function download(ctrl, progress) {
-  const res = await net.fetch(SETUP_URL, { signal: ctrl.signal });
+// El .zip de la última versión y su SHA-256, según GitHub
+async function latestZip(ctrl) {
+  const res = await net.fetch(RELEASE_URL, { signal: ctrl.signal, headers: { accept: "application/vnd.github+json" } });
   if (!res.ok) throw new Error(String(res.status));
-  const total = Number(res.headers.get("content-length")) || 0;
-  const out = fs.createWriteStream(SETUP_FILE);
+  const a = (await res.json()).assets?.find(x => x.name === ZIP_NAME);
+  const sha = /^sha256:([0-9a-f]{64})$/i.exec(a?.digest || "")?.[1];
+  if (!a?.browser_download_url || !sha) throw new Error("404");
+  return { url: a.browser_download_url, sha: sha.toLowerCase(), size: a.size };
+}
+
+// Descarga a un archivo calculando su SHA-256 por el camino
+async function download(url, size, ctrl, progress) {
+  const res = await net.fetch(url, { signal: ctrl.signal });
+  if (!res.ok) throw new Error(String(res.status));
+  const total = Number(res.headers.get("content-length")) || size || 0;
+  const out = fs.createWriteStream(ZIP_FILE), hash = crypto.createHash("sha256");
   let done = 0, last = 0;
   try {
     for await (const chunk of res.body) {
+      hash.update(chunk);
       if (!out.write(chunk)) await new Promise(r => out.once("drain", r));
       done += chunk.length;
       if (Date.now() - last > 250) { last = Date.now(); progress({ step: "download", done, total }); }
@@ -66,13 +85,15 @@ async function download(ctrl, progress) {
     await new Promise(r => out.end(r));
   }
   progress({ step: "download", done, total: total || done });
+  return hash.digest("hex");
 }
 
-function runSetup() {
+// tar.exe viene con Windows 10 y 11 y entiende .zip
+function extract(dest) {
   return new Promise((resolve, reject) => {
-    const child = execFile(SETUP_FILE, ["/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/SP-"], { windowsHide: true },
-      err => err ? reject(new Error("setup")) : resolve());
-    job.child = child;
+    fs.mkdirSync(dest, { recursive: true });
+    const tar = path.join(process.env.SystemRoot || "C:\\Windows", "System32", "tar.exe");
+    job.child = execFile(tar, ["-xf", ZIP_FILE, "-C", dest], { windowsHide: true }, err => err ? reject(new Error("setup")) : resolve());
   });
 }
 
@@ -87,28 +108,26 @@ async function run(kind, progress, fn) {
   finally { job = null; }
 }
 
-// El instalador abre la app de Ollama al terminar (también en silencio): se cierra, con su servidor, y se quita
-// del inicio de Windows. Chinchero arranca el servidor oculto cuando hace falta (ver start).
-const kill = name => new Promise(r => execFile("taskkill", ["/im", name, "/f", "/t"], { windowsHide: true }, () => r()));
-const quietApp = () => kill("ollama app.exe").then(() => fs.promises.rm(STARTUP_LNK, { force: true }).catch(() => {}));
-
 const install = progress => run("install", progress, async ctrl => {
   if (await alive()) return { ok: true };
   if (!fs.existsSync(SERVER_EXE)) {
     try {
-      await download(ctrl, progress);
+      const zip = await latestZip(ctrl);
+      const sha = await download(zip.url, zip.size, ctrl, progress);
       progress({ step: "verify" });
       if (ctrl.signal.aborted) throw new Error("cancel");
-      if (!(await signedByOllama(SETUP_FILE))) throw new Error("unsigned");
-      // Desde aquí no se cancela: cortar un instalador a medias deja Ollama roto
+      if (sha !== zip.sha) throw new Error("unsigned");
+      // Desde aquí no se cancela: se descomprime aparte y solo se mueve a su lugar si ollama.exe es el oficial
       progress({ step: "install" });
-      await runSetup();
-      // La app tarda un momento en abrirse tras el instalador: se espera antes de cerrarla
-      await new Promise(r => setTimeout(r, 3000));
-      await quietApp();
+      await fs.promises.rm(STAGING, { recursive: true, force: true });
+      await extract(STAGING);
+      if (!(await signedByOllama(path.join(STAGING, "ollama.exe")))) throw new Error("unsigned");
+      await fs.promises.rm(DIR, { recursive: true, force: true });
+      await fs.promises.rename(STAGING, DIR);
       fs.writeFileSync(MARK(), "");
     } finally {
-      fs.rm(SETUP_FILE, { force: true }, () => {});
+      fs.rm(ZIP_FILE, { force: true }, () => {});
+      fs.rm(STAGING, { recursive: true, force: true }, () => {});
     }
   }
   progress({ step: "start" });
@@ -140,14 +159,14 @@ const pull = (model, progress) => run("pull", progress, async ctrl => {
   return ok ? { ok: true } : { error: "fail" };
 });
 
-// El instalador ya en marcha no se corta (ver install); la descarga y el modelo sí
+// La descompresión ya en marcha no se corta (ver install); la descarga y el modelo sí
 function cancel() {
   if (!job || job.child) return false;
   job.ctrl.abort();
   return true;
 }
 
-// Quita Ollama de la PC: lo cierra, ejecuta su desinstalador oficial en silencio y borra los modelos, sus registros y
+// Quita Ollama de la PC: lo cierra, ejecuta en silencio el desinstalador oficial (si se instaló con él) y borra los modelos, sus registros y
 // el acceso del inicio de Windows. Las carpetas de Ollama solo se tocan si estaba instalado en la carpeta de siempre.
 // Solo se cierran los procesos que corren desde esa carpeta (no otro Ollama con el mismo nombre)
 const killIn = dir => new Promise(r => execFile("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command",

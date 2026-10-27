@@ -5,22 +5,25 @@
   ${ifNot} ${isUpdated}
     ; Ollama solo se quita si lo instaló Chinchero (la app deja esa marca; ver src/main/ollama-setup.js)
     ${if} ${FileExists} "$APPDATA\Chinchero\ollama-de-chinchero"
-    ${andIf} ${FileExists} "$LOCALAPPDATA\Programs\Ollama\unins000.exe"
+    ${andIf} ${FileExists} "$LOCALAPPDATA\Programs\Ollama\ollama.exe"
       DetailPrint "Quitando Ollama y sus modelos…"
       nsExec::Exec 'taskkill /im "ollama app.exe" /f /t'
       nsExec::Exec 'taskkill /im "ollama.exe" /f /t'
       nsExec::Exec 'taskkill /im "llama-server.exe" /f /t'
-      ExecWait '"$LOCALAPPDATA\Programs\Ollama\unins000.exe" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART'
-      ; El desinstalador de Ollama sigue desde una copia temporal: se espera a que termine (hasta 2 minutos)
-      Var /GLOBAL chWait
-      StrCpy $chWait 0
-      ${DoWhile} ${FileExists} "$LOCALAPPDATA\Programs\Ollama\unins000.exe"
-        Sleep 1000
-        IntOp $chWait $chWait + 1
-        ${if} $chWait > 120
-          ${ExitDo}
-        ${endIf}
-      ${Loop}
+      ; Chinchero lo instala desde el .zip oficial (sin desinstalador); las versiones anteriores, con el instalador
+      ${if} ${FileExists} "$LOCALAPPDATA\Programs\Ollama\unins000.exe"
+        ExecWait '"$LOCALAPPDATA\Programs\Ollama\unins000.exe" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART'
+        ; El desinstalador de Ollama sigue desde una copia temporal: se espera a que termine (hasta 2 minutos)
+        Var /GLOBAL chWait
+        StrCpy $chWait 0
+        ${DoWhile} ${FileExists} "$LOCALAPPDATA\Programs\Ollama\unins000.exe"
+          Sleep 1000
+          IntOp $chWait $chWait + 1
+          ${if} $chWait > 120
+            ${ExitDo}
+          ${endIf}
+        ${Loop}
+      ${endIf}
       RMDir /r "$LOCALAPPDATA\Programs\Ollama"
       RMDir /r "$PROFILE\.ollama"
       RMDir /r "$LOCALAPPDATA\Ollama"
