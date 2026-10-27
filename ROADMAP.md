@@ -32,6 +32,9 @@ Lista de tareas para avanzar de a una. Cada tarea se hace en una sesión de chat
    - Actualizar requisitos y preguntas frecuentes de la web.
 
 ### Para hacer a mano (necesitan a una persona)
+- winget: firmar el CLA en microsoft/winget-pkgs#462561 (comentar `@microsoft-github-policy-service agree`) si falta. Cuando Microsoft lo apruebe: crear el secreto `WINGET_TOKEN` en el repo (token clásico con `public_repo`), y sumar `winget install MaxLezano.Chinchero` a la web, al README y al identificador de winget en AlternativeTo.
+- AlternativeTo: esperar la aprobación de la ficha (enviada el 2026-10-27 con 11 alternativas) y revisar que estén Milanote, Scapple y Microsoft Whiteboard.
+- Revisar en unos días que Google (Search Console → Páginas) y Bing (URL Inspection) hayan indexado la web.
 - Instalar el `.exe` y abrir un `.chinchero` con doble clic con la app cerrada (con la app abierta ya está probado).
 - Escuchar los sonidos de interacción en la app y afinar su timbre en `assets/sound.js`.
 
@@ -72,3 +75,4 @@ Lista de tareas para avanzar de a una. Cada tarea se hace en una sesión de chat
 - **2026-10-26 · Banner de actualización en una línea y QA**: el botón «Reiniciar ahora» ya no se parte en dos líneas (botones sin salto de línea y banner de hasta 720 px). El recorrido de QA (`tests/qa-capturas.js`) captura también el banner. QA de la app (claro/oscuro, 1000–1920 px) y de la web sin avisos; la web muestra la v0.4.0.
 - **2026-10-27 · Búsqueda (SEO) de la web y HTTPS**: HTTPS forzado en `tuchinchero.com` (certificado emitido). Título y descripción con las búsquedas de lo que hace la app («tablero de corcho digital», «tablero de detective», «organizar ideas»…), URL canónica, Open Graph y Twitter completos, datos estructurados `SoftwareApplication` (JSON-LD), `robots.txt` y `sitemap.xml`. Dominio verificado en Google Search Console (por DNS en Cloudflare: no borrar el registro TXT de Google) e importado en Bing Webmaster Tools; sitemap enviado e indexación solicitada en los dos.
 - **2026-10-27 · winget y repo en GitHub**: repo con descripción, enlace a la web y 13 etiquetas. Primer paquete `MaxLezano.Chinchero` 0.4.1 enviado a mano a winget (PR microsoft/winget-pkgs#462561; firmar el CLA con `@microsoft-github-policy-service agree`). `release.yml` tiene un trabajo `winget` (winget-releaser) que manda el PR de cada versión nueva; se saltea hasta que exista el secreto `WINGET_TOKEN` (token clásico con `public_repo`), que se crea cuando Microsoft apruebe el primer paquete.
+- **2026-10-27 · AlternativeTo**: ficha de Chinchero enviada (descripción, capturas, funciones, licencia MIT y 11 alternativas: Miro, Mural, FigJam, Freeform, Kinopio, Walling, Webjets, visualOS, DeepNotes, Bulletin, Notezilla/Stickies…). Uptodown y Softpedia descartados por ahora: Uptodown solo acepta envíos de Android y Softpedia no tiene formulario vigente; suelen descubrir los programas solos (GitHub, winget).
