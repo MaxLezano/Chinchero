@@ -2,7 +2,9 @@
 
 # Chinchero
 
-**Tu tablero de corcho digital para Windows.** Pincha notas, fichas, listas, fotos, enlaces, archivos y stickers; únelos con hilos como en las películas de detectives y organízalos en tableros, hojas, zonas y grupos. Funciona sin conexión y todo queda en tu equipo.
+**Tu tablero de corcho digital para Windows.** Pincha notas, fichas, listas, fotos, enlaces, archivos, stickers y dibujos; únelos con hilos como en las películas de detectives y organízalos en tableros, hojas, zonas y grupos. Funciona sin conexión y todo queda en tu equipo.
+
+Incluye un asistente con IA opcional (desactivado de fábrica) que propone ideas, arma tableros, resume, ordena y dibuja: con Gemini (clave gratuita de Google) u Ollama, que corre en tu PC sin internet.
 
 - 🌐 Web y descargas: https://tuchinchero.com/
 - ⬇️ Instalador: [Releases](https://github.com/MaxLezano/Chinchero/releases) (`Chinchero-Setup-X.Y.Z.exe` para Intel y AMD, `-arm64.exe` para ARM)
@@ -31,7 +33,7 @@ Para probar sin tocar tus datos reales: `CHINCHERO_USER_DATA` y `CHINCHERO_DATA_
 
 ## Publicar una versión
 
-1. Sube la versión en `app/package.json` (por ejemplo `0.2.0`).
+1. Sube la versión en `app/package.json` (por ejemplo `0.2.0`) y escribe las notas en `app/notas/v0.2.0.md` (la web las muestra; sin ese archivo se generan solas).
 2. Commit y etiqueta: `git tag v0.2.0 && git push origin main --tags`.
 3. GitHub Actions compila el instalador y crea la release. La app instalada se actualiza sola y la web la muestra automáticamente.
 
@@ -39,7 +41,7 @@ Para probar sin tocar tus datos reales: `CHINCHERO_USER_DATA` y `CHINCHERO_DATA_
 
 Los tableros se guardan en `Documentos\Chinchero` (configurable en Ajustes):
 `library.json` (grupos y tableros), `boards/<id>.json` (contenido) y `media/` (imágenes y archivos copiados).
-Desinstalar la app no borra esa carpeta.
+Al desinstalar, Chinchero pregunta si conservarla (por defecto, sí); al actualizar o en una desinstalación silenciosa siempre se conserva.
 
 ## Licencia
 
