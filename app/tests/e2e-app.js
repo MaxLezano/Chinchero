@@ -395,6 +395,12 @@ delete process.env.ELECTRON_RUN_AS_NODE;
     && await page.evaluate(() => document.querySelector(".ai-msg.assistant").textContent.includes("3 cambios")), JSON.stringify({ before, after }));
   ok("IA: el texto del modelo no se interpreta como HTML", await page.evaluate(() => [...document.querySelectorAll(".t-note .txt")].some(e => e.innerHTML.includes("&lt;b&gt;uno"))));
   await page.screenshot({ path: `${SHOTS}/a9-asistente.png` });
+  await (await page.$(".ai-input")).screenshot({ path: `${SHOTS}/a9-asistente-enviar.png` });
+  ok("IA: el botón de enviar es redondo, está centrado en el campo y separado del texto", await page.evaluate(() => {
+    const b = document.getElementById("aiSend"), s = getComputedStyle(b), r = b.getBoundingClientRect();
+    const box = b.parentElement.getBoundingClientRect(), t = document.getElementById("aiInput").getBoundingClientRect();
+    return s.borderRadius === "50%" && Math.abs((r.top + r.bottom) / 2 - (box.top + box.bottom) / 2) < 1.5 && r.left - t.right >= 12;
+  }));
   await page.click(".ai-did button"); await sleep(400);
   ok("IA: «Deshacer» quita todo lo que hizo de una vez", JSON.stringify(await count()) === JSON.stringify(before));
 

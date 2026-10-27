@@ -306,10 +306,10 @@ body.exporting [data-tip]::after { display: none !important; }
 .ai-chips { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 10px 14px; border-top: 1px solid var(--border); }
 .ai-chips .chip { display: flex; align-items: center; gap: 6px; text-align: left; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); border-radius: 9px; padding: 7px 10px; font-size: 12px; line-height: 1.2; min-height: 34px; }
 .ai-chips .chip:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
-.ai-input { position: relative; margin: 0 14px 8px; display: flex; align-items: flex-end; gap: 6px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; padding: 6px 6px 6px 12px; }
+.ai-input { position: relative; margin: 0 14px 8px; display: flex; align-items: center; gap: 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; padding: 6px 8px 6px 12px; }
 .ai-input:focus-within { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
 .ai-input textarea { flex: 1; resize: none; font: 13.5px/1.45 var(--font); color: var(--text); background: none; border: 0; padding: 4px 0; max-height: 140px; outline: none; }
-.ai-send { flex: none; width: 34px; height: 34px; border-radius: 9px; border: 0; background: var(--accent); color: var(--on-accent); display: grid; place-items: center; padding: 0; }
+.ai-send { flex: none; width: 34px; height: 34px; border-radius: 50%; border: 0; background: var(--accent); color: var(--on-accent); display: grid; place-items: center; padding: 0; }
 .ai-send .icon { width: 18px; height: 18px; }
 .ai-send:hover:not(:disabled) { filter: brightness(1.08); }
 .ai-privacy { display: block; padding: 0 14px 10px; font-size: 11.5px; color: var(--text-muted); }
