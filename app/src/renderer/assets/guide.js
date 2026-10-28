@@ -10,18 +10,20 @@
   const tours = {};
   let cur = null;
 
+  // steps puede ser una función: así los textos salen en el idioma de cuando se abre el tutorial
   function define(id, steps) { tours[id] = steps; }
 
   function start(id) {
     if (!tours[id]) return;
     stop(false);
     Tips.hide();
+    const steps = typeof tours[id] === "function" ? tours[id]() : tours[id];
     // Contenedor fijo: fuera del flujo, para no convertirse en celda de layouts con grid (barra lateral)
     const root = document.createElement("div");
     root.className = "tour-root";
     root.innerHTML = '<div class="tour-spot"></div><div class="tour-pop" role="dialog" aria-live="polite"></div>';
     document.body.appendChild(root);
-    cur = { id, i: -1, steps: tours[id], root, spot: root.firstChild, pop: root.lastChild, off: null };
+    cur = { id, i: -1, steps, root, spot: root.firstChild, pop: root.lastChild, off: null };
     window.addEventListener("resize", place);
     document.addEventListener("keydown", onKey, true);
     show(0);
@@ -45,13 +47,13 @@
     const s = cur.steps[i], n = cur.steps.length, last = i === n - 1;
     s.before?.();
     cur.pop.innerHTML = `
-      <div class="tour-step">Paso ${i + 1} de ${n}</div>
+      <div class="tour-step">${t("ayuda.paso", { i: i + 1, n })}</div>
       <h4>${s.title}</h4><p>${s.text}</p>
       ${s.await ? `<div class="tour-await">👉 ${s.task}</div>` : ""}
       <div class="tour-btns">
-        <button class="tour-skip">Saltar tutorial</button>
-        ${i ? '<button class="btn tour-prev">Atrás</button>' : ""}
-        <button class="btn ${s.await ? "" : "btn-primary"} tour-next">${last ? "Terminar" : s.await ? "Saltar paso" : "Siguiente"}</button>
+        <button class="tour-skip">${t("ayuda.saltarTutorial")}</button>
+        ${i ? `<button class="btn tour-prev">${t("ayuda.atras")}</button>` : ""}
+        <button class="btn ${s.await ? "" : "btn-primary"} tour-next">${t(last ? "ayuda.terminar" : s.await ? "ayuda.saltarPaso" : "ayuda.siguiente")}</button>
       </div>`;
     cur.pop.querySelector(".tour-skip").onclick = () => stop();
     cur.pop.querySelector(".tour-prev")?.addEventListener("click", () => show(i - 1));
@@ -133,15 +135,15 @@
       tipEl = document.createElement("div");
       tipEl.className = "tip";
       tipEl.setAttribute("role", "status");
-      tipEl.innerHTML = `<b>💡 Sugerencia</b><p>${text}</p><div class="tip-btns">
-        <button class="tip-mute">No mostrar más</button>
+      tipEl.innerHTML = `<b>💡 ${t("ayuda.sugerencia")}</b><p>${text}</p><div class="tip-btns">
+        <button class="tip-mute">${t("ayuda.noMostrarMas")}</button>
         ${action ? `<button class="btn tip-act">${action.label}</button>` : ""}
-        <button class="btn btn-primary tip-ok">Entendido</button></div>`;
+        <button class="btn btn-primary tip-ok">${t("ayuda.entendido")}</button></div>`;
       const close = () => { set("tip-" + id, "seen"); Tips.hide(); };
       tipEl.querySelector(".tip-ok").onclick = close;
       tipEl.querySelector(".tip-mute").onclick = () => {
         set("tips", "off"); close();
-        toast("Sugerencias desactivadas. Puedes volver a activarlas en Ajustes o en Ayuda.");
+        toast(t("ayuda.sugerenciasDesactivadasDonde"));
       };
       if (action) tipEl.querySelector(".tip-act").onclick = () => { close(); action.fn(); };
       document.body.appendChild(tipEl);
@@ -157,8 +159,8 @@
     document.querySelector(".g-backdrop")?.remove();
     const b = document.createElement("div");
     b.className = "g-backdrop";
-    b.innerHTML = `<div class="g-modal" role="dialog" aria-modal="true" aria-label="Atajos de teclado">
-      <div class="g-head"><h3>Atajos de teclado</h3><button class="icon-btn" aria-label="Cerrar">✕</button></div>
+    b.innerHTML = `<div class="g-modal" role="dialog" aria-modal="true" aria-label="${t("ayuda.atajos")}">
+      <div class="g-head"><h3>${t("ayuda.atajos")}</h3><button class="icon-btn" aria-label="${t("comun.cerrar")}">✕</button></div>
       <div class="kb-cols">${groups.map(g => `<div><h5>${g.title}</h5>${g.rows.map(([label, keys]) =>
         `<div class="kb-row"><span>${label}</span><span>${keys.split(" ").map(k => `<kbd>${k}</kbd>`).join("")}</span></div>`).join("")}</div>`).join("")}
       </div></div>`;
@@ -175,14 +177,14 @@
     const r = anchor.getBoundingClientRect();
     const tipsOn = get("tips") !== "off";
     showMenu(r.left, r.bottom + 6, [
-      { label: "Ver tutorial de esta pantalla", action: () => start(tourId) },
-      shortcuts && { label: "Atajos de teclado", kbd: "?", action: () => showShortcuts(shortcuts) },
+      { label: t("ayuda.verTutorial"), action: () => start(tourId) },
+      shortcuts && { label: t("ayuda.atajos"), kbd: "?", action: () => showShortcuts(shortcuts) },
       "-",
-      { label: tipsOn ? "Desactivar sugerencias" : "Activar sugerencias", action: () => {
+      { label: t(tipsOn ? "ayuda.desactivarSugerencias" : "ayuda.activarSugerencias"), action: () => {
         set("tips", tipsOn ? "off" : "on");
-        toast(tipsOn ? "Sugerencias desactivadas" : "Sugerencias activadas");
+        toast(t(tipsOn ? "ayuda.sugerenciasDesactivadas" : "ayuda.sugerenciasActivadas"));
       } },
-      { label: "Volver a ver todos los tutoriales", action: () => { resetAll(); set("tours", "on"); toast("Los tutoriales y sugerencias volverán a aparecer"); } },
+      { label: t("ayuda.volverAVer"), action: () => { resetAll(); set("tours", "on"); toast(t("ayuda.volveranAAparecer")); } },
     ].filter(Boolean));
   };
 })();

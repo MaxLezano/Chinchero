@@ -27,18 +27,19 @@
       <span class="group-dot" style="background:${esc(g.color)}"></span><span class="gname">${esc(g.name)}</span><span class="count">${countOf(g.id)}</span></a>`;
   }
 
-  el.setAttribute("aria-label", "Navegación");
+  el.setAttribute("aria-label", t("barra.navegacion"));
+  el.dataset.i18n = "[aria-label]barra.navegacion";
   el.innerHTML = `
     <a class="brand" href="01-tableros.html"><div class="brand-mark surface-cork"><span class="pin"></span></div>Chinchero</a>
-    <a class="nav-item${on("recent")}" href="01-tableros.html?view=recent">${I.clock}Recientes</a>
-    <a class="nav-item${on("fav")}" href="01-tableros.html?view=fav">${I.star}Favoritos</a>
-    <div class="section-label">Grupos <button id="newGroup" aria-label="Nuevo grupo" data-tip="Nuevo grupo" data-tip-pos="left">${I.plus}</button></div>
+    <a class="nav-item${on("recent")}" href="01-tableros.html?view=recent" data-i18n="barra.recientes">${I.clock}${t("barra.recientes")}</a>
+    <a class="nav-item${on("fav")}" href="01-tableros.html?view=fav" data-i18n="barra.favoritos">${I.star}${t("barra.favoritos")}</a>
+    <div class="section-label" data-i18n="barra.grupos">${t("barra.grupos")} <button id="newGroup" aria-label="${t("barra.nuevoGrupo")}" data-tip="${t("barra.nuevoGrupo")}" data-i18n="[aria-label]barra.nuevoGrupo;[data-tip]barra.nuevoGrupo" data-tip-pos="left">${I.plus}</button></div>
     <div id="groupList">${GROUPS.map(groupRow).join("")}</div>
-    <a class="nav-item${on("trash")}" href="04-papelera.html" style="margin-top:8px">${I.trash}Papelera<span class="count" id="trashCount">${lib.trash.length || ""}</span></a>
+    <a class="nav-item${on("trash")}" href="04-papelera.html" style="margin-top:8px" data-i18n="barra.papelera">${I.trash}${t("barra.papelera")}<span class="count" id="trashCount">${lib.trash.length || ""}</span></a>
     <div class="sidebar-footer">
-      <button class="icon-btn" aria-label="Cambiar tema" data-tip="Cambiar tema" data-tip-pos="top" data-theme-toggle>${I.moon}${I.sun}</button>
-      <a class="icon-btn${on("settings")}" aria-label="Ajustes" data-tip="Ajustes" data-tip-pos="top" href="03-ajustes.html">${I.gear}</a>
-      <button class="icon-btn" id="helpBtn" aria-label="Ayuda" data-tip="Ayuda" data-tip-pos="top">${I.help}</button>
+      <button class="icon-btn" aria-label="${t("barra.tema")}" data-tip="${t("barra.tema")}" data-i18n="[aria-label]barra.tema;[data-tip]barra.tema" data-tip-pos="top" data-theme-toggle>${I.moon}${I.sun}</button>
+      <a class="icon-btn${on("settings")}" aria-label="${t("barra.ajustes")}" data-tip="${t("barra.ajustes")}" data-i18n="[aria-label]barra.ajustes;[data-tip]barra.ajustes" data-tip-pos="top" href="03-ajustes.html">${I.gear}</a>
+      <button class="icon-btn" id="helpBtn" aria-label="${t("barra.ayuda")}" data-tip="${t("barra.ayuda")}" data-i18n="[aria-label]barra.ayuda;[data-tip]barra.ayuda" data-tip-pos="top">${I.help}</button>
     </div>`;
 
   const list = el.querySelector("#groupList");
@@ -55,13 +56,13 @@
     const name = row.querySelector(".gname");
     const input = document.createElement("input");
     input.value = name.textContent;
-    input.setAttribute("aria-label", "Nombre del grupo");
+    input.setAttribute("aria-label", t("barra.nombreGrupo"));
     name.replaceWith(input);
     input.focus(); input.select();
     input.onblur = () => {
       const span = document.createElement("span");
       span.className = "gname";
-      span.textContent = input.value.trim() || "Sin nombre";
+      span.textContent = input.value.trim() || t("comun.sinNombre");
       input.replaceWith(span);
       const g = groupOf(row);
       if (g && g.name !== span.textContent) { g.name = span.textContent; Store.saveLibrary(); document.dispatchEvent(new CustomEvent("groups-changed")); }
@@ -71,7 +72,7 @@
   }
 
   el.querySelector("#newGroup").onclick = () => {
-    const g = { id: Store.uid("g"), name: "Nuevo grupo", color: COLORS[GROUPS.length % COLORS.length] };
+    const g = { id: Store.uid("g"), name: t("barra.nuevoGrupo"), color: COLORS[GROUPS.length % COLORS.length] };
     GROUPS.push(g);
     Store.saveLibrary();
     list.insertAdjacentHTML("beforeend", groupRow(g));
@@ -83,9 +84,9 @@
     if (!row) return;
     e.preventDefault();
     showMenu(e.clientX, e.clientY, [
-      { label: "Abrir", action: () => row.click() },
-      { label: "Renombrar", kbd: "F2", action: () => renameInline(row) },
-      { label: "Cambiar color", action: () => {
+      { label: t("barra.menu.abrir"), action: () => row.click() },
+      { label: t("barra.menu.renombrar"), kbd: "F2", action: () => renameInline(row) },
+      { label: t("barra.menu.color"), action: () => {
         const g = groupOf(row);
         g.color = COLORS[(COLORS.indexOf(g.color) + 1) % COLORS.length];
         row.querySelector(".group-dot").style.background = g.color;
@@ -93,16 +94,16 @@
         document.dispatchEvent(new CustomEvent("groups-changed"));
       } },
       "-",
-      { label: "Eliminar grupo", danger: true, action: () => {
+      { label: t("barra.menu.eliminar"), danger: true, action: () => {
         const n = countOf(row.dataset.group);
-        if (n && !confirm(`El grupo tiene ${n} tablero${n > 1 ? "s" : ""}. Se enviará${n > 1 ? "n" : ""} a la papelera junto con el grupo. ¿Continuar?`)) return;
+        if (n && !confirm(t("barra.confirmarEliminar", { count: n }))) return;
         const entry = Store.trashGroup(row.dataset.group);
         const leaving = row.classList.contains("active");
         row.remove();
         el.querySelector("#trashCount").textContent = lib.trash.length;
         document.dispatchEvent(new CustomEvent("groups-changed"));
         if (leaving) return location.replace("01-tableros.html?view=recent");
-        toast("Grupo enviado a la papelera", "Deshacer", () => { Store.restore(entry.id); location.reload(); });
+        toast(t("barra.grupoEnPapelera"), t("comun.deshacer"), () => { Store.restore(entry.id); location.reload(); });
       } },
     ]);
   });

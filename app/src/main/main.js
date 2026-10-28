@@ -7,6 +7,8 @@ const store = require("./store");
 const updater = require("./updater");
 const ai = require("./ai");
 const ollamaSetup = require("./ollama-setup");
+const i18n = require("./i18n");
+const { t } = i18n;
 
 const RENDERER = path.join(__dirname, "..", "renderer");
 // Las pantallas se sirven con un esquema propio (no file://): así file:// no necesita privilegios extra para leer el asar
@@ -16,6 +18,8 @@ let win = null, started = false;
 
 // Desarrollo y pruebas: perfil aislado (no toca la instalación real del usuario)
 if (process.env.CHINCHERO_USER_DATA) app.setPath("userData", process.env.CHINCHERO_USER_DATA);
+// Idioma elegido en Ajustes (las pantallas lo confirman al cargar con app:lang)
+i18n.set(store.config.get().lang);
 
 // Imágenes y archivos guardados en la carpeta de datos se sirven con un esquema propio (nunca file:// arbitrario)
 protocol.registerSchemesAsPrivileged([
@@ -98,16 +102,16 @@ app.whenReady().then(async () => {
     const file = path.join(RENDERER, rel);
     return u.host === "app" && file.startsWith(RENDERER + path.sep) && fs.existsSync(file)
       ? net.fetch(pathToFileURL(file).toString())
-      : new Response("No encontrado", { status: 404 });
+      : new Response("Not found", { status: 404 }); // i18n-ok: respuesta HTTP
   });
   protocol.handle("chinchero-media", req => {
     const u = new URL(req.url);
     const file = u.host === "thumbs" ? store.thumbFile(decodeURIComponent(u.pathname)) : store.mediaFile(req.url);
     return file && fs.existsSync(file)
       ? net.fetch(pathToFileURL(file).toString())
-      : new Response("No encontrado", { status: 404 });
+      : new Response("Not found", { status: 404 }); // i18n-ok: respuesta HTTP
   });
-  try { store.autoBackup(); } catch (e) { console.error("Copia automática:", e); }
+  try { store.autoBackup(); } catch (e) { console.error("Copia automática:", e); } // i18n-ok: registro, no se ve
   createWindow();
   started = true;
   updater.init(() => win);
@@ -133,8 +137,8 @@ const is = {
   rect: r => is.obj(r) && is.num(r.x, -1e4, 1e5) && is.num(r.y, -1e4, 1e5) && is.num(r.width, 1, 1e5) && is.num(r.height, 1, 1e5),
 };
 function rejected(channel, e) {
-  console.warn(`IPC rechazado: ${channel} desde ${e.senderFrame?.url || "?"}`);
-  return new Error(`Petición no válida (${channel})`);
+  console.warn(`IPC rechazado: ${channel} desde ${e.senderFrame?.url || "?"}`); // i18n-ok: registro
+  return new Error(`Invalid request (${channel})`);
 }
 function handle(channel, check, fn) {
   ipcMain.handle(channel, (e, ...args) => {
@@ -153,6 +157,10 @@ function onSync(channel, check, fn) {
 onSync("lib:get", none, e => { e.returnValue = store.getLibrary(); });
 onSync("board:load", is.id, (e, id) => { e.returnValue = store.loadBoard(id); });
 onSync("data:recovered", none, e => { e.returnValue = store.takeRecovered(); });
+handle("app:lang", l => i18n.LANGS.includes(l), (e, l) => {
+  i18n.set(l);
+  if (store.config.get().lang !== l) store.config.set({ lang: l });
+});
 onSync("app:info", none, e => {
   e.returnValue = { version: app.getVersion(), dataDir: store.dataDir(), packaged: app.isPackaged, firstRun: !store.config.get().firstRunDone };
 });
@@ -170,7 +178,7 @@ handle("data:open", none, () => shell.openPath(store.dataDir()));
 
 handle("data:choose", mode => mode === "new" || mode === "existing", async (e, mode) => {
   const r = await dialog.showOpenDialog(win, {
-    title: mode === "existing" ? "Elige la carpeta de datos de Chinchero" : "Elige dónde guardar tus tableros",
+    title: t(mode === "existing" ? "main.dialogos.carpetaExistente" : "main.dialogos.carpetaNueva"),
     properties: ["openDirectory", "createDirectory"],
   });
   if (r.canceled || !r.filePaths[0]) return null;
@@ -184,7 +192,7 @@ handle("data:choose", mode => mode === "new" || mode === "existing", async (e, m
 });
 
 handle("data:backup", none, async () => {
-  const file = await savePath("¿Dónde guardo la copia de seguridad?", `Chinchero-copia-${new Date().toISOString().slice(0, 10)}`, "zip", "Copia de Chinchero (.zip)", "documents");
+  const file = await savePath(t("main.dialogos.dondeCopia"), `${t("main.dialogos.archivoCopia")}-${new Date().toISOString().slice(0, 10)}`, "zip", t("main.dialogos.filtroCopia"), "documents");
   if (!file) return null;
   store.backupTo(file);
   if (!process.env.CHINCHERO_EXPORT_DIR) shell.showItemInFolder(file);
@@ -195,7 +203,7 @@ handle("data:backup", none, async () => {
 handle("data:restore", none, async () => {
   let file = process.env.CHINCHERO_RESTORE_FILE;
   if (!file) {
-    const r = await dialog.showOpenDialog(win, { title: "Elige la copia de seguridad (.zip)", filters: [{ name: "Copia de Chinchero (.zip)", extensions: ["zip"] }], properties: ["openFile"] });
+    const r = await dialog.showOpenDialog(win, { title: t("main.dialogos.elegirCopia"), filters: [{ name: t("main.dialogos.filtroCopia"), extensions: ["zip"] }], properties: ["openFile"] });
     if (r.canceled || !r.filePaths[0]) return null;
     file = r.filePaths[0];
   }
@@ -204,7 +212,7 @@ handle("data:restore", none, async () => {
 
 // Compartir un tablero: exportar a .chinchero e importar (del diálogo, de un archivo arrastrado o abierto con doble clic)
 handle("board:export", (id, name) => is.id(id) && is.str(name), async (e, id, name) => {
-  const file = await savePath("Exportar tablero para compartir", name, "chinchero", "Tablero de Chinchero (.chinchero)", "documents");
+  const file = await savePath(t("main.dialogos.exportarTablero"), name, "chinchero", t("main.dialogos.filtroTablero"), "documents");
   if (!file) return null;
   store.exportBoard(id, file);
   return file;
@@ -212,7 +220,7 @@ handle("board:export", (id, name) => is.id(id) && is.str(name), async (e, id, na
 handle("board:import", file => file == null || (is.file(file) && /\.chinchero$/i.test(file)), async (e, file) => {
   file ||= process.env.CHINCHERO_IMPORT_FILE;
   if (!file) {
-    const r = await dialog.showOpenDialog(win, { title: "Elige el tablero para importar", filters: [{ name: "Tablero de Chinchero (.chinchero)", extensions: ["chinchero"] }], properties: ["openFile"] });
+    const r = await dialog.showOpenDialog(win, { title: t("main.dialogos.importarTablero"), filters: [{ name: t("main.dialogos.filtroTablero"), extensions: ["chinchero"] }], properties: ["openFile"] });
     if (r.canceled || !r.filePaths[0]) return null;
     file = r.filePaths[0];
   }
@@ -226,7 +234,7 @@ handle("open:external", url => is.str(url, 4000), (e, url) => {
 const RISKY = /\.(exe|com|scr|pif|bat|cmd|msi|msp|ps1|psm1|vbs|vbe|js|jse|wsf|wsh|hta|lnk|url|reg|cpl|jar|appx|msix|appinstaller|application|gadget|inf|scf|chm)$/i;
 handle("open:media", url => is.str(url) && url.startsWith("chinchero-media://"), (e, url) => {
   const file = store.mediaFile(url);
-  if (!file) return "No encontrado";
+  if (!file) return "Not found"; // i18n-ok: no se muestra
   // Un ejecutable adjunto (p. ej. dentro de un .chinchero ajeno) no se lanza: se muestra en su carpeta
   if (RISKY.test(file)) return shell.showItemInFolder(file);
   return shell.openPath(file);
@@ -247,7 +255,7 @@ handle("capture:cover", v => typeof v === "boolean", async (e, on) => {
     focusable: false, skipTaskbar: true, show: false, webPreferences: { sandbox: true, contextIsolation: true, javascript: false },
   });
   cover.webContents.on("will-navigate", ev => ev.preventDefault());
-  await cover.loadURL("data:text/html;charset=utf-8," + encodeURIComponent(`<!doctype html><style>html,body{margin:0;height:100%;overflow:hidden;background:url(${shot}) 0 0/100% 100%}b{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);font:600 14px "Segoe UI",sans-serif;color:#fff;background:rgba(20,20,20,.85);padding:10px 18px;border-radius:99px}</style><b>Exportando…</b>`));
+  await cover.loadURL("data:text/html;charset=utf-8," + encodeURIComponent(`<!doctype html><style>html,body{margin:0;height:100%;overflow:hidden;background:url(${shot}) 0 0/100% 100%}b{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);font:600 14px "Segoe UI",sans-serif;color:#fff;background:rgba(20,20,20,.85);padding:10px 18px;border-radius:99px}</style><b>${t("main.exportando")}</b>`));
   cover.showInactive();
   return true;
 });
@@ -261,7 +269,7 @@ async function savePath(title, name, ext, filter, folder) {
 }
 
 handle("export:png", (png, name) => is.bytes(png) && is.str(name), async (e, png, name) => {
-  const file = await savePath("Exportar como imagen", name, "png", "Imagen PNG", "pictures");
+  const file = await savePath(t("main.dialogos.exportarPng"), name, "png", t("main.dialogos.filtroPng"), "pictures");
   if (!file) return null;
   fs.writeFileSync(file, Buffer.from(png));
   return file;
@@ -274,7 +282,7 @@ handle("copy:png", is.bytes, (e, png) => {
 // PDF: una página por hoja, del tamaño de su contenido. Se arma una página oculta con las imágenes y se imprime
 const PDF_MAX = 19200; // 200 pulgadas, el máximo de una página PDF, en px CSS
 handle("export:pdf", (pages, name) => Array.isArray(pages) && pages.length > 0 && pages.length <= 1000 && pages.every(p => is.obj(p) && is.bytes(p.png) && is.num(p.w) && is.num(p.h)) && is.str(name), async (e, pages, name) => {
-  const file = await savePath("Exportar como PDF", name, "pdf", "Documento PDF", "documents");
+  const file = await savePath(t("main.dialogos.exportarPdf"), name, "pdf", t("main.dialogos.filtroPdf"), "documents");
   if (!file) return null;
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "chinchero-pdf-"));
   const pdfWin = new BrowserWindow({ show: false, webPreferences: { sandbox: true, contextIsolation: true } });

@@ -19,7 +19,7 @@ const SERVER_EXE = path.join(DIR, "ollama.exe");
 const ZIP_FILE = path.join(os.tmpdir(), "Chinchero-Ollama.zip");
 const STAGING = DIR + "-nuevo";
 // La app de escritorio de Ollama (si lo instaló el instalador oficial) se pone en el inicio de Windows
-const STARTUP_LNK = path.join(process.env.APPDATA || path.join(os.homedir(), "AppData", "Roaming"), "Microsoft", "Windows", "Start Menu", "Programs", "Startup", "Ollama.lnk");
+const STARTUP_LNK = path.join(process.env.APPDATA || path.join(os.homedir(), "AppData", "Roaming"), "Microsoft", "Windows", "Start Menu", "Programs", "Startup", "Ollama.lnk"); // i18n-ok: ruta de Windows
 // Modelos descargados, registros y configuración de Ollama
 const HOME_DIRS = [path.join(os.homedir(), ".ollama"), path.join(LOCAL, "Ollama")];
 // Marca de que Ollama lo instaló Chinchero: el desinstalador de Chinchero (build/installer.nsh) solo quita Ollama si existe

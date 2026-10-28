@@ -7,7 +7,7 @@ function go(n) {
   dots.forEach((d, k) => d.classList.toggle("on", k === i));
   document.getElementById("back").style.visibility = i ? "visible" : "hidden";
   document.getElementById("skip").style.visibility = i === steps.length - 1 ? "hidden" : "visible";
-  document.getElementById("next").textContent = i === 0 ? "Empezar" : i === steps.length - 1 ? "Crear y abrir" : "Siguiente";
+  document.getElementById("next").textContent = t(i === 0 ? "bienvenida.empezar" : i === steps.length - 1 ? "bienvenida.crearYAbrir" : "ayuda.siguiente");
   if (i === steps.length - 1) document.getElementById("boardName").select();
 }
 document.getElementById("next").onclick = () => {
@@ -15,7 +15,7 @@ document.getElementById("next").onclick = () => {
   setPref("tours", document.getElementById("wantTours").checked ? "on" : "off");
   setPref("tips", document.getElementById("wantTips").checked ? "on" : "off");
   Store.firstRunDone();
-  const q = new URLSearchParams({ new: "1", template: "blank", group: "personal", name: document.getElementById("boardName").value.trim() || "Mi primer tablero" });
+  const q = new URLSearchParams({ new: "1", template: "blank", group: "personal", name: document.getElementById("boardName").value.trim() || t("bienvenida.nombrePorDefecto") });
   if (document.getElementById("wantDemo").checked) q.set("demo", "1");
   location.href = "02-tablero.html?" + q;
 };

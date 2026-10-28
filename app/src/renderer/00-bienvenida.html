@@ -5,9 +5,11 @@
 <!-- Solo recursos propios: nada de internet ni código inline (los estilos inline sí, el editor posiciona con style) -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: chinchero-media:; media-src 'self' blob: chinchero-media:; connect-src 'self' data: blob: chinchero-media:; base-uri 'none'; form-action 'none'; object-src 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Chinchero — Bienvenida</title>
+<title data-i18n="titulos.bienvenida">Chinchero — Bienvenida</title>
 <link rel="stylesheet" href="assets/fonts/fonts.css">
 <link rel="stylesheet" href="assets/theme.css">
+<script src="assets/vendor/i18next.min.js"></script>
+<script src="assets/i18n.js"></script>
 <script src="assets/theme.js"></script>
 <script src="assets/store.js"></script>
 <style>
@@ -50,51 +52,51 @@
 </style>
 </head>
 <body class="surface-cork">
-  <div class="deco" style="left:7%;top:12%;background:var(--note-yellow);transform:rotate(-6deg)"><span class="pin"></span>Ideas sueltas</div>
+  <div class="deco" style="left:7%;top:12%;background:var(--note-yellow);transform:rotate(-6deg)" data-i18n="bienvenida.deco1"><span class="pin"></span>Ideas sueltas</div>
   <div class="deco photo" style="right:9%;top:10%;transform:rotate(5deg)"><span class="pin" style="--pin:#1c7ed6"></span><i style="background:linear-gradient(160deg,#ff9a76,#5c3d6e)"></i></div>
-  <div class="deco" style="left:11%;bottom:12%;background:var(--note-blue);transform:rotate(4deg)"><span class="pin" style="--pin:#2f9e44"></span>Fotos y recuerdos</div>
-  <div class="deco" style="right:8%;bottom:14%;background:var(--note-pink);transform:rotate(-3deg)"><span class="pin" style="--pin:#ae3ec9"></span>Todo unido con hilos</div>
+  <div class="deco" style="left:11%;bottom:12%;background:var(--note-blue);transform:rotate(4deg)" data-i18n="bienvenida.deco2"><span class="pin" style="--pin:#2f9e44"></span>Fotos y recuerdos</div>
+  <div class="deco" style="right:8%;bottom:14%;background:var(--note-pink);transform:rotate(-3deg)" data-i18n="bienvenida.deco3"><span class="pin" style="--pin:#ae3ec9"></span>Todo unido con hilos</div>
 
   <div class="card">
     <span class="pin"></span>
 
     <div class="step active">
-      <h1>¡Hola! Esto es Chinchero</h1>
-      <p>Tu tablero de ideas digital: pincha notas, fotos y stickers, únelos con hilos y organízalos en grupos y hojas. Funciona sin conexión y todo queda en tu equipo.</p>
-      <button class="linkbtn" id="haveData">¿Ya usas Chinchero en otro PC? Abrir mis datos →</button>
+      <h1 data-i18n="bienvenida.hola">¡Hola! Esto es Chinchero</h1>
+      <p data-i18n="bienvenida.intro">Tu tablero de ideas digital: pincha notas, fotos y stickers, únelos con hilos y organízalos en grupos y hojas. Funciona sin conexión y todo queda en tu equipo.</p>
+      <button class="linkbtn" id="haveData" data-i18n="bienvenida.tengoDatos">¿Ya usas Chinchero en otro PC? Abrir mis datos →</button>
     </div>
 
     <div class="step">
-      <h2>¿Claro u oscuro?</h2>
-      <p>Lo puedes cambiar cuando quieras desde Ajustes.</p>
+      <h2 data-i18n="bienvenida.tema">¿Claro u oscuro?</h2>
+      <p data-i18n="bienvenida.temaAyuda">Lo puedes cambiar cuando quieras desde Ajustes.</p>
       <div class="choices" id="themeChoices">
-        <button class="choice" data-v="light"><div class="pv pv-light"><i style="left:20px;top:20px;background:var(--note-yellow);transform:rotate(-4deg)"></i><i style="left:80px;top:34px;background:var(--note-blue);transform:rotate(3deg)"></i></div><span>Claro</span></button>
-        <button class="choice" data-v="dark"><div class="pv pv-dark"><i style="left:20px;top:20px;background:var(--note-yellow);transform:rotate(-4deg)"></i><i style="left:80px;top:34px;background:var(--note-pink);transform:rotate(3deg)"></i></div><span>Oscuro</span></button>
+        <button class="choice" data-v="light"><div class="pv pv-light"><i style="left:20px;top:20px;background:var(--note-yellow);transform:rotate(-4deg)"></i><i style="left:80px;top:34px;background:var(--note-blue);transform:rotate(3deg)"></i></div><span data-i18n="bienvenida.claro">Claro</span></button>
+        <button class="choice" data-v="dark"><div class="pv pv-dark"><i style="left:20px;top:20px;background:var(--note-yellow);transform:rotate(-4deg)"></i><i style="left:80px;top:34px;background:var(--note-pink);transform:rotate(3deg)"></i></div><span data-i18n="bienvenida.oscuro">Oscuro</span></button>
       </div>
     </div>
 
     <div class="step">
-      <h2>¿Dónde guardamos tus tableros?</h2>
-      <p>Las imágenes se copian aquí, así nada se pierde si mueves los originales.</p>
-      <label class="option selected" id="optDocs"><input type="radio" name="loc" checked><div><b>En mis Documentos (recomendado)</b><small><code id="docsPath"></code></small></div></label>
-      <label class="option" id="optOther"><input type="radio" name="loc"><div><b>Elegir otra carpeta…</b><small id="otherPath">Por ejemplo, una carpeta sincronizada con OneDrive.</small></div></label>
-      <label class="option" id="existing"><input type="radio" name="loc"><div><b>Abrir datos existentes…</b><small>Elige la carpeta <code>Chinchero</code> que copiaste de otro PC o de una copia de seguridad. Se cargarán tus tableros.</small></div></label>
+      <h2 data-i18n="bienvenida.donde">¿Dónde guardamos tus tableros?</h2>
+      <p data-i18n="bienvenida.dondeAyuda">Las imágenes se copian aquí, así nada se pierde si mueves los originales.</p>
+      <label class="option selected" id="optDocs"><input type="radio" name="loc" checked><div><b data-i18n="bienvenida.documentos">En mis Documentos (recomendado)</b><small><code id="docsPath"></code></small></div></label>
+      <label class="option" id="optOther"><input type="radio" name="loc"><div><b data-i18n="bienvenida.otraCarpeta">Elegir otra carpeta…</b><small id="otherPath" data-i18n="bienvenida.otraCarpetaAyuda">Por ejemplo, una carpeta sincronizada con OneDrive.</small></div></label>
+      <label class="option" id="existing"><input type="radio" name="loc"><div><b data-i18n="bienvenida.existentes">Abrir datos existentes…</b><small data-i18n="[html]bienvenida.existentesAyuda">Elige la carpeta <code>Chinchero</code> que copiaste de otro PC o de una copia de seguridad. Se cargarán tus tableros.</small></div></label>
     </div>
 
     <div class="step">
-      <h2>Tu primer tablero</h2>
-      <p>Lo crearemos dentro de un grupo llamado «Personal». Luego puedes crear más grupos y tableros.</p>
-      <div class="field"><input id="boardName" value="Mi primer tablero" aria-label="Nombre del tablero"></div>
-      <label class="check"><input type="checkbox" id="wantTours" checked> Enséñame a usar cada pantalla con tutoriales guiados</label>
-      <label class="check"><input type="checkbox" id="wantTips" checked> Muéstrame sugerencias mientras trabajo</label>
-      <label class="check"><input type="checkbox" id="wantDemo" checked> Incluir un tablero de ejemplo para explorar</label>
+      <h2 data-i18n="bienvenida.primerTablero">Tu primer tablero</h2>
+      <p data-i18n="bienvenida.primerTableroAyuda">Lo crearemos dentro de un grupo llamado «Personal». Luego puedes crear más grupos y tableros.</p>
+      <div class="field"><input id="boardName" value="Mi primer tablero" aria-label="Nombre del tablero" data-i18n="[value]bienvenida.nombrePorDefecto;[aria-label]bienvenida.nombreTablero"></div>
+      <label class="check" data-i18n="bienvenida.tutoriales"><input type="checkbox" id="wantTours" checked> Enséñame a usar cada pantalla con tutoriales guiados</label>
+      <label class="check" data-i18n="bienvenida.sugerencias"><input type="checkbox" id="wantTips" checked> Muéstrame sugerencias mientras trabajo</label>
+      <label class="check" data-i18n="bienvenida.ejemplo"><input type="checkbox" id="wantDemo" checked> Incluir un tablero de ejemplo para explorar</label>
     </div>
 
     <div class="footer">
-      <button class="linkbtn muted" id="skip">Saltar</button>
+      <button class="linkbtn muted" id="skip" data-i18n="bienvenida.saltar">Saltar</button>
       <div class="dots" id="dots"><i class="on"></i><i></i><i></i><i></i></div>
-      <button class="btn" id="back" style="visibility:hidden">Atrás</button>
-      <button class="btn btn-primary" id="next">Empezar</button>
+      <button class="btn" id="back" style="visibility:hidden" data-i18n="ayuda.atras">Atrás</button>
+      <button class="btn btn-primary" id="next" data-i18n="bienvenida.empezar">Empezar</button>
     </div>
   </div>
 

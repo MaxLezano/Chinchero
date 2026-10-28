@@ -13,9 +13,9 @@
   const DEFAULT_LIBRARY = () => ({
     version: 1,
     groups: [
-      { id: "personal", name: "Personal", color: "#51cf66" },
-      { id: "trabajo", name: "Trabajo", color: "#4dabf7" },
-      { id: "ideas", name: "Ideas", color: "#e8590c" },
+      { id: "personal", name: t("grupos.personal"), color: "#51cf66" },
+      { id: "trabajo", name: t("grupos.trabajo"), color: "#4dabf7" },
+      { id: "ideas", name: t("grupos.ideas"), color: "#e8590c" },
     ],
     boards: [], trash: [], stickers: [],
   });
@@ -87,7 +87,7 @@
     },
 
     info() {
-      return native ? native.info() : { version: "0.1.0", dataDir: "Almacenamiento del navegador (modo de prueba)", packaged: false, firstRun: !ls.get("firstRunDone", false) };
+      return native ? native.info() : { version: "0.1.0", dataDir: t("comun.almacenamientoNavegador"), packaged: false, firstRun: !ls.get("firstRunDone", false) };
     },
     firstRunDone() { native ? native.firstRunDone() : ls.set("firstRunDone", true); },
 
@@ -147,11 +147,11 @@
     async importBoard(file, gid) {
       const pkg = await Store.desktop("importBoard", file);
       if (!pkg) return null;
-      if (pkg.error) { window.toast?.(`No se pudo importar: ${pkg.error}.`); return null; }
+      if (pkg.error) { window.toast?.(t("tableros.noSePudoImportar", { error: pkg.error })); return null; }
       pkg.board = cleanImported(pkg.board); pkg.doc = cleanImported(pkg.doc);
       const l = Store.library();
       const g = Store.group(gid) || l.groups.find(x => x.name === pkg.group) || l.groups[0];
-      const b = { ...pkg.board, id: Store.uid(), name: pkg.board.name || pkg.doc.name || "Tablero importado", group: g?.id, fav: false, createdAt: Date.now(), updatedAt: Date.now() };
+      const b = { ...pkg.board, id: Store.uid(), name: pkg.board.name || pkg.doc.name || t("tableros.importado"), group: g?.id, fav: false, createdAt: Date.now(), updatedAt: Date.now() };
       Store.saveBoard(b.id, { ...pkg.doc, name: b.name });
       l.boards.push(b);
       Store.saveLibrary();
@@ -163,7 +163,7 @@
     // Funciones que solo existen en la app de escritorio; en el navegador avisan
     desktop(fn, ...args) {
       if (native && native[fn]) return native[fn](...args);
-      window.toast?.("Disponible en la app de escritorio");
+      window.toast?.(t("comun.soloEscritorio"));
       return Promise.resolve(null);
     },
   };
@@ -172,37 +172,36 @@
 
   // Avisos que deben verse en la pantalla siguiente (p. ej. tras restaurar) y archivos dañados recuperados de una copia
   setTimeout(() => {
-    const t = window.toast || (() => {});
+    const say = window.toast || (() => {});
     let aviso = null;
     try { aviso = sessionStorage.getItem("chinchero-aviso"); sessionStorage.removeItem("chinchero-aviso"); } catch {}
-    if (aviso) t(aviso);
+    if (aviso) say(aviso);
     if (!native?.takeRecovered) return;
     for (const r of native.takeRecovered()) {
-      t(r.ok
-        ? `No se pudo leer ${r.label}; lo recuperamos de la copia automática (${relTime(r.when)}).`
-        : `No se pudo leer ${r.label} y no hay copia para recuperarlo. El archivo dañado quedó apartado en la carpeta de datos.`);
+      const what = t("avisos.archivos." + r.label);
+      say(r.ok ? t("avisos.recuperado", { what, when: relTime(r.when) }) : t("avisos.noRecuperado", { what }));
     }
   }, 600);
 
   window.relTime = function (ts) {
     if (!ts) return "";
     const s = (Date.now() - ts) / 1000;
-    if (s < 60) return "ahora";
-    if (s < 3600) return `hace ${Math.floor(s / 60)} min`;
-    if (s < 86400) return `hace ${Math.floor(s / 3600)} h`;
-    if (s < 2 * 86400) return "ayer";
-    if (s < 14 * 86400) return `hace ${Math.floor(s / 86400)} días`;
-    if (s < 60 * 86400) return `hace ${Math.floor(s / 604800)} semanas`;
-    return new Date(ts).toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric" });
+    if (s < 60) return t("tiempo.ahora");
+    if (s < 3600) return t("tiempo.minutos", { count: Math.floor(s / 60) });
+    if (s < 86400) return t("tiempo.horas", { count: Math.floor(s / 3600) });
+    if (s < 2 * 86400) return t("tiempo.ayer");
+    if (s < 14 * 86400) return t("tiempo.dias", { count: Math.floor(s / 86400) });
+    if (s < 60 * 86400) return t("tiempo.semanas", { count: Math.floor(s / 604800) });
+    return new Date(ts).toLocaleDateString(t("tiempo.locale"), { day: "numeric", month: "short", year: "numeric" });
   };
 
   // Avisos de actualización (solo en la app instalada)
   if (native) native.onUpdate(u => {
-    const t = window.toast || (() => {});
-    if (u.state === "available") t(`Descargando la versión ${u.version}…`);
-    else if (u.state === "none") t(`Ya tienes la última versión (${u.version})`);
-    else if (u.state === "dev") t("En modo desarrollo no se buscan actualizaciones");
-    else if (u.state === "error") t("No se pudo buscar actualizaciones. Revisa tu conexión.");
+    const say = window.toast || (() => {});
+    if (u.state === "available") say(t("actualizacion.descargando", { version: u.version }));
+    else if (u.state === "none") say(t("actualizacion.alDia", { version: u.version }));
+    else if (u.state === "dev") say(t("actualizacion.desarrollo"));
+    else if (u.state === "error") say(t("actualizacion.error"));
     else if (u.state === "ready") {
       // Si el usuario lo cerró, no se insiste en cada pantalla: se instalará al cerrar Chinchero
       let oculto = null;
@@ -211,10 +210,10 @@
       document.querySelector(".update-banner")?.remove();
       const b = document.createElement("div");
       b.className = "update-banner";
-      b.innerHTML = `<span>La versión <b>${u.version}</b> está lista. Se instalará al cerrar Chinchero.</span><button class="btn btn-primary">Reiniciar ahora</button><button class="icon-btn" aria-label="Cerrar">✕</button>`;
+      b.innerHTML = `<span>${t("actualizacion.lista", { version: u.version })}</span><button class="btn btn-primary">${t("actualizacion.reiniciar")}</button><button class="icon-btn" aria-label="${t("comun.cerrar")}">✕</button>`;
       // La instalación tarda unos segundos (y puede pedir permiso de Windows): se avisa qué va a pasar
       b.querySelector(".btn").onclick = () => {
-        b.innerHTML = `<span class="update-spinner" aria-hidden="true"></span><span role="status">Instalando la versión <b>${u.version}</b>… Chinchero se cerrará y volverá a abrirse solo. Si Windows pide permiso, haz clic en «Sí».</span>`;
+        b.innerHTML = `<span class="update-spinner" aria-hidden="true"></span><span role="status">${t("actualizacion.instalando", { version: u.version })}</span>`;
         native.installUpdate();
       };
       b.querySelector(".icon-btn").onclick = () => {

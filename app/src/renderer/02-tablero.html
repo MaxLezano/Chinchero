@@ -5,10 +5,12 @@
 <!-- Solo recursos propios: nada de internet ni código inline (los estilos inline sí, el editor posiciona con style) -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: chinchero-media:; media-src 'self' blob: chinchero-media:; connect-src 'self' data: blob: chinchero-media:; base-uri 'none'; form-action 'none'; object-src 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Chinchero — Tablero</title>
+<title data-i18n="titulos.tablero">Chinchero — Tablero</title>
 <link rel="stylesheet" href="assets/fonts/fonts.css">
 <link rel="stylesheet" href="assets/theme.css">
 <link rel="stylesheet" href="assets/editor.css">
+<script src="assets/vendor/i18next.min.js"></script>
+<script src="assets/i18n.js"></script>
 <script src="assets/theme.js"></script>
 <script src="assets/store.js"></script>
 </head>
@@ -48,102 +50,102 @@
 </svg>
 
 <header class="topbar">
-  <a class="back" href="01-tableros.html" aria-label="Volver a tableros"><svg class="icon"><use href="#i-back"/></svg>Tableros</a>
+  <a class="back" href="01-tableros.html" aria-label="Volver a tableros" data-i18n="[aria-label]editor.volverATableros;atajos.grupos.tableros"><svg class="icon"><use href="#i-back"/></svg>Tableros</a>
   <div class="crumb">
-    <span class="group"><span class="dot"></span>Proyecto Chinchero /</span>
-    <span id="boardName" contenteditable="true" spellcheck="false" role="textbox" aria-label="Nombre del tablero" data-tip="Clic para renombrar" data-tip-pos="bottom">Ideas generales</span>
+    <span class="group"><span class="dot"></span></span>
+    <span id="boardName" contenteditable="true" spellcheck="false" role="textbox" aria-label="Nombre del tablero" data-tip="Clic para renombrar" data-tip-pos="bottom" data-i18n="[aria-label]bienvenida.nombreTablero;[data-tip]editor.clicParaRenombrar"></span>
   </div>
-  <div class="save" id="save" role="status" aria-live="polite"><i></i><span>Guardado</span></div>
-  <div class="segmented" id="surfaces" role="group" aria-label="Fondo de la hoja">
-    <button data-s="dots">Puntos</button>
-    <button data-s="cork">Corcho</button>
-    <button data-s="grid">Cuadrícula</button>
-    <button data-s="plain">Liso</button>
+  <div class="save" id="save" role="status" aria-live="polite"><i></i><span data-i18n="ajustes.guardado">Guardado</span></div>
+  <div class="segmented" id="surfaces" role="group" aria-label="Fondo de la hoja" data-i18n="[aria-label]editor.fondoDeLaHoja">
+    <button data-s="dots" data-i18n="tableros.fondos.dots">Puntos</button>
+    <button data-s="cork" data-i18n="tableros.fondos.cork">Corcho</button>
+    <button data-s="grid" data-i18n="tableros.fondos.grid">Cuadrícula</button>
+    <button data-s="plain" data-i18n="tableros.fondos.plain">Liso</button>
   </div>
   <div class="top-right">
     <span id="undoGroup" style="display:flex;gap:2px">
-      <button class="icon-btn" id="undoBtn" data-key="undo" aria-label="Deshacer" data-tip="Deshacer · Ctrl+Z" data-tip-pos="bottom"><svg class="icon"><use href="#i-undo"/></svg></button>
-      <button class="icon-btn" id="redoBtn" data-key="redo" aria-label="Rehacer" data-tip="Rehacer · Ctrl+Y" data-tip-pos="bottom"><svg class="icon"><use href="#i-redo"/></svg></button>
+      <button class="icon-btn" id="undoBtn" data-key="undo" aria-label="Deshacer" data-tip="Deshacer · Ctrl+Z" data-tip-pos="bottom" data-i18n="[aria-label]comun.deshacer;[data-tip]editor.tips.undo"><svg class="icon"><use href="#i-undo"/></svg></button>
+      <button class="icon-btn" id="redoBtn" data-key="redo" aria-label="Rehacer" data-tip="Rehacer · Ctrl+Y" data-tip-pos="bottom" data-i18n="[aria-label]atajos.acciones.redo;[data-tip]editor.tips.redo"><svg class="icon"><use href="#i-redo"/></svg></button>
     </span>
     <span class="sep"></span>
-    <button class="icon-btn" id="searchBtn" data-key="search" aria-label="Buscar y acciones" data-tip="Buscar y acciones · Ctrl+K" data-tip-pos="bottom"><svg class="icon"><use href="#i-search"/></svg></button>
-    <button class="icon-btn" id="threadsBtn" aria-label="Mostrar hilos" data-tip="Hilos: encima, atenuados u ocultos" data-tip-pos="bottom"><svg class="icon"><use href="#i-thread"/></svg></button>
-    <button class="icon-btn" id="exportBtn" aria-label="Exportar" data-tip="Exportar" data-tip-pos="bottom"><svg class="icon"><use href="#i-share"/></svg></button>
+    <button class="icon-btn" id="searchBtn" data-key="search" aria-label="Buscar y acciones" data-tip="Buscar y acciones · Ctrl+K" data-tip-pos="bottom" data-i18n="[aria-label]atajos.acciones.search;[data-tip]editor.tips.search"><svg class="icon"><use href="#i-search"/></svg></button>
+    <button class="icon-btn" id="threadsBtn" aria-label="Mostrar hilos" data-tip="Hilos: encima, atenuados u ocultos" data-tip-pos="bottom" data-i18n="[aria-label]editor.mostrarHilos;[data-tip]editor.hilosEncimaAtenuadosU"><svg class="icon"><use href="#i-thread"/></svg></button>
+    <button class="icon-btn" id="exportBtn" aria-label="Exportar" data-tip="Exportar" data-tip-pos="bottom" data-i18n="[aria-label]editor.botonExportar;[data-tip]editor.botonExportar"><svg class="icon"><use href="#i-share"/></svg></button>
     <span class="sep"></span>
-    <button class="icon-btn" id="helpBtn" aria-label="Ayuda" data-tip="Ayuda y tutorial" data-tip-pos="bottom"><svg class="icon"><use href="#i-help"/></svg></button>
-    <button class="icon-btn" aria-label="Cambiar tema" data-tip="Cambiar tema" data-tip-pos="left" data-theme-toggle><svg class="icon ico-moon"><use href="#i-moon"/></svg><svg class="icon ico-sun"><use href="#i-sun"/></svg></button>
+    <button class="icon-btn" id="helpBtn" aria-label="Ayuda" data-tip="Ayuda y tutorial" data-tip-pos="bottom" data-i18n="[aria-label]barra.ayuda;[data-tip]editor.ayudaYTutorial"><svg class="icon"><use href="#i-help"/></svg></button>
+    <button class="icon-btn" aria-label="Cambiar tema" data-tip="Cambiar tema" data-tip-pos="left" data-theme-toggle data-i18n="[aria-label]barra.tema;[data-tip]barra.tema"><svg class="icon ico-moon"><use href="#i-moon"/></svg><svg class="icon ico-sun"><use href="#i-sun"/></svg></button>
   </div>
 </header>
 
-<nav class="toolbar" id="toolbar" aria-label="Herramientas">
-  <button class="icon-btn" data-tool="select" aria-label="Seleccionar" data-tip="Seleccionar y mover · V"><svg class="icon"><use href="#i-cursor"/></svg></button>
+<nav class="toolbar" id="toolbar" aria-label="Herramientas" data-i18n="[aria-label]atajos.grupos.herramientas">
+  <button class="icon-btn" data-tool="select" aria-label="Seleccionar" data-tip="Seleccionar y mover · V" data-i18n="[aria-label]atajos.acciones.tool_select;[data-tip]editor.herramientas.select"><svg class="icon"><use href="#i-cursor"/></svg></button>
   <hr>
-  <button class="icon-btn" data-tool="note" aria-label="Nota" data-tip="Nota adhesiva · N"><svg class="icon"><use href="#i-note"/></svg></button>
-  <button class="icon-btn" data-tool="card" aria-label="Ficha" data-tip="Ficha · F"><svg class="icon"><use href="#i-card"/></svg></button>
-  <button class="icon-btn" data-tool="list" aria-label="Lista" data-tip="Lista de tareas · C"><svg class="icon"><use href="#i-list"/></svg></button>
-  <button class="icon-btn" data-tool="text" aria-label="Texto" data-tip="Texto · T"><svg class="icon"><use href="#i-text"/></svg></button>
+  <button class="icon-btn" data-tool="note" aria-label="Nota" data-tip="Nota adhesiva · N" data-i18n="[aria-label]atajos.acciones.tool_note;[data-tip]editor.herramientas.note"><svg class="icon"><use href="#i-note"/></svg></button>
+  <button class="icon-btn" data-tool="card" aria-label="Ficha" data-tip="Ficha · F" data-i18n="[aria-label]atajos.acciones.tool_card;[data-tip]editor.herramientas.card"><svg class="icon"><use href="#i-card"/></svg></button>
+  <button class="icon-btn" data-tool="list" aria-label="Lista" data-tip="Lista de tareas · C" data-i18n="[aria-label]atajos.acciones.tool_list;[data-tip]editor.herramientas.list"><svg class="icon"><use href="#i-list"/></svg></button>
+  <button class="icon-btn" data-tool="text" aria-label="Texto" data-tip="Texto · T" data-i18n="[aria-label]atajos.acciones.tool_text;[data-tip]editor.herramientas.text"><svg class="icon"><use href="#i-text"/></svg></button>
   <hr>
-  <button class="icon-btn" data-tool="image" aria-label="Imagen" data-tip="Imagen / foto · I"><svg class="icon"><use href="#i-image"/></svg></button>
-  <button class="icon-btn" data-tool="link" aria-label="Enlace" data-tip="Enlace web · K"><svg class="icon"><use href="#i-link"/></svg></button>
-  <button class="icon-btn" data-tool="file" aria-label="Archivo" data-tip="Archivo adjunto · A"><svg class="icon"><use href="#i-file"/></svg></button>
-  <button class="icon-btn" data-tool="sticker" aria-label="Stickers" data-tip="Stickers y sellos · S"><svg class="icon"><use href="#i-smile"/></svg></button>
+  <button class="icon-btn" data-tool="image" aria-label="Imagen" data-tip="Imagen / foto · I" data-i18n="[aria-label]atajos.acciones.tool_image;[data-tip]editor.herramientas.image"><svg class="icon"><use href="#i-image"/></svg></button>
+  <button class="icon-btn" data-tool="link" aria-label="Enlace" data-tip="Enlace web · K" data-i18n="[aria-label]atajos.acciones.tool_link;[data-tip]editor.herramientas.link"><svg class="icon"><use href="#i-link"/></svg></button>
+  <button class="icon-btn" data-tool="file" aria-label="Archivo" data-tip="Archivo adjunto · A" data-i18n="[aria-label]atajos.acciones.tool_file;[data-tip]editor.herramientas.file"><svg class="icon"><use href="#i-file"/></svg></button>
+  <button class="icon-btn" data-tool="sticker" aria-label="Stickers" data-tip="Stickers y sellos · S" data-i18n="[aria-label]atajos.acciones.tool_sticker;[data-tip]editor.herramientas.sticker"><svg class="icon"><use href="#i-smile"/></svg></button>
   <hr>
-  <button class="icon-btn" data-tool="zone" aria-label="Zona" data-tip="Zona: agrupa elementos · Z"><svg class="icon"><use href="#i-zone"/></svg></button>
-  <button class="icon-btn" data-tool="draw" aria-label="Dibujo" data-tip="Dibujo a mano alzada · D"><svg class="icon"><use href="#i-pen"/></svg></button>
-  <button class="icon-btn" data-tool="thread" aria-label="Hilo" data-tip="Hilo entre chinches · L"><svg class="icon"><use href="#i-thread"/></svg></button>
+  <button class="icon-btn" data-tool="zone" aria-label="Zona" data-tip="Zona: agrupa elementos · Z" data-i18n="[aria-label]atajos.acciones.tool_zone;[data-tip]editor.herramientas.zone"><svg class="icon"><use href="#i-zone"/></svg></button>
+  <button class="icon-btn" data-tool="draw" aria-label="Dibujo" data-tip="Dibujo a mano alzada · D" data-i18n="[aria-label]atajos.acciones.tool_draw;[data-tip]editor.herramientas.draw"><svg class="icon"><use href="#i-pen"/></svg></button>
+  <button class="icon-btn" data-tool="thread" aria-label="Hilo" data-tip="Hilo entre chinches · L" data-i18n="[aria-label]atajos.acciones.tool_thread;[data-tip]editor.herramientas.thread"><svg class="icon"><use href="#i-thread"/></svg></button>
 </nav>
 
-<div class="popover" id="stickerPop" role="dialog" aria-label="Stickers">
-  <h5 id="stickerTitle">Stickers</h5>
+<div class="popover" id="stickerPop" role="dialog" aria-label="Stickers" data-i18n="[aria-label]atajos.acciones.tool_sticker">
+  <h5 id="stickerTitle" data-i18n="atajos.acciones.tool_sticker">Stickers</h5>
   <div class="sticker-grid">
     <button data-st="emoji">⭐</button><button data-st="emoji">❤️</button><button data-st="emoji">💡</button><button data-st="emoji">✅</button><button data-st="emoji">⚠️</button>
     <button data-st="emoji">🔥</button><button data-st="emoji">🎯</button><button data-st="emoji">🚀</button><button data-st="emoji">👀</button><button data-st="emoji">❓</button>
     <button data-st="emoji">📌</button><button data-st="emoji">🎉</button><button data-st="emoji">🧠</button><button data-st="emoji">💬</button><button data-st="emoji">🗓️</button>
   </div>
-  <h5>Sellos</h5>
+  <h5 data-i18n="editor.sellos">Sellos</h5>
   <div class="badge-row">
-    <button data-st="stamp" data-text="URGENTE" data-color="#e03131"><span class="badge" style="--b:#e03131">URGENTE</span></button>
-    <button data-st="stamp" data-text="HECHO" data-color="#2f9e44"><span class="badge" style="--b:#2f9e44">HECHO</span></button>
-    <button data-st="stamp" data-text="IDEA" data-color="#1c7ed6"><span class="badge" style="--b:#1c7ed6">IDEA</span></button>
-    <button data-st="stamp" data-text="REVISAR" data-color="#f08c00"><span class="badge" style="--b:#f08c00">REVISAR</span></button>
-    <button data-st="custom"><span class="badge" style="--b:#7048e8">+ Sello propio</span></button>
+    <button data-st="stamp" data-text="URGENTE" data-color="#e03131"><span class="badge" style="--b:#e03131" data-i18n="editor.urgente">URGENTE</span></button>
+    <button data-st="stamp" data-text="HECHO" data-color="#2f9e44"><span class="badge" style="--b:#2f9e44" data-i18n="editor.hecho">HECHO</span></button>
+    <button data-st="stamp" data-text="IDEA" data-color="#1c7ed6"><span class="badge" style="--b:#1c7ed6" data-i18n="editor.idea">IDEA</span></button>
+    <button data-st="stamp" data-text="REVISAR" data-color="#f08c00"><span class="badge" style="--b:#f08c00" data-i18n="editor.revisar">REVISAR</span></button>
+    <button data-st="custom"><span class="badge" style="--b:#7048e8" data-i18n="editor.selloPropio">+ Sello propio</span></button>
   </div>
-  <h5>Mis stickers <button class="pop-link" id="importSticker">Importar…</button></h5>
+  <h5 data-i18n="editor.misStickers">Mis stickers <button class="pop-link" id="importSticker" data-i18n="editor.importar">Importar…</button></h5>
   <div class="sticker-grid" id="myStickers"></div>
 </div>
 
-<div class="popover" id="drawPop" role="dialog" aria-label="Opciones de dibujo">
-  <h5>Rotulador</h5>
+<div class="popover" id="drawPop" role="dialog" aria-label="Opciones de dibujo" data-i18n="[aria-label]editor.opcionesDeDibujo">
+  <h5 data-i18n="editor.rotulador">Rotulador</h5>
   <div class="draw-opts">
-    <button class="swatch on" data-dc="#e03131" style="background:#e03131" aria-label="Rojo"></button>
-    <button class="swatch" data-dc="#1c7ed6" style="background:#1c7ed6" aria-label="Azul"></button>
-    <button class="swatch" data-dc="#2b2a27" style="background:#2b2a27" aria-label="Negro"></button>
-    <button class="swatch" data-dc="#f59f00" style="background:#f59f00" aria-label="Amarillo"></button>
-    <button class="swatch" data-dc="#2f9e44" style="background:#2f9e44" aria-label="Verde"></button>
-    <button class="swatch" data-dc="#ffffff" style="background:#ffffff" aria-label="Blanco"></button>
+    <button class="swatch on" data-dc="#e03131" style="background:#e03131" aria-label="Rojo" data-i18n="[aria-label]editor.rojo"></button>
+    <button class="swatch" data-dc="#1c7ed6" style="background:#1c7ed6" aria-label="Azul" data-i18n="[aria-label]editor.azul"></button>
+    <button class="swatch" data-dc="#2b2a27" style="background:#2b2a27" aria-label="Negro" data-i18n="[aria-label]editor.negro"></button>
+    <button class="swatch" data-dc="#f59f00" style="background:#f59f00" aria-label="Amarillo" data-i18n="[aria-label]editor.amarillo"></button>
+    <button class="swatch" data-dc="#2f9e44" style="background:#2f9e44" aria-label="Verde" data-i18n="[aria-label]editor.verde"></button>
+    <button class="swatch" data-dc="#ffffff" style="background:#ffffff" aria-label="Blanco" data-i18n="[aria-label]editor.blanco"></button>
   </div>
-  <h5 style="margin-top:10px">Grosor</h5>
+  <h5 style="margin-top:10px" data-i18n="editor.grosor">Grosor</h5>
   <div class="seg">
-    <button data-dw="2">Fino</button><button data-dw="3" class="on">Medio</button><button data-dw="6">Grueso</button>
+    <button data-dw="2" data-i18n="editor.fino">Fino</button><button data-dw="3" class="on" data-i18n="editor.medio">Medio</button><button data-dw="6" data-i18n="editor.grueso">Grueso</button>
   </div>
-  <h5 style="margin-top:10px">Goma</h5>
+  <h5 style="margin-top:10px" data-i18n="atajos.acciones.eraser">Goma</h5>
   <div class="seg">
-    <button data-de="part">Borrar partes</button><button data-de="stroke">Trazos enteros</button>
+    <button data-de="part" data-i18n="editor.borrarPartes">Borrar partes</button><button data-de="stroke" data-i18n="editor.trazosEnteros">Trazos enteros</button>
   </div>
 </div>
 
 <div class="hint" id="hint" role="status"></div>
-<div class="ctx" id="ctx" role="toolbar" aria-label="Opciones del elemento"></div>
-<div class="fmt" id="fmt" role="toolbar" aria-label="Formato de texto"></div>
+<div class="ctx" id="ctx" role="toolbar" aria-label="Opciones del elemento" data-i18n="[aria-label]atajos.reservadas.opciones"></div>
+<div class="fmt" id="fmt" role="toolbar" aria-label="Formato de texto" data-i18n="[aria-label]editor.formatoDeTexto"></div>
 <div class="band" id="band"></div>
 <div class="ghost" id="ghost"></div>
 
 <!-- Foco de teclado del lienzo: va aparte del viewport porque con el foco en un ancestro de los elementos arrastrar es más lento -->
-<div class="sr-only" id="canvasFocus" tabindex="0" role="application" aria-roledescription="lienzo" aria-label="Lienzo de la hoja. Tab recorre los elementos, flechas los mueven, Enter edita, Supr elimina; tecla Menú o Mayús+F10 abre las opciones"></div>
+<div class="sr-only" id="canvasFocus" tabindex="0" role="application" aria-roledescription="lienzo" aria-label="Lienzo de la hoja. Tab recorre los elementos, flechas los mueven, Enter edita, Supr elimina; tecla Menú o Mayús+F10 abre las opciones" data-i18n="[aria-label]editor.lienzoDeLaHoja"></div>
 <div class="viewport" id="viewport">
   <div class="world" id="world">
     <div id="items"></div>
-    <div id="groupBox"><span>Grupo</span></div>
+    <div id="groupBox"><span data-i18n="papelera.grupo">Grupo</span></div>
     <svg id="threads">
       <defs>
         <radialGradient id="pinShine" cx=".35" cy=".3" r=".7"><stop offset="0" stop-color="#fff" stop-opacity=".7"/><stop offset=".25" stop-color="#fff" stop-opacity="0"/></radialGradient>
@@ -157,31 +159,31 @@
 
 <div class="canvas-empty" id="canvasEmpty">
   <div>
-    <b>Hoja en blanco</b>
-    Elige una herramienta a la izquierda y haz clic donde quieras · arrastra o pega imágenes · clic derecho para más
+    <span data-i18n="[html]editor.hojaEnBlancoElige"><b>Hoja en blanco</b>
+    Elige una herramienta a la izquierda y haz clic donde quieras · arrastra o pega imágenes · clic derecho para más</span>
     <div class="starters">
-      <small>Sugerencias para empezar</small>
-      <button class="btn" data-start="note">📝 Nota</button>
-      <button class="btn" data-start="image">🖼️ Imagen</button>
-      <button class="btn" data-start="list">☑️ Lista</button>
-      <button class="btn" data-start="kanban">📋 Plantilla Kanban</button>
-      <button class="btn" data-start="semana">📅 Plantilla Semana</button>
-      <button class="btn" data-start="detective">🕵️ Plantilla Detective</button>
+      <small data-i18n="editor.sugerenciasParaEmpezar">Sugerencias para empezar</small>
+      <button class="btn" data-start="note" data-i18n="editor.nota">📝 Nota</button>
+      <button class="btn" data-start="image" data-i18n="editor.imagen">🖼️ Imagen</button>
+      <button class="btn" data-start="list" data-i18n="editor.lista">☑️ Lista</button>
+      <button class="btn" data-start="kanban" data-i18n="editor.plantillaKanban">📋 Plantilla Kanban</button>
+      <button class="btn" data-start="semana" data-i18n="editor.plantillaSemana">📅 Plantilla Semana</button>
+      <button class="btn" data-start="detective" data-i18n="editor.plantillaDetective">🕵️ Plantilla Detective</button>
     </div>
   </div>
 </div>
-<div class="dropzone" id="dropzone">Suelta aquí: las imágenes se pinchan como fotos, los archivos como adjuntos y las URL como enlaces</div>
+<div class="dropzone" id="dropzone" data-i18n="editor.sueltaAquiLasImagenes">Suelta aquí: las imágenes se pinchan como fotos, los archivos como adjuntos y las URL como enlaces</div>
 
-<div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Visor de imagen">
-  <button class="icon-btn lb-btn close" aria-label="Cerrar (Esc)">✕</button>
-  <button class="icon-btn lb-btn prev" aria-label="Anterior (←)">‹</button>
-  <button class="icon-btn lb-btn next" aria-label="Siguiente (→)">›</button>
+<div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Visor de imagen" data-i18n="[aria-label]editor.visorDeImagen">
+  <button class="icon-btn lb-btn close" aria-label="Cerrar (Esc)" data-i18n="[aria-label]editor.cerrarEsc">✕</button>
+  <button class="icon-btn lb-btn prev" aria-label="Anterior (←)" data-i18n="[aria-label]editor.anterior">‹</button>
+  <button class="icon-btn lb-btn next" aria-label="Siguiente (→)" data-i18n="[aria-label]editor.siguiente">›</button>
   <figure><div class="frame" id="lbFrame"></div><figcaption><span id="lbCaption"></span> <small id="lbCount" style="font:12px var(--font);color:#999;margin-left:8px"></small></figcaption></figure>
 </div>
 
-<div class="minimap" id="minimap" aria-label="Minimapa"></div>
+<div class="minimap" id="minimap" aria-label="Minimapa" data-i18n="[aria-label]editor.minimapa"></div>
 <!-- Chinche: el pin que abre el asistente con IA. Flota sobre el minimapa (ver editor.css) -->
-<button class="chinche" id="aiBtn" aria-label="Chinche, el asistente con IA" aria-expanded="false" aria-controls="aiPanel" data-tip="Chinche · asistente con IA" data-tip-pos="left">
+<button class="chinche" id="aiBtn" aria-label="Chinche, el asistente con IA" aria-expanded="false" aria-controls="aiPanel" data-tip="Chinche · asistente con IA" data-tip-pos="left" data-i18n="[aria-label]editor.chincheElAsistenteCon;[data-tip]editor.chincheAsistenteConIa">
   <span class="chinche-sombra" aria-hidden="true"></span>
   <span class="chinche-flota" aria-hidden="true"><svg class="chinche-pin" viewBox="0 0 40 60">
     <defs>
@@ -198,44 +200,44 @@
   </svg><svg class="chinche-brillo icon"><use href="#i-spark"/></svg></span>
 </button>
 
-<div class="cmdk-back" id="cmdk" role="dialog" aria-modal="true" aria-label="Buscar y acciones">
+<div class="cmdk-back" id="cmdk" role="dialog" aria-modal="true" aria-label="Buscar y acciones" data-i18n="[aria-label]atajos.acciones.search">
   <div class="cmdk">
-    <input id="cmdkInput" placeholder="Busca notas, fotos, listas… o escribe una acción" aria-label="Buscar">
+    <input id="cmdkInput" placeholder="Busca notas, fotos, listas… o escribe una acción" aria-label="Buscar" data-i18n="[aria-label]tableros.atajos.buscar;[placeholder]editor.buscaNotasFotosListas">
     <ul id="cmdkList" role="listbox"></ul>
   </div>
 </div>
 
-<aside class="ai-panel" id="aiPanel" aria-label="Asistente con IA" hidden>
-  <header><svg class="icon"><use href="#i-spark"/></svg><b>Asistente</b>
-    <button class="icon-btn" id="aiTips" aria-label="Pedidos rápidos" aria-pressed="false" aria-controls="aiChips" data-tip="Pedidos rápidos" data-tip-pos="bottom"><svg class="icon"><use href="#i-bulb"/></svg></button>
-    <button class="icon-btn" id="aiNew" aria-label="Nueva conversación" data-tip="Nueva conversación" data-tip-pos="bottom"><svg class="icon"><use href="#i-chat-new"/></svg></button>
-    <button class="icon-btn" id="aiClose" aria-label="Cerrar el asistente (Esc)">✕</button></header>
-  <div class="ai-model" id="aiModelBar" hidden><span id="aiWho"></span><select id="aiModelPick" aria-label="Modelo del asistente"></select></div>
+<aside class="ai-panel" id="aiPanel" aria-label="Asistente con IA" hidden data-i18n="[aria-label]ajustes.asistenteConIa">
+  <header><svg class="icon"><use href="#i-spark"/></svg><b data-i18n="ajustes.asistente">Asistente</b>
+    <button class="icon-btn" id="aiTips" aria-label="Pedidos rápidos" aria-pressed="false" aria-controls="aiChips" data-tip="Pedidos rápidos" data-tip-pos="bottom" data-i18n="[aria-label]editor.pedidosRapidos;[data-tip]editor.pedidosRapidos"><svg class="icon"><use href="#i-bulb"/></svg></button>
+    <button class="icon-btn" id="aiNew" aria-label="Nueva conversación" data-tip="Nueva conversación" data-tip-pos="bottom" data-i18n="[aria-label]editor.nuevaConversacion;[data-tip]editor.nuevaConversacion"><svg class="icon"><use href="#i-chat-new"/></svg></button>
+    <button class="icon-btn" id="aiClose" aria-label="Cerrar el asistente (Esc)" data-i18n="[aria-label]editor.cerrarElAsistenteEsc">✕</button></header>
+  <div class="ai-model" id="aiModelBar" hidden><span id="aiWho"></span><select id="aiModelPick" aria-label="Modelo del asistente" data-i18n="[aria-label]editor.modeloDelAsistente"></select></div>
   <div class="ai-log" id="aiLog" role="log" aria-live="polite"></div>
-  <div class="ai-chips" id="aiChips" role="group" aria-label="Pedidos rápidos">
-    <button class="chip" data-ask="ideas">💡 Ideas relacionadas</button>
-    <button class="chip" data-ask="resumir">📝 Resumir la hoja</button>
-    <button class="chip" data-ask="ordenar">🗂️ Ordenar en zonas</button>
-    <button class="chip" data-ask="tareas">☑️ Sacar tareas</button>
+  <div class="ai-chips" id="aiChips" role="group" aria-label="Pedidos rápidos" data-i18n="[aria-label]editor.pedidosRapidos">
+    <button class="chip" data-ask="ideas" data-i18n="editor.ideasRelacionadas">💡 Ideas relacionadas</button>
+    <button class="chip" data-ask="resumir" data-i18n="editor.resumirLaHoja">📝 Resumir la hoja</button>
+    <button class="chip" data-ask="ordenar" data-i18n="editor.ordenarEnZonas">🗂️ Ordenar en zonas</button>
+    <button class="chip" data-ask="tareas" data-i18n="editor.sacarTareas">☑️ Sacar tareas</button>
   </div>
   <div class="ai-input">
-    <textarea id="aiInput" rows="2" placeholder="Pídele algo: «Crea 5 notas con ideas para el viaje»" aria-label="Mensaje para el asistente"></textarea>
-    <button class="ai-send" id="aiSend" aria-label="Enviar (Enter)" data-tip="Enviar · Enter" data-tip-pos="top"><svg class="icon"><use href="#i-send"/></svg></button>
+    <textarea id="aiInput" rows="2" placeholder="Pídele algo: «Crea 5 notas con ideas para el viaje»" aria-label="Mensaje para el asistente" data-i18n="[aria-label]editor.mensajeParaElAsistente;[placeholder]editor.pideleAlgoCrea5"></textarea>
+    <button class="ai-send" id="aiSend" aria-label="Enviar (Enter)" data-tip="Enviar · Enter" data-tip-pos="top" data-i18n="[aria-label]editor.enviarEnter;[data-tip]editor.enviarEnter2"><svg class="icon"><use href="#i-send"/></svg></button>
   </div>
   <small class="ai-privacy" id="aiPrivacy"></small>
 </aside>
 
 <footer class="bottombar">
-  <button class="bar-btn" id="allSheets" aria-label="Todas las hojas" data-tip="Todas las hojas" data-tip-pos="top-start"><svg class="icon"><use href="#i-chev"/></svg></button>
-  <div class="sheets" id="sheets" role="tablist" aria-label="Hojas"></div>
-  <button class="bar-btn" id="addSheet" aria-label="Nueva hoja" data-tip="Nueva hoja" data-tip-pos="top"><svg class="icon"><use href="#i-plus"/></svg></button>
+  <button class="bar-btn" id="allSheets" aria-label="Todas las hojas" data-tip="Todas las hojas" data-tip-pos="top-start" data-i18n="[aria-label]editor.todasLasHojas;[data-tip]editor.todasLasHojas"><svg class="icon"><use href="#i-chev"/></svg></button>
+  <div class="sheets" id="sheets" role="tablist" aria-label="Hojas" data-i18n="[aria-label]editor.tituloHojas"></div>
+  <button class="bar-btn" id="addSheet" aria-label="Nueva hoja" data-tip="Nueva hoja" data-tip-pos="top" data-i18n="[aria-label]editor.nuevaHoja;[data-tip]editor.nuevaHoja"><svg class="icon"><use href="#i-plus"/></svg></button>
   <div class="spacer"></div>
   <div class="zoom">
-    <button class="icon-btn" id="mmToggle" aria-label="Minimapa" data-tip="Minimapa" data-tip-pos="top"><svg class="icon"><use href="#i-map"/></svg></button>
-    <button class="icon-btn" id="zoomOut" aria-label="Alejar" data-tip="Alejar" data-tip-pos="top"><svg class="icon"><use href="#i-minus"/></svg></button>
-    <button class="icon-btn" id="zoomLabel" data-key="zoom100" style="width:52px;font-size:12px" aria-label="Zoom al 100%" data-tip="Volver al 100% · Ctrl+0" data-tip-pos="top">100%</button>
-    <button class="icon-btn" id="zoomIn" aria-label="Acercar" data-tip="Acercar" data-tip-pos="top"><svg class="icon"><use href="#i-plus"/></svg></button>
-    <button class="icon-btn" id="zoomFit" data-key="fit" aria-label="Ajustar a la vista" data-tip="Ajustar a la vista · Shift+1" data-tip-pos="left"><svg class="icon"><use href="#i-fit"/></svg></button>
+    <button class="icon-btn" id="mmToggle" aria-label="Minimapa" data-tip="Minimapa" data-tip-pos="top" data-i18n="[aria-label]editor.minimapa;[data-tip]editor.minimapa"><svg class="icon"><use href="#i-map"/></svg></button>
+    <button class="icon-btn" id="zoomOut" aria-label="Alejar" data-tip="Alejar" data-tip-pos="top" data-i18n="[aria-label]editor.alejar;[data-tip]editor.alejar"><svg class="icon"><use href="#i-minus"/></svg></button>
+    <button class="icon-btn" id="zoomLabel" data-key="zoom100" style="width:52px;font-size:12px" aria-label="Zoom al 100%" data-tip="Volver al 100% · Ctrl+0" data-tip-pos="top" data-i18n="[aria-label]editor.zoomAl100;[data-tip]editor.tips.zoom100">100%</button>
+    <button class="icon-btn" id="zoomIn" aria-label="Acercar" data-tip="Acercar" data-tip-pos="top" data-i18n="[aria-label]editor.acercar;[data-tip]editor.acercar"><svg class="icon"><use href="#i-plus"/></svg></button>
+    <button class="icon-btn" id="zoomFit" data-key="fit" aria-label="Ajustar a la vista" data-tip="Ajustar a la vista · Shift+1" data-tip-pos="left" data-i18n="[aria-label]atajos.acciones.fit;[data-tip]editor.tips.fit"><svg class="icon"><use href="#i-fit"/></svg></button>
   </div>
 </footer>
 

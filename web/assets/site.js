@@ -1,4 +1,4 @@
-// Chinchero — web del producto: tema, animaciones, galería y descargas desde GitHub Releases
+// Chinchero — web del producto: tema, idioma, animaciones, galería y descargas desde GitHub Releases
 const CONFIG = { owner: "MaxLezano", repo: "Chinchero" };
 const REPO_URL = `https://github.com/${CONFIG.owner}/${CONFIG.repo}`;
 const $ = (s, r = document) => r.querySelector(s);
@@ -18,6 +18,9 @@ const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "
     showShot();
   };
 })();
+
+/* ---------- Idioma: el botón cambia al otro (ver assets/i18n.js) ---------- */
+$("#langBtn").onclick = () => I18n.set(I18n.lang === "es" ? "en" : "es");
 
 $$("[data-repo]").forEach(a => a.href = REPO_URL);
 addEventListener("scroll", () => $(".nav").classList.toggle("scrolled", scrollY > 10), { passive: true });
@@ -71,7 +74,7 @@ $("#heroBoard").style.backgroundImage = `url(${corkTexture()})`;
     moveCursor(70, 105);
     await wait(500);
     moveCursor(22, 26, true); await wait(1000); show("n1"); await wait(400);
-    await type("n1", "Ideas para el finde");
+    await type("n1", t("sitio.hero.n1"));
     moveCursor(72, 22, true); await wait(1000); show("p1"); await wait(800);
     moveCursor(23.5, 13); await wait(950);
     moveCursor(74, 9); show("t1"); await wait(1100);
@@ -79,14 +82,14 @@ $("#heroBoard").style.backgroundImage = `url(${corkTexture()})`;
     for (const i of $$(".list i", board).slice(0, 2)) { await wait(450); i.classList.add("done"); }
     show("t2"); await wait(900);
     moveCursor(24, 70, true); await wait(1000); show("n2"); await wait(300);
-    await type("n2", "¡Llevar cámara!");
+    await type("n2", t("sitio.hero.n2"));
     show("s1"); await wait(500);
     moveCursor(4, 4); await wait(900); show("z1"); await wait(1400);
     moveCursor(70, 105); await wait(2600);
     board.classList.add("fade"); await wait(900);
     run();
   }
-  if (reduced) { $$(".el, path", board).forEach(e => e.classList.add("in")); $$("[data-k] .t", board).forEach(t => t.textContent = t.dataset.text); }
+  if (reduced) { $$(".el, path", board).forEach(e => e.classList.add("in")); $$("[data-k] .t", board).forEach(el => el.textContent = el.dataset.text); }
   else run();
 })();
 
@@ -98,20 +101,12 @@ const io = new IntersectionObserver(entries => entries.forEach(e => {
 $$(".reveal, .demo").forEach(el => io.observe(el));
 
 /* ---------- Galería de capturas ---------- */
-const SHOTS = {
-  editor: ["editor", "Tu tablero: notas, fotos, listas, stickers y zonas, todo unido con hilos."],
-  assistant: ["assistant", "Chinche, el asistente con IA: suma ideas unidas con hilos, una lista y hasta un dibujo."],
-  detective: ["detective", "Plantilla Detective sobre corcho: fotos, pistas e hilos con etiquetas."],
-  kanban: ["kanban", "Kanban con zonas: mueve una zona y se mueve todo lo que tiene dentro."],
-  select: ["editor-select", "Selecciona un elemento para cambiar marco, encuadre, chinche o bloquearlo."],
-  search: ["search", "Ctrl+K: encuentra cualquier nota, foto o lista en todas las hojas."],
-  boards: ["boards", "Tus tableros organizados en grupos, con miniaturas, favoritos y recientes."],
-  settings: ["settings", "Tema claro u oscuro, color de los hilos, letra de las notas y copias de seguridad."],
-};
+// Archivo de cada captura; el texto está en sitio.capturas.textos.<clave>
+const SHOTS = { editor: "editor", assistant: "assistant", detective: "detective", kanban: "kanban", select: "editor-select", search: "search", boards: "boards", settings: "settings" };
 let currentShot = "editor";
 function showShot(key = currentShot) {
   currentShot = key;
-  const [file, caption] = SHOTS[key], theme = document.documentElement.dataset.theme;
+  const file = SHOTS[key], caption = t("sitio.capturas.textos." + key), theme = document.documentElement.dataset.theme;
   const img = $("#shotImg");
   img.style.opacity = .3;
   const next = new Image();
@@ -136,6 +131,7 @@ $(".tabs").onkeydown = e => {
   showShot(t.dataset.shot); t.focus();
 };
 showShot();
+document.addEventListener("site:lang", () => showShot());
 
 /* ---------- Descargas: releases públicas del repositorio ---------- */
 // Markdown mínimo para las notas de versión (títulos, listas, negrita, enlaces)
@@ -156,7 +152,7 @@ function md(text) {
   }
   return html + (inList ? "</ul>" : "");
 }
-const fmtDate = d => new Date(d).toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" });
+const fmtDate = d => new Date(d).toLocaleDateString(t("sitio.locale"), { day: "numeric", month: "long", year: "numeric" });
 const fmtSize = b => (b / 1048576).toFixed(0) + " MB";
 const isExe = a => /\.exe$/i.test(a.name);
 const isArm = a => /arm64/i.test(a.name);
@@ -185,40 +181,45 @@ async function fetchReleases() {
   return data;
 }
 
-function noReleases(msg) {
-  $("#latest").innerHTML = `<div class="ver"><h3>Muy pronto</h3></div>
-    <p class="meta">${msg}</p>
-    <a class="btn" href="${esc(REPO_URL)}/releases" target="_blank" rel="noopener">Ver releases en GitHub</a>`;
-  $("#versions").innerHTML = '<li style="padding:14px 4px;color:var(--muted)">Aquí aparecerá el historial de versiones.</li>';
-  $$(".dl-btn").forEach(b => { b.href = "#descargar"; $(".dl-ver", b).textContent = "Próximamente"; });
+function noReleases(key) {
+  $("#latest").innerHTML = `<div class="ver"><h3>${t("sitio.versiones.pronto")}</h3></div>
+    <p class="meta">${t(key)}</p>
+    <a class="btn" href="${esc(REPO_URL)}/releases" target="_blank" rel="noopener">${t("sitio.versiones.verEnGithub")}</a>`;
+  $("#versions").innerHTML = `<li style="padding:14px 4px;color:var(--muted)">${t("sitio.versiones.historialVacio")}</li>`;
+  $$(".dl-btn").forEach(b => { b.href = "#descargar"; $(".dl-ver", b).textContent = t("sitio.versiones.proximamente"); });
 }
 
-Promise.all([fetchReleases(), detectArch()]).then(([list, arch]) => {
+// Lo último que se pintó, para volver a pintarlo en el otro idioma
+let shown = null;
+document.addEventListener("site:lang", () => shown && shown());
+
+Promise.all([fetchReleases(), detectArch()]).then(([list, arch]) => (shown = () => renderReleases(list, arch))())
+  .catch(() => (shown = () => noReleases("sitio.versiones.sinConexion"))());
+
+function renderReleases(list, arch) {
   const stable = list.filter(r => !r.prerelease);
   const latest = stable[0] || list[0];
-  if (!latest) return noReleases("Todavía no hay versiones publicadas. Vuelve en unos días.");
+  if (!latest) return noReleases("sitio.versiones.sinVersiones");
   const exe = installer(latest, arch || "x64");
   // La otra arquitectura, por si la detección no acertó o se baja para otra PC
   const otherArch = arch === "arm64" ? "x64" : "arm64";
   const other = installer(latest, otherArch);
-  const otherLink = other && other !== exe ? `<p class="alt-arch"><a href="${esc(other.browser_download_url)}">${otherArch === "arm64"
-    ? "¿PC con procesador ARM (Snapdragon)? Descarga la versión ARM64"
-    : "¿PC con procesador Intel o AMD? Descarga la versión x64"}</a> · ${fmtSize(other.size)}</p>` : "";
+  const otherLink = other && other !== exe ? `<p class="alt-arch"><a href="${esc(other.browser_download_url)}">${t(otherArch === "arm64" ? "sitio.versiones.otraArm" : "sitio.versiones.otraX64")}</a> · ${fmtSize(other.size)}</p>` : "";
   const downloads = list.reduce((n, r) => n + r.assets.reduce((m, a) => m + (isExe(a) ? a.download_count : 0), 0), 0);
   const href = esc(exe ? exe.browser_download_url : latest.html_url);
   $$(".dl-btn").forEach(b => { b.href = exe ? exe.browser_download_url : latest.html_url; $(".dl-ver", b).textContent = latest.tag_name; });
   $("#latest").innerHTML = `
-    <div class="ver"><h3>${esc(latest.name || latest.tag_name)}</h3><span class="badge">${latest.prerelease ? "Beta" : "Última versión"}</span></div>
-    <p class="meta">Publicada el ${fmtDate(latest.published_at)}${exe ? ` · ${fmtSize(exe.size)}` : ""}${downloads ? ` · ${downloads.toLocaleString("es-AR")} descargas` : ""}</p>
-    <a class="btn btn-primary" href="${href}">${ICON_WIN} Descargar instalador <small>${esc(latest.tag_name)}${exe && isArm(exe) ? " · ARM64" : ""}</small></a>
+    <div class="ver"><h3>${esc(latest.name || latest.tag_name)}</h3><span class="badge">${t(latest.prerelease ? "sitio.versiones.beta" : "sitio.versiones.ultima")}</span></div>
+    <p class="meta">${t("sitio.versiones.publicada", { date: fmtDate(latest.published_at) })}${exe ? ` · ${fmtSize(exe.size)}` : ""}${downloads ? ` · ${t("sitio.versiones.descargas", { count: downloads, n: downloads.toLocaleString(t("sitio.locale")) })}` : ""}</p>
+    <a class="btn btn-primary" href="${href}">${ICON_WIN} ${t("sitio.versiones.descargarInstalador")} <small>${esc(latest.tag_name)}${exe && isArm(exe) ? " · ARM64" : ""}</small></a>
     ${otherLink}
-    <div class="notes">${md(latest.body) || "<p>Sin notas para esta versión.</p>"}</div>`;
+    <div class="notes">${md(latest.body) || `<p>${t("sitio.versiones.sinNotasVersion")}</p>`}</div>`;
   // Cerradas: las notas de la última ya se ven arriba
   $("#versions").innerHTML = list.map(r => {
     const e = installer(r, arch || "x64");
     return `<li><details><summary>${esc(r.tag_name)}${r.prerelease ? " · beta" : ""} <small>${fmtDate(r.published_at)}</small></summary>
-      <div class="vbody">${md(r.body) || "<p>Sin notas.</p>"}${e ? `<a class="btn" href="${esc(e.browser_download_url)}">Descargar ${esc(r.tag_name)} · ${fmtSize(e.size)}</a>` : ""}</div></details></li>`;
+      <div class="vbody">${md(r.body) || `<p>${t("sitio.versiones.sinNotas")}</p>`}${e ? `<a class="btn" href="${esc(e.browser_download_url)}">${t("sitio.versiones.descargarVersion", { version: esc(r.tag_name) })} · ${fmtSize(e.size)}</a>` : ""}</div></details></li>`;
   }).join("");
-}).catch(() => noReleases("No pudimos consultar las versiones ahora mismo. Puedes verlas directamente en GitHub."));
+}
 
 const ICON_WIN = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 5.5 10.5 4.5v7H3zM11.5 4.4 21 3v8.5h-9.5zM3 12.5h7.5v7L3 18.5zM11.5 12.5H21V21l-9.5-1.4z"/></svg>';

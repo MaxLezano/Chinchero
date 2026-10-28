@@ -10,6 +10,7 @@ const path = require("path");
 const crypto = require("crypto");
 const { app, nativeImage, clipboard } = require("electron");
 const { zipSync, unzipSync } = require("fflate");
+const { t } = require("./i18n");
 
 const CONFIG = () => path.join(app.getPath("userData"), "config.json");
 
@@ -54,9 +55,9 @@ function safeName(s) {
 const DEFAULT_LIBRARY = () => ({
   version: 1,
   groups: [
-    { id: "personal", name: "Personal", color: "#51cf66" },
-    { id: "trabajo", name: "Trabajo", color: "#4dabf7" },
-    { id: "ideas", name: "Ideas", color: "#e8590c" },
+    { id: "personal", name: t("grupos.personal"), color: "#51cf66" },
+    { id: "trabajo", name: t("grupos.trabajo"), color: "#4dabf7" },
+    { id: "ideas", name: t("grupos.ideas"), color: "#e8590c" },
   ],
   boards: [],
   trash: [],
@@ -64,7 +65,7 @@ const DEFAULT_LIBRARY = () => ({
 });
 
 function getLibrary() {
-  const lib = readOrRecover(paths.library(), "library.json", "la biblioteca de tableros");
+  const lib = readOrRecover(paths.library(), "library.json", "biblioteca");
   return lib || DEFAULT_LIBRARY();
 }
 
@@ -74,7 +75,7 @@ function saveLibrary(lib) {
 
 function loadBoard(id) {
   const name = safeName(id);
-  return readOrRecover(paths.board(id), `boards/${name}.json`, "un tablero");
+  return readOrRecover(paths.board(id), `boards/${name}.json`, "tablero");
 }
 
 function saveBoard(id, doc) {
@@ -262,7 +263,7 @@ function autoBackups() {
 function readZip(buf) {
   const raw = unzipSync(new Uint8Array(buf));
   const lib = Object.keys(raw).find(r => r === "library.json" || r.endsWith("/library.json"));
-  if (!lib) throw new Error("La copia no contiene library.json");
+  if (!lib) throw new Error(t("main.errores.copiaSinBiblioteca"));
   const prefix = lib.slice(0, -"library.json".length), files = {};
   for (const [r, data] of Object.entries(raw)) {
     if (!r.startsWith(prefix)) continue;
@@ -310,7 +311,7 @@ function mapStrings(v, fn) {
 
 function exportBoard(id, file) {
   const lib = getLibrary(), entry = lib.boards.find(b => b.id === id), doc = loadBoard(id);
-  if (!entry || !doc) throw new Error("No se encontró el tablero");
+  if (!entry || !doc) throw new Error(t("main.errores.tableroNoEncontrado"));
   const { id: _id, group, fav, ...board } = entry;
   const pkg = { formato: "chinchero-tablero", version: 1, board, group: lib.groups.find(g => g.id === group)?.name || "", doc };
   const files = { "tablero.json": Buffer.from(JSON.stringify(pkg)) };
@@ -327,11 +328,11 @@ function exportBoard(id, file) {
 // No toca la biblioteca: la pantalla le da un id nuevo y lo añade.
 function importBoardFile(file) {
   let raw;
-  try { raw = unzipSync(new Uint8Array(fs.readFileSync(file))); } catch { throw new Error("el archivo no es un tablero de Chinchero"); }
+  try { raw = unzipSync(new Uint8Array(fs.readFileSync(file))); } catch { throw new Error(t("main.errores.noEsTablero")); }
   const main = Object.keys(raw).find(r => r === "tablero.json" || r.endsWith("/tablero.json"));
   let pkg = null;
   try { pkg = main && JSON.parse(Buffer.from(raw[main]).toString("utf8")); } catch {}
-  if (pkg?.formato !== "chinchero-tablero" || !Array.isArray(pkg.doc?.sheets)) throw new Error("el archivo no es un tablero de Chinchero");
+  if (pkg?.formato !== "chinchero-tablero" || !Array.isArray(pkg.doc?.sheets)) throw new Error(t("main.errores.noEsTablero"));
   const prefix = main.slice(0, -"tablero.json".length), urls = {}, re = new RegExp(`^media/(${MEDIA_NAME})$`);
   for (const [r, data] of Object.entries(raw)) {
     const name = r.startsWith(prefix) && re.exec(r.slice(prefix.length))?.[1];

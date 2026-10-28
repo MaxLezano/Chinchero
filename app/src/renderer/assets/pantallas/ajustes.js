@@ -3,7 +3,7 @@ document.querySelectorAll("[data-pref]").forEach(input => {
   const k = input.dataset.pref, onV = input.dataset.on || "1", offV = input.dataset.off || "0";
   const cur = getPref(k);
   input.checked = cur === null ? input.dataset.default === "1" : cur === onV;
-  input.onchange = () => { setPref(k, input.checked ? onV : offV); toast("Guardado"); };
+  input.onchange = () => { setPref(k, input.checked ? onV : offV); toast(t("ajustes.guardado")); };
 });
 // Sonidos: al encenderlos o mover el volumen se escucha una muestra
 const sounds = document.getElementById("sounds"), vol = document.getElementById("soundVol"), volOut = document.getElementById("soundVolOut");
@@ -21,7 +21,7 @@ document.getElementById("resetTours").onclick = () => {
   Tour.resetAll(); setPref("tours", "on"); setPref("tips", "on");
   document.querySelector('[data-pref="tours"]').checked = true;
   document.querySelector('[data-pref="tips"]').checked = true;
-  toast("Los tutoriales y sugerencias volverán a aparecer");
+  toast(t("ayuda.volveranAAparecer"));
 };
 
 /* ---------- Datos reales de la app ---------- */
@@ -31,37 +31,48 @@ document.getElementById("version").textContent = info.version;
 const mb = n => (n / 1048576).toFixed(n > 10485760 ? 0 : 1).replace(".", ",") + " MB";
 const usage = document.getElementById("usage");
 const nb = lib.boards.length;
-const showUsage = () => window.chinchero.dataStats().then(st => { usage.textContent = `${mb(st.bytes)} · ${nb} tablero${nb === 1 ? "" : "s"} · ${st.images} imágenes`; });
+// Los textos que dependen de datos se vuelven a escribir al cambiar el idioma (con lo último que se midió)
+let stats = null, unusedInfo = null;
+const paintUsage = () => {
+  if (!Store.native) usage.textContent = t("ajustes.usoNavegador", { boards: t("comun.tableros", { count: nb }) });
+  else if (stats) usage.textContent = t("ajustes.uso", { size: mb(stats.bytes), boards: t("comun.tableros", { count: nb }), images: t("ajustes.imagenes", { count: stats.images }) });
+};
+const showUsage = () => window.chinchero.dataStats().then(st => { stats = st; paintUsage(); });
 if (Store.native) showUsage();
-else usage.textContent = `${nb} tablero${nb === 1 ? "" : "s"} (modo de prueba en el navegador)`;
+else paintUsage();
 
 // Liberar espacio: imágenes y archivos de la carpeta que ningún tablero, papelera ni copia automática usa
 const unused = document.getElementById("unused"), cleanBtn = document.getElementById("cleanBtn");
 const size = n => n < 1048576 ? Math.max(1, Math.round(n / 1024)) + " KB" : mb(n);
-const KEEP = " Se conservan los de la papelera y los de las copias automáticas.";
+const paintUnused = () => {
+  const u = unusedInfo;
+  if (!Store.native) unused.textContent = t("comun.soloEscritorio") + ".";
+  else if (u) unused.textContent = u.count ? t("ajustes.sinUsar", { count: u.count, size: size(u.bytes) }) + " " + t("ajustes.seConservan")
+    : u.bytes ? t("ajustes.miniaturasSinUsar", { size: size(u.bytes) }) : t("ajustes.nadaQueBorrar") + " " + t("ajustes.seConservan");
+};
 const showUnused = async () => {
-  const u = await window.chinchero.unusedMedia();
+  const u = unusedInfo = await window.chinchero.unusedMedia();
   cleanBtn.disabled = !u.bytes;
   cleanBtn.dataset.mb = size(u.bytes);
-  unused.textContent = u.count
-    ? `${u.count} imagen${u.count === 1 ? "" : "es"} o archivo${u.count === 1 ? "" : "s"} que ningún tablero usa (${size(u.bytes)}).${KEEP}`
-    : u.bytes ? `Hay miniaturas que ya no se usan (${size(u.bytes)}).` : `No hay nada que borrar: todos los archivos están en uso.${KEEP}`;
+  paintUnused();
 };
 if (Store.native) showUnused();
-else unused.textContent = "Disponible en la app de escritorio.";
+else paintUnused();
 cleanBtn.onclick = async () => {
-  if (!confirm(`Se borrarán de la carpeta de datos las imágenes y archivos que ningún tablero usa (${cleanBtn.dataset.mb}). No se puede deshacer. ¿Continuar?`)) return;
+  if (!confirm(t("ajustes.confirmarLiberar", { size: cleanBtn.dataset.mb }))) return;
   cleanBtn.disabled = true;
   const r = await window.chinchero.cleanMedia();
-  toast(r.bytes ? `Espacio liberado: ${size(r.bytes)}` : "No había nada que borrar");
+  toast(r.bytes ? t("ajustes.liberado", { size: size(r.bytes) }) : t("ajustes.nadaQueBorrarCorto"));
   showUsage(); showUnused();
 };
-if (lib.lastBackup) document.getElementById("lastBackup").textContent = `Última copia: ${relTime(lib.lastBackup)}. Guarda todo en un solo archivo .zip donde elijas.`;
+const paintBackup = () => { if (lib.lastBackup) document.getElementById("lastBackup").textContent = t("ajustes.ultimaCopia", { when: relTime(lib.lastBackup) }); };
+paintBackup();
+document.addEventListener("chinchero:lang", () => { paintUsage(); paintUnused(); paintBackup(); });
 
 document.getElementById("openData").onclick = () => Store.desktop("openDataDir");
 document.getElementById("changeData").onclick = async () => {
   if (!Store.native) return Store.desktop("chooseDataDir");
-  if (!confirm("Chinchero empezará a usar la carpeta que elijas (se creará una subcarpeta «Chinchero»). Tus tableros actuales siguen en la carpeta anterior. ¿Continuar?")) return;
+  if (!confirm(t("ajustes.confirmarCambiarCarpeta"))) return;
   if (await window.chinchero.chooseDataDir("new")) location.href = "01-tableros.html";
 };
 document.getElementById("importData").onclick = async () => {
@@ -71,18 +82,18 @@ document.getElementById("backupBtn").onclick = async () => {
   const dest = await Store.desktop("backup");
   if (!dest) return;
   lib.lastBackup = Date.now(); Store.saveLibrary();
-  document.getElementById("lastBackup").textContent = "Última copia: ahora.";
-  toast("Copia de seguridad creada");
+  paintBackup();
+  toast(t("ajustes.copiaCreada"));
 };
 document.getElementById("restoreBtn").onclick = async () => {
-  if (Store.native && !confirm("Tus tableros actuales se reemplazarán por los de la copia. Antes se guarda una copia del estado actual en la carpeta «backups». ¿Continuar?")) return;
+  if (Store.native && !confirm(t("ajustes.confirmarRestaurar"))) return;
   const r = await Store.desktop("restoreBackup");
   if (!r) return;
-  if (r.error) return toast("No se pudo restaurar: el archivo no es una copia de Chinchero");
-  sessionStorage.setItem("chinchero-aviso", `Copia restaurada: ${r.boards} tablero${r.boards === 1 ? "" : "s"}`);
+  if (r.error) return toast(t("ajustes.noSePudoRestaurar"));
+  sessionStorage.setItem("chinchero-aviso", t("ajustes.copiaRestaurada", { boards: t("comun.tableros", { count: r.boards }) }));
   location.href = "01-tableros.html";
 };
-document.getElementById("checkUpdates").onclick = () => { toast("Buscando actualizaciones…"); Store.desktop("checkUpdates"); };
+document.getElementById("checkUpdates").onclick = () => { toast(t("ajustes.buscandoActualizaciones")); Store.desktop("checkUpdates"); };
 
 // Índice de secciones: marca la que se está viendo (la última cuyo título pasó bajo la barra superior;
 // al llegar al final, la última aunque sea corta)
@@ -103,13 +114,14 @@ spy();
 
 window.HELP = { tour: "settings" };
 const scrollTo = sel => () => document.querySelector(sel).scrollIntoView({ block: "start" });
-Tour.define("settings", [
-  { el: null, title: "Ajustes", text: "Aquí personalizas Chinchero. Todo se guarda al instante, no hay botón Guardar." },
-  { el: "#apariencia", before: scrollTo("#apariencia"), place: "right", title: "Apariencia", text: "Tema claro u oscuro, color de los hilos, letra de las notas y sonidos. La vista previa cambia mientras eliges." },
-  { el: "#tablero", before: scrollTo("#tablero"), place: "right", title: "Comportamiento del tablero", text: "El fondo para hojas nuevas, si los elementos aparecen un poco girados y si se alinean a la cuadrícula." },
-  { el: "#asistente", before: scrollTo("#asistente"), place: "right", title: "Asistente con IA", text: "Viene apagado. Si lo activas, cada tablero tiene un chat que propone ideas, resume y ordena la hoja. Con <b>Ollama</b> todo queda en tu PC; con <b>Gemini</b> usas una clave gratuita de Google." },
-  { el: "#datos", before: scrollTo("#datos"), place: "right", title: "Tus datos son tuyos", text: "Todo vive en esta carpeta, imágenes incluidas. Haz una <b>copia de seguridad</b> (.zip) de vez en cuando y recupérala con <b>Restaurar copia</b>, o abre la carpeta desde otro equipo con <b>Abrir datos existentes</b>." },
-  { el: "#ayuda", before: scrollTo("#ayuda"), place: "right", title: "Tutoriales y sugerencias", text: "Si ya conoces la app, desactívalos. Si quieres repasar, reinícialos." },
+// Función: el idioma se puede cambiar aquí mismo, así el tutorial sale en el que esté elegido al abrirlo
+Tour.define("settings", () => [
+  { el: null, title: t("barra.ajustes"), text: t("ajustes.tour.p1") },
+  { el: "#apariencia", before: scrollTo("#apariencia"), place: "right", title: t("ajustes.apariencia"), text: t("ajustes.tour.p2") },
+  { el: "#tablero", before: scrollTo("#tablero"), place: "right", title: t("ajustes.tour.t3"), text: t("ajustes.tour.p3") },
+  { el: "#asistente", before: scrollTo("#asistente"), place: "right", title: t("ajustes.asistenteConIa"), text: t("ajustes.tour.p4") },
+  { el: "#datos", before: scrollTo("#datos"), place: "right", title: t("ajustes.tour.t5"), text: t("ajustes.tour.p5") },
+  { el: "#ayuda", before: scrollTo("#ayuda"), place: "right", title: t("ajustes.tour.t6"), text: t("ajustes.tour.p6") },
 ]);
 Tour.auto("settings");
-setTimeout(() => Tips.show("backup", "Acostúmbrate a hacer una <b>copia de seguridad</b> antes de cambiar de PC o formatear.", { label: "Ir a Datos", fn: scrollTo("#datos") }), 1500);
+setTimeout(() => Tips.show("backup", t("ajustes.sugerenciaCopia"), { label: t("tableros.sug.backup.boton"), fn: scrollTo("#datos") }), 1500);

@@ -20,28 +20,22 @@
     ideas: () => {
       const sel = Editor.selected();
       return sel.length
-        ? `Propón 4 ideas relacionadas con ${sel.join(", ")}. Créalas como notas junto a ese elemento y únelas con hilos.`
-        : "Propón 5 ideas nuevas relacionadas con lo que hay en la hoja. Créalas como notas cerca del elemento con el que tengan que ver y únelas con hilos.";
+        ? t("ia.pedidos.ideasSel", { sel: sel.join(", ") })
+        : t("ia.pedidos.ideas");
     },
-    resumir: () => "Resume en pocas frases lo que hay en esta hoja y añade una ficha «Resumen» con ese resumen.",
-    ordenar: () => "Ordena los elementos de la hoja en zonas por tema.",
-    tareas: () => "Busca las tareas pendientes que aparecen en la hoja y crea una lista con ellas.",
+    resumir: () => t("ia.pedidos.resumir"),
+    ordenar: () => t("ia.pedidos.ordenar"),
+    tareas: () => t("ia.pedidos.tareas"),
   };
   function errorText(code) {
     const local = st?.provider === "ollama";
-    return {
-      off: "El asistente está desactivado. Actívalo en Ajustes.",
-      nokey: "Falta la clave de Gemini. Ve a Ajustes → Asistente con IA.",
-      nomodel: "Ollama no tiene ningún modelo instalado. Descarga uno en Ajustes → Asistente con IA.",
-      offline: local ? "No se pudo poner en marcha Ollama. Revísalo en Ajustes → Asistente con IA." : "No se pudo conectar con Google. Revisa tu conexión a internet.",
-      timeout: "El modelo tardó demasiado en responder. Prueba de nuevo o con un pedido más corto.",
-      400: "Google rechazó el pedido: revisa la clave y el modelo en Ajustes.",
-      403: "La clave de Gemini no es válida o no tiene permiso. Revísala en Ajustes.",
-      404: local ? "Ese modelo no está instalado en Ollama. Elige otro arriba." : "Ese modelo de Gemini no está disponible. Elige otro arriba.",
-      429: "Se agotó el cupo gratis por ahora. Prueba de nuevo en un rato.",
-    }[code] || (/^5\d\d$/.test(code) ? `Los modelos de Google están saturados en este momento (error ${code}). Prueba en un rato.` : "No se pudo obtener una respuesta. Prueba de nuevo.");
+    const key = {
+      off: "off", nokey: "nokey", nomodel: "nomodel", offline: local ? "offlineOllama" : "offlineGemini", timeout: "timeout",
+      400: "rechazado", 403: "clave", 404: local ? "modeloOllama" : "modeloGemini", 429: "cupo",
+    }[code];
+    return key ? t("ia.errores." + key) : /^5\d\d$/.test(code) ? t("ia.errores.saturado", { code }) : t("ia.errores.otro");
   }
-  const changes = n => n === 1 ? "1 cambio" : n + " cambios";
+  const changes = n => t("ia.cambios", { count: n });
 
   function bubble(cls, html) {
     const d = document.createElement("div");
@@ -51,10 +45,10 @@
     log.scrollTop = log.scrollHeight;
     return d;
   }
-  const settingsLink = '<button class="ai-link" data-go="ajustes">Abrir Ajustes</button>';
+  const settingsLink = () => `<button class="ai-link" data-go="ajustes">${t("ia.abrirAjustes")}</button>`;
   const showMsg = m => {
     const b = bubble(m.role, esc(m.text));
-    if (m.n) b.insertAdjacentHTML("beforeend", `<span class="ai-did">${m.undone ? "Deshecho" : changes(m.n) + " en la hoja"}</span>`);
+    if (m.n) b.insertAdjacentHTML("beforeend", `<span class="ai-did">${m.undone ? t("ia.deshecho") : t("ia.enLaHoja", { changes: changes(m.n) })}</span>`);
     return b;
   };
 
@@ -66,9 +60,9 @@
 
   // Modelo elegido: se cambia desde el panel (se guarda igual que en Ajustes). La lista se pide una vez por pantalla.
   function modelOptions(list) {
-    const auto = st.provider === "gemini" ? "Automático (el más rápido disponible)" : "Automático (el mejor instalado)";
+    const auto = t(st.provider === "gemini" ? "ajustesIa.modelos.autoGemini" : "ajustesIa.modelos.autoOllama");
     if (st.model && !list.includes(st.model)) list = [st.model, ...list];
-    const hint = m => /-pro\b/.test(m) ? " · sin cupo gratis" : /^qwen3:4b$/.test(m) ? " · mejor calidad" : /^llama3\.2(:latest)?$/.test(m) ? " · más rápido" : "";
+    const hint = m => /-pro\b/.test(m) ? " · " + t("ajustesIa.modelos.sinCupo") : /^qwen3:4b$/.test(m) ? " · " + t("ajustesIa.modelos.mejorCalidad") : /^llama3\.2(:latest)?$/.test(m) ? " · " + t("ajustesIa.modelos.masRapido") : "";
     pick.innerHTML = `<option value="">${esc(auto)}</option>` + list.map(m => `<option value="${esc(m)}">${esc(m)}${hint(m)}</option>`).join("");
     pick.value = st.model || "";
     pick.title = pick.selectedOptions[0]?.textContent || "";
@@ -89,18 +83,16 @@
     const ready = !!st?.enabled && (st.provider !== "gemini" || st.hasKey);
     $("#aiModelBar").hidden = !ready;
     if (ready) { $("#aiWho").textContent = NAMES[st.provider]; loadModels(); }
-    $("#aiPrivacy").textContent = !st?.enabled ? "" : st.provider === "gemini"
-      ? "Con Gemini, el texto de esta hoja se envía a Google para responder."
-      : "Ollama funciona en tu PC: nada sale del equipo.";
+    $("#aiPrivacy").textContent = !st?.enabled ? "" : t(st.provider === "gemini" ? "ia.privacidadGemini" : "ia.privacidadOllama");
     [input, send, pick, ...panel.querySelectorAll("[data-ask]")].forEach(el => el.disabled = !ready || busy);
     $("#aiNew").disabled = busy || !msgs.length;
     if (shown !== ready) {
       shown = ready;
       log.innerHTML = "";
-      if (!ai) bubble("info", "El asistente está disponible en la app de escritorio.");
-      else if (!st.enabled) bubble("info", `El asistente con IA viene desactivado. Lo más fácil es <b>Gemini</b> de Google, gratis y sin instalar nada: en Ajustes te guiamos paso a paso. Si prefieres usarlo sin internet, Chinchero puede instalar <b>Ollama</b>. ${settingsLink}`);
-      else if (!ready) bubble("info", `Falta la clave de Gemini. ${settingsLink}`);
-      else if (!msgs.length) bubble("info", "Pídeme ideas, que resuma u ordene la hoja, o que convierta notas en tareas. Puedo armar tableros completos con notas, fichas, listas, zonas, hilos y dibujos, y trabajar en otras hojas. Todo lo que haga se deshace con Ctrl+Z.");
+      if (!ai) bubble("info", t("ia.soloEscritorio"));
+      else if (!st.enabled) bubble("info", t("ia.desactivado") + " " + settingsLink());
+      else if (!ready) bubble("info", t("ajustesIa.errores.nokey") + " " + settingsLink());
+      else if (!msgs.length) bubble("info", t("ia.bienvenida"));
       msgs.forEach(showMsg);
     }
     return ready;
@@ -114,30 +106,30 @@
     showTips(false);
     bubble("user", esc(text));
     msgs.push({ role: "user", text });
-    const wait = bubble("wait", "Pensando");
+    const wait = bubble("wait", t("ia.pensando"));
     // Un modelo saturado puede tardar casi un minuto antes de que se pruebe otro
-    const slow = setTimeout(() => wait.textContent = "Está tardando más de lo normal" + (st.provider === "gemini" ? "; si no responde, probaré con otro modelo" : ""), 12000);
+    const slow = setTimeout(() => wait.textContent = t(st.provider === "gemini" ? "ia.tardandoGemini" : "ia.tardando"), 12000);
     // Lo que hizo cada respuesta (con ids) va junto a su texto: así el modelo sabe a qué se refiere «hazlo» o «eso»
-    const toModel = m => ({ role: m.role, text: m.did ? `${m.text}\n[${m.undone ? "Deshecho por el usuario" : "Hecho"}: ${m.did}]` : m.text });
+    const toModel = m => ({ role: m.role, text: m.did ? `${m.text}\n[${m.undone ? "Deshecho por el usuario" : "Hecho"}: ${m.did}]` : m.text }); // i18n-ok: para el modelo
     const r = await ai.chat({ messages: msgs.slice(-12).map(toModel), board: Editor.boardForAI() }).catch(() => ({ error: "fail" }));
     clearTimeout(slow);
     wait.remove();
     busy = false;
     if (r.error) {
       msgs.pop();
-      bubble("error", esc(errorText(r.error)) + (["off", "nokey", "nomodel", "400", "403"].includes(r.error) ? " " + settingsLink : ""));
+      bubble("error", esc(errorText(r.error)) + (["off", "nokey", "nomodel", "400", "403"].includes(r.error) ? " " + settingsLink() : ""));
     } else {
       const did = [];
       const n = r.actions.length ? Editor.applyAI(r.actions, did) : 0;
-      const reply = r.text || (n ? "Listo." : "No entendí el pedido. ¿Puedes decirlo de otra forma?");
+      const reply = r.text || t(n ? "ia.listo" : "ia.noEntendi");
       msgs.push({ role: "assistant", text: reply, ...(n && { n, did: did.join("; ").slice(0, 1500) }) });
       const b = bubble("assistant", esc(reply));
       if (n) {
-        b.insertAdjacentHTML("beforeend", `<span class="ai-did">${changes(n)} en la hoja <button data-undo="${msgs.length - 1}">Deshacer</button></span>`);
-        announce(`El asistente hizo ${changes(n)} en la hoja`);
+        b.insertAdjacentHTML("beforeend", `<span class="ai-did">${t("ia.enLaHoja", { changes: changes(n) })} <button data-undo="${msgs.length - 1}">${t("comun.deshacer")}</button></span>`);
+        announce(t("ia.hizo", { changes: changes(n) }));
       } else announce(reply);
       // El modelo elegido no respondió (saturado, sin cupo…) y contestó uno de respaldo
-      if (st.model && r.model && r.model !== st.model) b.insertAdjacentHTML("beforeend", `<span class="ai-note">${esc(st.model)} no respondió; contestó ${esc(r.model)}.</span>`);
+      if (st.model && r.model && r.model !== st.model) b.insertAdjacentHTML("beforeend", `<span class="ai-note">${esc(t("ia.respaldo", { model: st.model, other: r.model }))}</span>`);
     }
     remember();
     refresh();
@@ -152,7 +144,7 @@
     refresh();
     showTips(true);
     input.focus();
-    announce("Nueva conversación");
+    announce(t("editor.nuevaConversacion"));
   }
 
   function open(prompt) {
@@ -186,23 +178,23 @@
   pick.addEventListener("change", async () => {
     st = await ai.config({ model: pick.value });
     pick.title = pick.selectedOptions[0]?.textContent || "";
-    toast("Modelo cambiado");
+    toast(t("ia.modeloCambiado"));
   });
-  send.addEventListener("click", () => { const t = input.value; input.value = ""; ask(t); });
+  send.addEventListener("click", () => { const text = input.value; input.value = ""; ask(text); });
   input.addEventListener("keydown", e => {
     // Enter envía; Mayús+Enter es salto de línea (los atajos del lienzo no actúan dentro de un textarea)
     if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); send.click(); }
   });
   panel.addEventListener("keydown", e => { if (e.key === "Escape") { e.stopPropagation(); close(); } });
   panel.addEventListener("click", e => {
-    const t = e.target.closest("button");
-    if (!t) return;
-    if (t.dataset.ask) ask(PROMPTS[t.dataset.ask]());
-    if (t.dataset.go) location.href = "03-ajustes.html#asistente";
-    if (t.hasAttribute("data-undo")) {
+    const b = e.target.closest("button");
+    if (!b) return;
+    if (b.dataset.ask) ask(PROMPTS[b.dataset.ask]());
+    if (b.dataset.go) location.href = "03-ajustes.html#asistente";
+    if (b.hasAttribute("data-undo")) {
       Editor.undo();
-      t.parentElement.textContent = "Deshecho";
-      if (msgs[t.dataset.undo]) { msgs[t.dataset.undo].undone = true; remember(); }
+      b.parentElement.textContent = t("ia.deshecho");
+      if (msgs[b.dataset.undo]) { msgs[b.dataset.undo].undone = true; remember(); }
     }
   });
   // Al volver de Ajustes en otra pestaña o ventana, el estado puede haber cambiado

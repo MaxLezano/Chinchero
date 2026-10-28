@@ -7,6 +7,7 @@ const { net, safeStorage, clipboard } = require("electron");
 const crypto = require("crypto");
 const store = require("./store");
 const ollamaSetup = require("./ollama-setup");
+const i18n = require("./i18n");
 
 // En pruebas se apuntan a un servidor simulado
 const OLLAMA = process.env.CHINCHERO_OLLAMA_URL || "http://127.0.0.1:11434";
@@ -138,8 +139,9 @@ const providers = {
 
 // Lo que se le explica al modelo: qué es el tablero, cómo trabajar bien y cómo responder (siempre JSON). Pensar en
 // «plan» antes de las acciones y escribir «respuesta» al final mejora mucho a los modelos rápidos y sin razonamiento.
+// Es texto para el modelo, no para la pantalla (i18n-off); solo cambia el idioma en que responde.
 const SYSTEM = `Eres Chinche, el asistente de Chinchero: un tablero de corcho digital con hojas (pestañas) y, en cada hoja, notas, fichas, listas, textos, zonas, sellos, stickers, dibujos e hilos que unen elementos.
-Hablas en español neutro, cercano y claro. Recibes el tablero en JSON: "hoja" (la que está abierta), "hojas" (todas), "elementos" (id, tipo, texto, posición y tamaño), "hilos" y "seleccion" (ids que eligió el usuario).
+Hablas en {idioma}, cercano y claro. Recibes el tablero en JSON: "hoja" (la que está abierta), "hojas" (todas), "elementos" (id, tipo, texto, posición y tamaño), "hilos" y "seleccion" (ids que eligió el usuario).
 
 Responde SIEMPRE con un único objeto JSON con estas claves, en este orden:
 {"plan": "...", "acciones": [...], "respuesta": "..."}
@@ -174,6 +176,9 @@ Acciones (usa solo estas):
 - {"op":"borrar","id":"..."}
 
 Dibujos: a mano alzada, con trazos de path SVG (M, L, Q, C, A, Z) en un lienzo de 400x400; 0,0 es arriba a la izquierda y la y crece hacia abajo. Solo líneas, sin relleno ni texto. Planea las partes y sus proporciones en "plan" y dibuja cada parte como un trazo propio, con curvas (C, Q, A) para formas orgánicas: tiene que reconocerse a simple vista. Por ejemplo, un caballo de perfil: cuerpo ovalado y largo, cuello grueso que sube en diagonal, cabeza alargada con hocico, ojo, orejas en punta, crin, cuatro patas largas con rodillas y cascos, y cola. Usa entre 8 y 30 trazos. Si piden algo muy difícil de dibujar con líneas (una foto, un retrato realista), haz un dibujo simple y añade un sticker con su emoji.`;
+const IDIOMA = { es: "español neutro", en: "inglés (English)" };
+// i18n-on
+const system = () => SYSTEM.replace("{idioma}", IDIOMA[i18n.lang] || IDIOMA.es);
 
 async function chat({ messages, board }) {
   const c = cfg(), p = providers[c.provider];
@@ -186,8 +191,8 @@ async function chat({ messages, board }) {
     if (!model && c.provider === "ollama") return { error: "nomodel" };
     const last = messages.length - 1;
     // La hoja va en el último mensaje del usuario: así el modelo siempre ve su estado actual
-    const msgs = messages.map((m, i) => i === last ? { ...m, text: `Hoja actual:\n${board}\n\nPedido: ${m.text}` } : m);
-    const r = await p.chat(model, SYSTEM, msgs);
+    const msgs = messages.map((m, i) => i === last ? { ...m, text: `Hoja actual:\n${board}\n\nPedido: ${m.text}` } : m); // i18n-ok: para el modelo
+    const r = await p.chat(model, system(), msgs);
     return { ...parse(r.text), model: r.model };
   } catch (e) {
     return { error: e instanceof AIError ? e.message : "fail" };
@@ -215,7 +220,7 @@ async function test() {
     if (c.provider === "ollama") await ollamaSetup.start();
     const model = c.model || (c.provider === "ollama" ? bestOllama(await p.models()) : "");
     if (!model && c.provider === "ollama") return { error: "nomodel" };
-    const r = await p.chat(model, 'Responde solo con este JSON: {"respuesta":"ok","acciones":[]}', [{ role: "user", text: "Prueba de conexión" }]);
+    const r = await p.chat(model, 'Responde solo con este JSON: {"respuesta":"ok","acciones":[]}', [{ role: "user", text: "Prueba de conexión" }]); // i18n-ok: para el modelo
     return { ok: true, model: r.model };
   } catch (e) {
     return { error: e instanceof AIError ? e.message : "fail" };

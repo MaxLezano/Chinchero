@@ -50,6 +50,7 @@ a { color: inherit; }
 .btn svg { width: 20px; height: 20px; flex: none; }
 .icon-btn { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 10px; border: 1px solid var(--border); background: var(--surface); color: var(--text); cursor: pointer; }
 .icon-btn svg { width: 18px; height: 18px; }
+.lang-btn { font-family: inherit; font-size: 12px; font-weight: 700; letter-spacing: .04em; }
 
 /* Navegación */
 .nav { position: sticky; top: 0; z-index: 50; backdrop-filter: blur(14px); background: color-mix(in srgb, var(--bg) 82%, transparent); border-bottom: 1px solid transparent; transition: border-color .2s; }
@@ -71,7 +72,8 @@ a { color: inherit; }
 .hero .wrap { display: grid; grid-template-columns: 1fr 1.05fr; gap: 56px; align-items: center; }
 .eyebrow { display: inline-flex; gap: 8px; align-items: center; font-size: 13px; font-weight: 600; color: var(--accent); background: var(--accent-soft); padding: 6px 12px; border-radius: 99px; }
 .hero h1 { font-size: clamp(40px, 5.4vw, 66px); line-height: 1.02; letter-spacing: -.03em; margin: 18px 0 18px; }
-.hero h1 .hand { color: var(--accent); font-size: 1.12em; letter-spacing: 0; display: inline-block; transform: rotate(-2deg); }
+/* En inglés la palabra va en medio del título: la inclinación de la letra no debe pegarla a la siguiente */
+.hero h1 .hand { color: var(--accent); font-size: 1.12em; letter-spacing: 0; display: inline-block; transform: rotate(-2deg); padding-right: .08em; }
 .hero p.lead { font-size: 19px; color: var(--muted); margin: 0 0 30px; max-width: 520px; }
 .cta { display: flex; gap: 12px; flex-wrap: wrap; }
 .hero-meta { margin-top: 16px; font-size: 13px; color: var(--muted); display: flex; gap: 14px; flex-wrap: wrap; }

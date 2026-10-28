@@ -6,6 +6,8 @@
 
 Incluye un asistente con IA opcional (desactivado de fábrica) que propone ideas, arma tableros, resume, ordena y dibuja: con Gemini (clave gratuita de Google) u Ollama, que corre en tu PC sin internet.
 
+En español o en inglés: el idioma se elige en Ajustes (la web tiene su propio botón).
+
 - 🌐 Web y descargas: https://tuchinchero.com/
 - ⬇️ Instalador: [Releases](https://github.com/MaxLezano/Chinchero/releases) (`Chinchero-Setup-X.Y.Z.exe` para Intel y AMD, `-arm64.exe` para ARM)
 
@@ -28,6 +30,8 @@ npm run dist       # genera los instaladores x64 y ARM64 en app/dist/
 ```
 
 > Si `npm start` abre algo raro o falla con `Cannot read properties of undefined`, la terminal tiene definida `ELECTRON_RUN_AS_NODE` (pasa dentro de VS Code). Ejecuta `set ELECTRON_RUN_AS_NODE=` en cmd o `Remove-Item Env:ELECTRON_RUN_AS_NODE` en PowerShell.
+
+Textos: todo lo que se ve pasa por [i18next](https://www.i18next.com/). Los de la app están en `app/src/renderer/assets/locales/` (`es.json` y `en.json`, también para el proceso principal) y los de la web en `web/assets/locales/`; en el HTML se piden con `data-i18n` y en el código con `t()`. `npm run test:i18n` comprueba que los dos idiomas tengan las mismas claves y que no quede texto suelto.
 
 Para probar sin tocar tus datos reales: `CHINCHERO_USER_DATA` y `CHINCHERO_DATA_DIR` apuntan el perfil y la carpeta de datos a otra ubicación.
 

@@ -8,7 +8,9 @@ const pages = [
   path.join(__dirname, "..", "..", "web", "index.html"),
 ];
 (async () => {
-  const b = await puppeteer.launch({ executablePath: process.env.EDGE_PATH || "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe", headless: true });
+  const b = await puppeteer.launch({ executablePath: process.env.EDGE_PATH || "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe", headless: true,
+    // Los textos de la interfaz (assets/locales/*.json) se leen con XHR, que file:// bloquea sin esto
+    args: ["--allow-file-access-from-files"] });
   let fail = false;
   for (const file of pages) {
     const p = await b.newPage();

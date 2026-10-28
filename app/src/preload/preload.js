@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld("chinchero", {
   info: () => ipcRenderer.sendSync("app:info"),
   takeRecovered: () => ipcRenderer.sendSync("data:recovered"),
   firstRunDone: () => ipcRenderer.invoke("app:firstRunDone"),
+  setLang: lang => ipcRenderer.invoke("app:lang", lang),
 
   // Archivos arrastrados o elegidos tienen ruta en disco; los pegados del portapapeles no, y se envían como bytes
   importFile: async file => {

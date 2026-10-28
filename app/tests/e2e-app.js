@@ -342,10 +342,23 @@ delete process.env.ELECTRON_RUN_AS_NODE;
       aiModels: await rejects(c.ai.models("otro")),
       aiEmpty: await rejects(c.ai.chat({ messages: [], board: "{}" })),
       aiRole: await rejects(c.ai.chat({ messages: [{ role: "system", text: "x" }], board: "{}" })),
+      lang: await rejects(c.setLang("fr")),
+      langObj: await rejects(c.setLang({ lang: "en" })),
     };
   });
   ok("IPC: argumentos no válidos se rechazan", Object.values(ipc).every(Boolean), JSON.stringify(ipc));
   ok("IPC: el tablero sigue intacto tras los rechazos", fs.existsSync(path.join(DATA, "library.json")) && !fs.existsSync(path.join(TMP, "fuera.json")));
+
+  // Idioma: al elegir inglés, el proceso principal lo guarda y sus mensajes (diálogos, errores) salen en inglés
+  {
+    const bad = path.join(TMP, "roto.chinchero");
+    fs.writeFileSync(bad, "no es un zip");
+    const errorIn = l => page.evaluate(async (l, f) => { I18n.set(l); await new Promise(r => setTimeout(r, 300)); return (await window.chinchero.importBoard(f)).error; }, l, bad);
+    const en = await errorIn("en");
+    const cfgLang = JSON.parse(fs.readFileSync(path.join(TMP, "user", "config.json"), "utf8")).lang;
+    const es = await errorIn("es");
+    ok("idioma: el proceso principal usa el idioma elegido y lo guarda", en === "the file isn't a Chinchero board" && cfgLang === "en" && es === "el archivo no es un tablero de Chinchero", JSON.stringify({ en, es, cfgLang }));
+  }
 
   // 9) Asistente con IA (proveedor simulado): desactivado de fábrica, Ollama, Gemini con la clave del portapapeles
   await page.goto(page.url().replace(/02-tablero\.html.*/, "03-ajustes.html")); await sleep(800);

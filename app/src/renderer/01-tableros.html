@@ -5,10 +5,12 @@
 <!-- Solo recursos propios: nada de internet ni código inline (los estilos inline sí, el editor posiciona con style) -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: chinchero-media:; media-src 'self' blob: chinchero-media:; connect-src 'self' data: blob: chinchero-media:; base-uri 'none'; form-action 'none'; object-src 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Chinchero — Tableros</title>
+<title data-i18n="titulos.tableros">Chinchero — Tableros</title>
 <link rel="stylesheet" href="assets/fonts/fonts.css">
 <link rel="stylesheet" href="assets/theme.css">
 <link rel="stylesheet" href="assets/shell.css">
+<script src="assets/vendor/i18next.min.js"></script>
+<script src="assets/i18n.js"></script>
 <script src="assets/theme.js"></script>
 <script src="assets/store.js"></script>
 <style>
@@ -118,54 +120,54 @@
 <main>
   <div class="topbar">
     <h1 id="title"></h1>
-    <label class="search"><svg class="icon"><use href="#i-search"/></svg><input id="search" placeholder="Buscar tableros…" aria-label="Buscar tableros"><kbd>Ctrl F</kbd></label>
-    <button class="btn" id="importBtn" title="Abre un tablero compartido (.chinchero). También puedes arrastrarlo a la ventana">Importar tablero</button>
-    <button class="btn btn-primary" id="newBtn"><svg class="icon"><use href="#i-plus"/></svg>Nuevo tablero</button>
+    <label class="search"><svg class="icon"><use href="#i-search"/></svg><input id="search" placeholder="Buscar tableros…" aria-label="Buscar tableros" data-i18n="[placeholder]tableros.buscarPh;[aria-label]tableros.buscar"><kbd>Ctrl F</kbd></label>
+    <button class="btn" id="importBtn" title="Abre un tablero compartido (.chinchero). También puedes arrastrarlo a la ventana" data-i18n="tableros.importar;[title]tableros.importarAyuda">Importar tablero</button>
+    <button class="btn btn-primary" id="newBtn" data-i18n="tableros.nuevo"><svg class="icon"><use href="#i-plus"/></svg>Nuevo tablero</button>
   </div>
   <div class="subbar" id="chips">
-    <button class="chip active" data-f="all" aria-pressed="true">Todos</button>
-    <button class="chip" data-f="today" aria-pressed="false">Editados hoy</button>
-    <button class="chip" data-f="img" aria-pressed="false">Con imágenes</button>
-    <label class="sort">Ordenar <select id="sort" aria-label="Ordenar tableros"><option value="date">Última edición</option><option value="name">Nombre</option></select></label>
+    <button class="chip active" data-f="all" aria-pressed="true" data-i18n="tableros.filtros.todos">Todos</button>
+    <button class="chip" data-f="today" aria-pressed="false" data-i18n="tableros.filtros.hoy">Editados hoy</button>
+    <button class="chip" data-f="img" aria-pressed="false" data-i18n="tableros.filtros.imagenes">Con imágenes</button>
+    <label class="sort" data-i18n="tableros.ordenar">Ordenar <select id="sort" aria-label="Ordenar tableros" data-i18n="[aria-label]tableros.ordenarAria"><option value="date" data-i18n="tableros.porFecha">Última edición</option><option value="name" data-i18n="tableros.porNombre">Nombre</option></select></label>
   </div>
 
-  <section class="suggest" id="suggest" aria-label="Sugerencias"></section>
+  <section class="suggest" id="suggest" aria-label="Sugerencias" data-i18n="[aria-label]tableros.sugerencias"></section>
   <section class="grid" id="grid"></section>
 
   <div class="empty" id="empty">
-    <div class="empty-art surface-cork"><div class="note"><span class="pin"></span>¡Hola!</div></div>
+    <div class="empty-art surface-cork"><div class="note"><span class="pin"></span><span data-i18n="tableros.hola">¡Hola!</span></div></div>
     <h3 id="emptyTitle"></h3>
     <p id="emptyText"></p>
-    <button class="btn btn-primary" id="emptyBtn"><svg class="icon"><use href="#i-plus"/></svg>Nuevo tablero</button>
+    <button class="btn btn-primary" id="emptyBtn" data-i18n="tableros.nuevo"><svg class="icon"><use href="#i-plus"/></svg>Nuevo tablero</button>
   </div>
 </main>
 
 <div class="backdrop" id="modal">
   <form class="modal" id="newForm" role="dialog" aria-modal="true" aria-labelledby="newTitle">
-    <h2 id="newTitle">Nuevo tablero</h2>
-    <div class="field"><label for="boardName">Nombre</label><input id="boardName" value="Sin título" required></div>
-    <div class="field"><label for="groupSelect">Grupo</label><select id="groupSelect"></select></div>
-    <fieldset class="field"><legend>Empezar con</legend>
+    <h2 id="newTitle" data-i18n="tableros.nuevo">Nuevo tablero</h2>
+    <div class="field"><label for="boardName" data-i18n="tableros.nombre">Nombre</label><input id="boardName" value="Sin título" required data-i18n="[value]tableros.sinTitulo"></div>
+    <div class="field"><label for="groupSelect" data-i18n="tableros.grupo">Grupo</label><select id="groupSelect"></select></div>
+    <fieldset class="field"><legend data-i18n="tableros.empezarCon">Empezar con</legend>
       <div class="opts" id="templates">
-        <button type="button" class="opt selected" data-v="blank"><div class="tpl">📄</div><span>En blanco</span><small>Lienzo vacío</small></button>
-        <button type="button" class="opt" data-v="detective"><div class="tpl">🕵️</div><span>Detective</span><small>Fotos y notas unidas con hilos</small></button>
-        <button type="button" class="opt" data-v="kanban"><div class="tpl">📋</div><span>Kanban</span><small>Por hacer, haciendo, hecho</small></button>
-        <button type="button" class="opt" data-v="semana"><div class="tpl">📅</div><span>Semana</span><small>Lunes a domingo, ideas y pendientes</small></button>
-        <button type="button" class="opt" data-v="moodboard"><div class="tpl">🎨</div><span>Moodboard</span><small>Imágenes y paleta</small></button>
-        <button type="button" class="opt" data-v="viaje"><div class="tpl">✈️</div><span>Viaje</span><small>Itinerario, lugares, equipaje</small></button>
+        <button type="button" class="opt selected" data-v="blank"><div class="tpl">📄</div><span data-i18n="tableros.plantillas.blank">En blanco</span><small data-i18n="tableros.plantillas.blankAyuda">Lienzo vacío</small></button>
+        <button type="button" class="opt" data-v="detective"><div class="tpl">🕵️</div><span data-i18n="tableros.plantillas.detective">Detective</span><small data-i18n="tableros.plantillas.detectiveAyuda">Fotos y notas unidas con hilos</small></button>
+        <button type="button" class="opt" data-v="kanban"><div class="tpl">📋</div><span data-i18n="tableros.plantillas.kanban">Kanban</span><small data-i18n="tableros.plantillas.kanbanAyuda">Por hacer, haciendo, hecho</small></button>
+        <button type="button" class="opt" data-v="semana"><div class="tpl">📅</div><span data-i18n="tableros.plantillas.semana">Semana</span><small data-i18n="tableros.plantillas.semanaAyuda">Lunes a domingo, ideas y pendientes</small></button>
+        <button type="button" class="opt" data-v="moodboard"><div class="tpl">🎨</div><span data-i18n="tableros.plantillas.moodboard">Moodboard</span><small data-i18n="tableros.plantillas.moodboardAyuda">Imágenes y paleta</small></button>
+        <button type="button" class="opt" data-v="viaje"><div class="tpl">✈️</div><span data-i18n="tableros.plantillas.viaje">Viaje</span><small data-i18n="tableros.plantillas.viajeAyuda">Itinerario, lugares, equipaje</small></button>
       </div>
     </fieldset>
-    <fieldset class="field"><legend>Fondo</legend>
+    <fieldset class="field"><legend data-i18n="tableros.fondo">Fondo</legend>
       <div class="opts" id="surfaces">
-        <button type="button" class="opt" data-v="dots"><div class="surface-dots"></div><span>Puntos</span></button>
-        <button type="button" class="opt" data-v="cork"><div class="surface-cork"></div><span>Corcho</span></button>
-        <button type="button" class="opt" data-v="grid"><div class="surface-grid"></div><span>Cuadrícula</span></button>
-        <button type="button" class="opt" data-v="plain"><div class="surface-plain"></div><span>Liso</span></button>
+        <button type="button" class="opt" data-v="dots"><div class="surface-dots"></div><span data-i18n="tableros.fondos.dots">Puntos</span></button>
+        <button type="button" class="opt" data-v="cork"><div class="surface-cork"></div><span data-i18n="tableros.fondos.cork">Corcho</span></button>
+        <button type="button" class="opt" data-v="grid"><div class="surface-grid"></div><span data-i18n="tableros.fondos.grid">Cuadrícula</span></button>
+        <button type="button" class="opt" data-v="plain"><div class="surface-plain"></div><span data-i18n="tableros.fondos.plain">Liso</span></button>
       </div>
     </fieldset>
     <div class="modal-actions">
-      <button type="button" class="btn" id="cancelModal">Cancelar</button>
-      <button type="submit" class="btn btn-primary">Crear tablero</button>
+      <button type="button" class="btn" id="cancelModal" data-i18n="comun.cancelar">Cancelar</button>
+      <button type="submit" class="btn btn-primary" data-i18n="tableros.crear">Crear tablero</button>
     </div>
   </form>
 </div>

@@ -12,7 +12,9 @@ const ok = (name, cond, extra = "") => log.push(`${cond ? "PASS" : "FAIL"} ${nam
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 (async () => {
-  const browser = await puppeteer.launch({ executablePath: process.env.EDGE_PATH || "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe", headless: true });
+  const browser = await puppeteer.launch({ executablePath: process.env.EDGE_PATH || "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe", headless: true,
+    // Los textos de la interfaz (assets/locales/*.json) se leen con XHR, que file:// bloquea sin esto
+    args: ["--allow-file-access-from-files"] });
 
   async function open(name, { theme = "dark", prefs = {}, vp = { width: 1440, height: 900 } } = {}) {
     const page = await browser.newPage();
@@ -919,6 +921,98 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     const s = await open("03-ajustes.html", { prefs: NO_TOURS });
     ok("IA: en el navegador los ajustes del asistente están desactivados", await s.evaluate(() => document.getElementById("aiOn").disabled && document.getElementById("aiIntro").textContent.includes("app de escritorio")));
     await s.close();
+  }
+
+  // Idioma: se cambia solo en Ajustes, se aplica al momento (sin recargar) y queda para las demás pantallas
+  {
+    const s = await open("03-ajustes.html", { prefs: NO_TOURS });
+    const texts = () => s.evaluate(() => ({
+      h1: document.querySelector("h1").textContent, recent: document.querySelector('.sidebar a[href*="view=recent"]').textContent.trim(),
+      tab: document.querySelector(".tabs a").textContent, light: document.querySelector('#theme [data-v="light"]').textContent,
+      help: document.getElementById("helpBtn").getAttribute("aria-label"), keyGroup: document.querySelector("#keyTable .grp td").textContent,
+      usage: document.getElementById("usage").textContent, lang: document.documentElement.lang, title: document.title,
+      pressed: document.querySelector('#lang [aria-pressed="true"]')?.dataset.v,
+    }));
+    const es = await texts();
+    ok("idioma: por defecto la interfaz está en español", es.lang === "es" && es.h1 === "Ajustes" && es.recent === "Recientes" && es.pressed === "es", JSON.stringify(es));
+    let reloaded = false;
+    s.once("load", () => reloaded = true);
+    await s.click('#lang [data-v="en"]'); await sleep(300);
+    const en = await texts();
+    ok("idioma: English en Ajustes cambia todo al momento y sin recargar", !reloaded && en.lang === "en" && en.h1 === "Settings" && en.recent === "Recent" && en.tab === "Appearance"
+      && en.light === "Light" && en.help === "Help" && en.keyGroup === "Tools" && /browser test mode/.test(en.usage) && en.title === "Chinchero — Settings" && en.pressed === "en", JSON.stringify(en));
+    await shot(s, "idioma-ajustes-en");
+    await s.reload({ waitUntil: "networkidle0" }); await sleep(300);
+    ok("idioma: el inglés queda guardado", (await texts()).h1 === "Settings");
+    await s.click('#lang [data-v="es"]'); await sleep(300);
+    ok("idioma: se vuelve al español igual", (await texts()).h1 === "Ajustes");
+    await s.close();
+
+    // Todas las pantallas en inglés: ningún texto ni atributo visible con letras del español
+    const SPANISH = /[áéíóúñ¿¡]/i;
+    const leftovers = p => p.evaluate(re => {
+      const rx = new RegExp(re, "i"), bad = [];
+      const walk = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+      for (let n; (n = walk.nextNode());) if (rx.test(n.data) && n.parentElement.closest("[lang=es]") === null && n.parentElement.offsetParent !== null) bad.push(n.data.trim().slice(0, 50));
+      for (const el of document.querySelectorAll("[aria-label], [title], [placeholder], [data-tip]"))
+        for (const a of ["aria-label", "title", "placeholder", "data-tip"]) if (rx.test(el.getAttribute(a) || "") && !el.closest("[lang=es]")) bad.push(a + "=" + el.getAttribute(a).slice(0, 50));
+      return bad;
+    }, SPANISH.source);
+    const EN = { ...NO_TOURS, lang: "en" };
+    for (const file of ["00-bienvenida.html", "01-tableros.html", "03-ajustes.html", "04-papelera.html", "02-tablero.html?template=kanban&name=Board"]) {
+      const p = await open(file, { prefs: EN });
+      const bad = await leftovers(p);
+      ok(`idioma: ${file.replace(/\?.*/, "")} en inglés, sin textos en español`, !bad.length, bad.slice(0, 6).join(" | "));
+      await shot(p, "idioma-en-" + file.replace(/\W.*$/, ""));
+      if (file.startsWith("02")) {
+        const ed = await p.evaluate(() => ({
+          zone: document.querySelector(".t-zone .zt")?.textContent, tip: document.querySelector('[data-tool="select"]').dataset.tip,
+          sheet: document.querySelector("#sheets [role=tab]")?.textContent.trim(),
+        }));
+        ok("idioma: el editor y la plantilla salen en inglés", ed.zone === "To do" && /^Select and move · /.test(ed.tip) && ed.sheet.includes("Board"), JSON.stringify(ed));
+        await p.mouse.click(1100, 820, { button: "right" }); await sleep(200);
+        const menu = await p.$$eval(".menu button span:first-child", b => b.map(x => x.textContent));
+        ok("idioma: el menú del lienzo está en inglés", menu[0] === "Note here" && menu.includes("Select all"), menu.join(", "));
+        await p.keyboard.press("Escape");
+        await p.keyboard.down("Control"); await p.keyboard.press("k"); await p.keyboard.up("Control"); await sleep(200);
+        const cmd = await p.$$eval("#cmdkList li", l => l.map(x => x.textContent));
+        ok("idioma: Ctrl+K ofrece las acciones en inglés", cmd.some(x => x.includes("New note")) && cmd.some(x => x.includes("Export sheet as PDF")), cmd.slice(0, 4).join(", "));
+        await p.keyboard.press("Escape");
+        await p.evaluate(() => showShortcuts([{ title: "x", rows: [] }])); await sleep(100);
+        ok("idioma: el panel de atajos está en inglés", await p.$eval(".g-modal h3", h => h.textContent) === "Keyboard shortcuts");
+      }
+      await p.close();
+    }
+    // Tutorial en inglés
+    const tp = await open("04-papelera.html", { prefs: { lang: "en", tips: "off" } });
+    await tp.evaluate(() => Tour.start("trash")); await sleep(300);
+    ok("idioma: los tutoriales salen en inglés", await tp.$eval(".tour-step", e => e.textContent) === "Step 1 of 4" && await tp.$eval(".tour-pop h4", e => e.textContent) === "The trash");
+    await tp.close();
+
+    // Web: botón de idioma junto al de tema; cambia todo al momento y se recuerda
+    const w = await browser.newPage();
+    await w.setViewport({ width: 1280, height: 800 });
+    w.on("pageerror", e => log.push(`[web] PAGEERROR: ${e.message}`));
+    // Sin red: las versiones de GitHub no hacen falta para esto (sale el aviso de «no se pudo consultar»)
+    await w.setRequestInterception(true);
+    w.on("request", r => /^https?:/.test(r.url()) ? r.abort() : r.continue());
+    await w.goto(require("url").pathToFileURL(path.join(__dirname, "..", "..", "web", "index.html")).href, { waitUntil: "networkidle0" });
+    const site = () => w.evaluate(() => ({
+      lang: document.documentElement.lang, btn: document.getElementById("langBtn").textContent, h1: document.querySelector("h1").textContent,
+      nav: document.querySelector(".nav-links a").textContent, cap: document.getElementById("shotCaption").textContent,
+      latest: document.querySelector("#latest .meta")?.textContent, next: document.getElementById("langBtn").nextElementSibling?.id,
+    }));
+    const wes = await site();
+    await w.click("#langBtn"); await sleep(300);
+    const wen = await site();
+    ok("web: el botón de idioma está junto al de tema", wes.next === "themeBtn" && wes.btn === "EN" && wen.btn === "ES", JSON.stringify({ wes, wen }));
+    ok("web: cambia a inglés al momento", wes.h1 === "Tu tablero de ideas digital" && wen.lang === "en" && wen.h1 === "Your digital idea board" && wen.nav === "Features"
+      && /^Your board/.test(wen.cap) && /couldn't check/.test(wen.latest), JSON.stringify(wen));
+    await shot(w, "web-en");
+    await w.reload({ waitUntil: "networkidle0" });
+    ok("web: el idioma elegido se recuerda", (await site()).lang === "en");
+    await w.click("#langBtn"); await sleep(200);
+    await w.close();
   }
 
   await browser.close();

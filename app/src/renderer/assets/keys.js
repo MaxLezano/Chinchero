@@ -2,47 +2,56 @@
 // se guardan en la preferencia «keys» (JSON { acción: "Ctrl+D" }, "" = sin atajo). Una combinación se escribe
 // «Ctrl+Alt+Shift+Tecla» y se compara con la del evento, así cambiar un atajo no toca el resto del código.
 (function () {
+  // Nombre y grupo en el idioma actual (atajos.acciones.* y atajos.grupos.* de los textos)
   const ACTIONS = [
-    { id: "tool.select", group: "Herramientas", label: "Seleccionar", def: "V" },
-    { id: "tool.note", group: "Herramientas", label: "Nota", def: "N" },
-    { id: "tool.card", group: "Herramientas", label: "Ficha", def: "F" },
-    { id: "tool.list", group: "Herramientas", label: "Lista", def: "C" },
-    { id: "tool.text", group: "Herramientas", label: "Texto", def: "T" },
-    { id: "tool.image", group: "Herramientas", label: "Imagen", def: "I" },
-    { id: "tool.link", group: "Herramientas", label: "Enlace", def: "K" },
-    { id: "tool.file", group: "Herramientas", label: "Archivo", def: "A" },
-    { id: "tool.sticker", group: "Herramientas", label: "Stickers", def: "S" },
-    { id: "tool.zone", group: "Herramientas", label: "Zona", def: "Z" },
-    { id: "tool.draw", group: "Herramientas", label: "Dibujo", def: "D" },
-    { id: "eraser", group: "Herramientas", label: "Goma", def: "E" },
-    { id: "tool.thread", group: "Herramientas", label: "Hilo", def: "L" },
-    { id: "undo", group: "Edición", label: "Deshacer", def: "Ctrl+Z" },
-    { id: "redo", group: "Edición", label: "Rehacer", def: "Ctrl+Y" },
-    { id: "duplicate", group: "Edición", label: "Duplicar", def: "Ctrl+D" },
-    { id: "selectAll", group: "Edición", label: "Seleccionar todo", def: "Ctrl+A" },
-    { id: "group", group: "Edición", label: "Agrupar", def: "Ctrl+G" },
-    { id: "ungroup", group: "Edición", label: "Desagrupar", def: "Ctrl+U" },
-    { id: "front", group: "Edición", label: "Traer al frente", def: "Ctrl+]" },
-    { id: "back", group: "Edición", label: "Enviar al fondo", def: "Ctrl+[" },
-    { id: "lock", group: "Edición", label: "Bloquear / desbloquear", def: "Ctrl+Shift+L" },
-    { id: "search", group: "Vista", label: "Buscar y acciones", def: "Ctrl+K" },
-    { id: "zoom100", group: "Vista", label: "Zoom al 100 %", def: "Ctrl+0" },
-    { id: "fit", group: "Vista", label: "Ajustar a la vista", def: "Shift+1" },
-    { id: "prevSheet", group: "Vista", label: "Hoja anterior", def: "Ctrl+PageUp" },
-    { id: "nextSheet", group: "Vista", label: "Hoja siguiente", def: "Ctrl+PageDown" },
-    { id: "shortcuts", group: "Vista", label: "Ver los atajos", def: "?" },
-    { id: "newBoard", group: "Tableros", label: "Nuevo tablero", def: "Ctrl+N" },
-    { id: "findBoard", group: "Tableros", label: "Buscar tableros", def: "Ctrl+F" },
-  ];
-  // Fijas: no se pueden asignar a otra acción (navegación, edición de texto, portapapeles y sus variantes)
+    ["tool.select", "herramientas", "V"],
+    ["tool.note", "herramientas", "N"],
+    ["tool.card", "herramientas", "F"],
+    ["tool.list", "herramientas", "C"],
+    ["tool.text", "herramientas", "T"],
+    ["tool.image", "herramientas", "I"],
+    ["tool.link", "herramientas", "K"],
+    ["tool.file", "herramientas", "A"],
+    ["tool.sticker", "herramientas", "S"],
+    ["tool.zone", "herramientas", "Z"],
+    ["tool.draw", "herramientas", "D"],
+    ["eraser", "herramientas", "E"],
+    ["tool.thread", "herramientas", "L"],
+    ["undo", "edicion", "Ctrl+Z"],
+    ["redo", "edicion", "Ctrl+Y"],
+    ["duplicate", "edicion", "Ctrl+D"],
+    ["selectAll", "edicion", "Ctrl+A"],
+    ["group", "edicion", "Ctrl+G"],
+    ["ungroup", "edicion", "Ctrl+U"],
+    ["front", "edicion", "Ctrl+]"],
+    ["back", "edicion", "Ctrl+["],
+    ["lock", "edicion", "Ctrl+Shift+L"],
+    ["search", "vista", "Ctrl+K"],
+    ["zoom100", "vista", "Ctrl+0"],
+    ["fit", "vista", "Shift+1"],
+    ["prevSheet", "vista", "Ctrl+PageUp"],
+    ["nextSheet", "vista", "Ctrl+PageDown"],
+    ["shortcuts", "vista", "?"],
+    ["newBoard", "tableros", "Ctrl+N"],
+    ["findBoard", "tableros", "Ctrl+F"],
+  ].map(([id, group, def]) => ({
+    id, def,
+    get label() { return t("atajos.acciones." + id.replace(".", "_")); },
+    get group() { return t("atajos.grupos." + group); },
+  }));
+  // Fijas: no se pueden asignar a otra acción (navegación, edición de texto, portapapeles y sus variantes).
+  // El valor es la clave de su nombre en atajos.reservadas.*
   const RESERVED = {
-    "Escape": "Salir / cancelar", "Enter": "Editar el elemento", "F2": "Editar el elemento", "Tab": "Siguiente elemento", "Shift+Tab": "Elemento anterior",
-    "Delete": "Eliminar", "Backspace": "Eliminar", "Space": "Mover el lienzo", "Shift+F10": "Opciones del elemento", "ContextMenu": "Opciones del elemento",
-    "Ctrl+C": "Copiar", "Ctrl+X": "Cortar", "Ctrl+V": "Pegar", "Ctrl+Shift+V": "Pegar imagen sin marco", "Ctrl+Shift+Z": "Rehacer", "Ctrl+Shift+G": "Desagrupar",
+    "Escape": "salir", "Enter": "editar", "F2": "editar", "Tab": "siguiente", "Shift+Tab": "anterior",
+    "Delete": "eliminar", "Backspace": "eliminar", "Space": "moverLienzo", "Shift+F10": "opciones", "ContextMenu": "opciones",
+    "Ctrl+C": "copiar", "Ctrl+X": "cortar", "Ctrl+V": "pegar", "Ctrl+Shift+V": "pegarSinMarco", "Ctrl+Shift+Z": "rehacer", "Ctrl+Shift+G": "desagrupar",
   };
-  for (const a of ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"]) RESERVED[a] = RESERVED["Shift+" + a] = "Mover la selección";
+  for (const a of ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"]) RESERVED[a] = RESERVED["Shift+" + a] = "moverSeleccion";
   const byId = Object.fromEntries(ACTIONS.map(a => [a.id, a]));
-  const SHOW = { PageUp: "RePág", PageDown: "AvPág", Delete: "Supr", Escape: "Esc", Space: "Espacio", ArrowLeft: "←", ArrowRight: "→", ArrowUp: "↑", ArrowDown: "↓", ContextMenu: "Menú" };
+  // Teclas con nombre propio de cada idioma (RePág / PgUp) o con flecha
+  const NAMED = ["PageUp", "PageDown", "Delete", "Space", "ContextMenu"];
+  const ARROWS = { Escape: "Esc", ArrowLeft: "←", ArrowRight: "→", ArrowUp: "↑", ArrowDown: "↓" };
+  const keyName = p => NAMED.includes(p) ? t("atajos.teclas." + p) : ARROWS[p] || p;
 
   // Combinación de un evento de teclado; "" si solo se pulsó un modificador
   function combo(e) {
@@ -62,10 +71,12 @@
   const save = o => setPref("keys", JSON.stringify(o));
   const get = id => { const o = overrides(); return typeof o[id] === "string" ? o[id] : byId[id]?.def || ""; };
   // Texto para mostrar: «Ctrl+RePág», «Shift+1»…
-  const show = c => c ? c.split("+").map(p => SHOW[p] || p).join("+") : "";
+  const show = c => c ? c.split("+").map(keyName).join("+") : "";
 
   window.Keys = {
     ACTIONS, RESERVED, combo, get, show,
+    // Para qué está reservada una combinación, o "" si no lo está
+    reserved: c => RESERVED[c] ? t("atajos.reservadas." + RESERVED[c]) : "",
     label: id => show(get(id)),
     isCustom: id => typeof overrides()[id] === "string" && overrides()[id] !== byId[id].def,
     // Acción del evento, o null

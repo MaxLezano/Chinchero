@@ -13,14 +13,16 @@
     "dist:dir": "electron-builder --win --dir",
     "test:ui": "node tests/e2e-ui.js",
     "test:app": "node tests/e2e-app.js",
-    "test": "node tests/e2e-ui.js && node tests/e2e-app.js && node tests/carga.js && node tests/offline-fonts.js",
+    "test": "node tests/i18n.js && node tests/e2e-ui.js && node tests/e2e-app.js && node tests/carga.js && node tests/offline-fonts.js",
     "test:carga": "node tests/carga.js",
     "test:offline": "node tests/offline-fonts.js",
+    "test:i18n": "node tests/i18n.js",
     "test:actualizacion": "node tests/actualizacion.js"
   },
   "dependencies": {
     "electron-updater": "^6.8.11",
-    "fflate": "^0.8.3"
+    "fflate": "^0.8.3",
+    "i18next": "26.4.4"
   },
   "devDependencies": {
     "electron": "^45.0.0",

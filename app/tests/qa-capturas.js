@@ -34,7 +34,9 @@ function audit() {
 }
 
 (async () => {
-  const browser = await puppeteer.launch({ executablePath: process.env.EDGE_PATH || "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe", headless: true });
+  const browser = await puppeteer.launch({ executablePath: process.env.EDGE_PATH || "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe", headless: true,
+    // Los textos de la interfaz (assets/locales/*.json) se leen con XHR, que file:// bloquea sin esto
+    args: ["--allow-file-access-from-files"] });
   try {
     for (const theme of ["light", "dark"]) for (const [w, h] of SIZES) {
       const tag = `${theme}-${w}`;

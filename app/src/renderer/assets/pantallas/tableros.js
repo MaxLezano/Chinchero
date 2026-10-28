@@ -8,7 +8,7 @@ let chip = "all";
 
 $("#title").innerHTML = group
   ? `<span class="group-dot" style="background:${esc(group.color)};width:14px;height:14px"></span>${esc(group.name)}`
-  : view === "fav" ? "Favoritos" : "Recientes";
+  : t(view === "fav" ? "barra.favoritos" : "barra.recientes");
 if (view === "recent") $("#sort").closest(".sort").hidden = true;
 
 // Miniatura: coordenadas ya normalizadas por el editor (0..1 dentro del recuadro de la tarjeta)
@@ -42,11 +42,11 @@ function cardHTML(b) {
   const g = Store.group(b.group);
   const n = b.sheets || 1;
   return `<a class="card${b.fav ? " fav" : ""}" href="02-tablero.html?board=${encodeURIComponent(b.id)}" data-id="${esc(b.id)}">
-    <button class="fav-btn" aria-label="${b.fav ? "Quitar de favoritos" : "Añadir a favoritos"}"><svg class="icon"><use href="#i-star"/></svg></button>
+    <button class="fav-btn" aria-label="${t(b.fav ? "tableros.quitarFav" : "tableros.anadirFav")}"><svg class="icon"><use href="#i-star"/></svg></button>
     <div class="thumb surface-${esc(b.surface || "dots")}"><div class="pv-box">${(b.preview || []).map(miniHTML).join("")}${threadsHTML(b.previewThreads)}</div>
       ${!group && g ? `<span class="gchip"><span class="group-dot" style="background:${esc(g.color)}"></span>${esc(g.name)}</span>` : ""}</div>
     <div class="card-body"><div class="card-title">${esc(b.name)}</div>
-      <div class="card-meta">${n} hoja${n > 1 ? "s" : ""} · ${esc(b.items || 0)} elemento${b.items === 1 ? "" : "s"} · ${relTime(b.updatedAt)}</div></div></a>`;
+      <div class="card-meta">${t("comun.hojas", { count: n })} · ${t("comun.elementos", { count: +b.items || 0 })} · ${relTime(b.updatedAt)}</div></div></a>`;
 }
 
 const sameDay = ts => ts && new Date(ts).toDateString() === new Date().toDateString();
@@ -60,7 +60,7 @@ function render() {
     .filter(b => b.name.toLowerCase().includes(q))
     .sort((a, b) => sort === "name" ? a.name.localeCompare(b.name) : (b.updatedAt || 0) - (a.updatedAt || 0));
   grid.innerHTML = list.map(cardHTML).join("")
-    + (group ? '<button class="new-card" id="newCard"><svg class="icon" style="width:28px;height:28px"><use href="#i-plus"/></svg>Nuevo tablero</button>' : "");
+    + (group ? '<button class="new-card" id="newCard"><svg class="icon" style="width:28px;height:28px"><use href="#i-plus"/></svg>' + t("tableros.nuevo") + '</button>' : "");
   setGroupCounts();
 
   const empty = !list.length;
@@ -69,9 +69,9 @@ function render() {
   if (empty) {
     const filtering = q || chip !== "all";
     const none = !lib.boards.length;
-    $("#emptyTitle").textContent = filtering ? "Sin resultados" : none ? "Aún no tienes tableros" : view === "fav" ? "Aún no hay favoritos" : "Este grupo está vacío";
-    $("#emptyText").textContent = filtering ? "Prueba con otro nombre o quita los filtros."
-      : view === "fav" && !none ? "Pulsa la ⭐ de un tablero para tenerlo siempre a mano." : "Crea un tablero en blanco o empieza con una plantilla.";
+    $("#emptyTitle").textContent = t(filtering ? "tableros.vacio.sinResultados" : none ? "tableros.vacio.ninguno" : view === "fav" ? "tableros.vacio.sinFavoritos" : "tableros.vacio.grupo");
+    $("#emptyText").textContent = t(filtering ? "tableros.vacio.sinResultadosAyuda"
+      : view === "fav" && !none ? "tableros.vacio.sinFavoritosAyuda" : "tableros.vacio.crear");
     $("#emptyBtn").style.display = filtering || (view === "fav" && !none) ? "none" : "";
   }
 }
@@ -93,7 +93,7 @@ grid.addEventListener("click", e => {
   e.preventDefault();
   const b = Store.board(fav.closest(".card").dataset.id);
   Store.touch(b.id, { fav: !b.fav });
-  toast(b.fav ? "Añadido a favoritos" : "Quitado de favoritos");
+  toast(t(b.fav ? "tableros.anadidoFav" : "tableros.quitadoFav"));
   render();
 });
 
@@ -104,7 +104,7 @@ function moveTo(id, gid) {
   const from = b.group;
   Store.touch(id, { group: gid });
   render();
-  toast(`Movido a «${Store.group(gid).name}»`, "Deshacer", () => { Store.touch(id, { group: from }); render(); });
+  toast(t("tableros.movidoA", { name: Store.group(gid).name }), t("comun.deshacer"), () => { Store.touch(id, { group: from }); render(); });
 }
 grid.addEventListener("dragstart", e => {
   const c = e.target.closest(".card"); if (!c) return;
@@ -124,36 +124,36 @@ function rename(id) {
   title.onkeydown = ev => { if (ev.key === "Enter" || ev.key === "Escape") { ev.preventDefault(); title.blur(); } };
   title.onblur = () => {
     title.contentEditable = "false";
-    Store.touch(id, { name: title.textContent.trim() || "Sin título" });
+    Store.touch(id, { name: title.textContent.trim() || t("tableros.sinTitulo") });
     render();
   };
 }
 function duplicate(id) {
   const b = Store.board(id), doc = Store.loadBoard(id);
-  const copy = { ...JSON.parse(JSON.stringify(b)), id: Store.uid(), name: b.name + " (copia)", fav: false, createdAt: Date.now(), updatedAt: Date.now() };
+  const copy = { ...JSON.parse(JSON.stringify(b)), id: Store.uid(), name: t("tableros.copiaDe", { name: b.name }), fav: false, createdAt: Date.now(), updatedAt: Date.now() };
   if (doc) Store.saveBoard(copy.id, { ...doc, name: copy.name });
   lib.boards.push(copy);
   Store.saveLibrary();
-  render(); toast("Tablero duplicado");
+  render(); toast(t("tableros.duplicado"));
 }
 function remove(id) {
   const entry = Store.trashBoard(id);
   render();
   Sound.play("trash");
-  toast("Tablero enviado a la papelera", "Deshacer", () => { Store.restore(entry.id); render(); });
+  toast(t("tableros.enPapelera"), t("comun.deshacer"), () => { Store.restore(entry.id); render(); });
 }
 
 /* ---------- Compartir: exportar e importar .chinchero ---------- */
 async function exportBoard(id) {
-  if (await Store.desktop("exportBoard", id, Store.board(id).name)) toast("Tablero exportado. Quien lo reciba lo abre con doble clic o lo arrastra a Chinchero");
+  if (await Store.desktop("exportBoard", id, Store.board(id).name)) toast(t("tableros.exportado"));
 }
 async function importBoards(files) {
   const added = [];
   for (const f of files) { const b = await Store.importBoard(f, groupId); if (b) added.push(b); }
   if (!added.length) return;
   render();
-  if (added.length === 1) toast(`Tablero «${added[0].name}» importado`, "Abrir", () => location.href = "02-tablero.html?board=" + added[0].id);
-  else toast(`${added.length} tableros importados`);
+  if (added.length === 1) toast(t("tableros.importadoUno", { name: added[0].name }), t("barra.menu.abrir"), () => location.href = "02-tablero.html?board=" + added[0].id);
+  else toast(t("tableros.importados", { count: added.length }));
 }
 $("#importBtn").onclick = () => importBoards([null]);
 // Arrastrar archivos .chinchero a la ventana (las tarjetas arrastradas no traen "Files")
@@ -162,7 +162,7 @@ document.addEventListener("drop", e => {
   if (!e.dataTransfer.files.length) return;
   e.preventDefault();
   const files = [...e.dataTransfer.files].filter(f => /\.chinchero$/i.test(f.name));
-  files.length ? importBoards(files) : toast("Aquí solo se pueden soltar tableros compartidos (.chinchero)");
+  files.length ? importBoards(files) : toast(t("tableros.soloChinchero"));
 });
 // Abiertos con doble clic: si es uno solo, se abre directamente
 const opened = params.get("abrir") ? Store.takeOpened() : [];
@@ -170,9 +170,9 @@ if (opened.length) (async () => {
   const added = [];
   for (const p of opened) { const b = await Store.importBoard(p); if (b) added.push(b); }
   if (added.length === 1) {
-    try { sessionStorage.setItem("chinchero-aviso", `Tablero «${added[0].name}» importado`); } catch {}
+    try { sessionStorage.setItem("chinchero-aviso", t("tableros.importadoUno", { name: added[0].name })); } catch {}
     location.replace("02-tablero.html?board=" + added[0].id);
-  } else if (added.length) { render(); toast(`${added.length} tableros importados`); }
+  } else if (added.length) { render(); toast(t("tableros.importados", { count: added.length })); }
 })();
 
 grid.addEventListener("contextmenu", e => {
@@ -181,15 +181,15 @@ grid.addEventListener("contextmenu", e => {
   e.preventDefault();
   const id = card.dataset.id, b = Store.board(id);
   showMenu(e.clientX, e.clientY, [
-    { label: "Abrir", kbd: "Enter", action: () => card.click() },
-    { label: b.fav ? "Quitar de favoritos" : "Añadir a favoritos", action: () => { Store.touch(id, { fav: !b.fav }); render(); } },
-    { label: "Renombrar", kbd: "F2", action: () => rename(id) },
-    { label: "Duplicar", action: () => duplicate(id) },
-    { label: "Exportar tablero…", action: () => exportBoard(id) },
-    { label: "Mover a grupo…", action: () => showMenu(e.clientX + 12, e.clientY + 12,
+    { label: t("barra.menu.abrir"), kbd: "Enter", action: () => card.click() },
+    { label: t(b.fav ? "tableros.quitarFav" : "tableros.anadirFav"), action: () => { Store.touch(id, { fav: !b.fav }); render(); } },
+    { label: t("barra.menu.renombrar"), kbd: "F2", action: () => rename(id) },
+    { label: t("tableros.menu.duplicar"), action: () => duplicate(id) },
+    { label: t("tableros.menu.exportar"), action: () => exportBoard(id) },
+    { label: t("tableros.menu.mover"), action: () => showMenu(e.clientX + 12, e.clientY + 12,
       lib.groups.filter(g => g.id !== b.group).map(g => ({ label: "→ " + g.name, action: () => moveTo(id, g.id) }))) },
     "-",
-    { label: "Eliminar", kbd: "Supr", danger: true, action: () => remove(id) },
+    { label: t("papelera.eliminar"), kbd: Keys.show("Delete"), danger: true, action: () => remove(id) },
   ]);
 });
 grid.addEventListener("keydown", e => {
@@ -199,16 +199,17 @@ grid.addEventListener("keydown", e => {
 });
 
 /* ---------- Sugerencias ---------- */
+// Textos en tableros.sug.<id>.{titulo,texto,boton}
 const SUGGESTIONS = [
-  { id: "templates", em: "🧩", title: "Empieza con una plantilla", text: "Detective, Kanban, Semana, Moodboard o Viaje: tableros listos para rellenar.", cta: "Ver plantillas", fn: () => openModal("detective") },
-  { id: "backup", em: "💾", title: "Haz una copia de seguridad", text: "Guarda una copia de tus tableros en un USB o en una carpeta de la nube.", cta: "Ir a Datos", fn: () => location.href = "03-ajustes.html#datos" },
-  { id: "dragcards", em: "🗂️", title: "Ordena arrastrando", text: "Arrastra una tarjeta sobre un grupo de la izquierda para moverla.", cta: "Entendido", fn: () => {} },
+  { id: "templates", em: "🧩", fn: () => openModal("detective") },
+  { id: "backup", em: "💾", fn: () => location.href = "03-ajustes.html#datos" },
+  { id: "dragcards", em: "🗂️", fn: () => {} },
 ];
 function renderSuggestions() {
   const box = $("#suggest");
   const list = Tips.enabled && lib.boards.length ? SUGGESTIONS.filter(s => getPref("sug-" + s.id) === null) : [];
   box.hidden = !list.length || view === "fav";
-  box.innerHTML = list.map(s => `<div class="sug" data-id="${s.id}"><span class="em">${s.em}</span><div><b>${s.title}</b><p>${s.text}</p><button class="link">${s.cta} →</button></div><button class="x" aria-label="Descartar sugerencia">✕</button></div>`).join("");
+  box.innerHTML = list.map(s => `<div class="sug" data-id="${s.id}"><span class="em">${s.em}</span><div><b>${t(`tableros.sug.${s.id}.titulo`)}</b><p>${t(`tableros.sug.${s.id}.texto`)}</p><button class="link">${t(`tableros.sug.${s.id}.boton`)} →</button></div><button class="x" aria-label="${t("tableros.descartarSug")}">✕</button></div>`).join("");
 }
 $("#suggest").onclick = e => {
   const el = e.target.closest(".sug"); if (!el) return;
@@ -226,7 +227,7 @@ function openModal(template = "blank") {
   pickOpt($("#templates"), template);
   pickOpt($("#surfaces"), getPref("surface") || "dots");
   modal.classList.add("open");
-  $("#boardName").value = "Sin título";
+  $("#boardName").value = t("tableros.sinTitulo");
   releaseModal ??= trapFocus($("#newForm"), $("#boardName"));
   $("#boardName").select();
 }
@@ -247,7 +248,7 @@ $("#newForm").onsubmit = e => {
   e.preventDefault();
   const q = new URLSearchParams({
     new: "1", template: $("#templates .selected").dataset.v, surface: $("#surfaces .selected").dataset.v,
-    group: $("#groupSelect").value, name: $("#boardName").value.trim() || "Sin título",
+    group: $("#groupSelect").value, name: $("#boardName").value.trim() || t("tableros.sinTitulo"),
   });
   location.href = "02-tablero.html?" + q;
 };
@@ -266,17 +267,17 @@ document.addEventListener("keydown", e => {
 window.HELP = {
   tour: "boards",
   shortcuts: [
-    { title: "Tableros", rows: [["Nuevo tablero", Keys.label("newBoard")], ["Buscar", Keys.label("findBoard")], ["Abrir tablero enfocado", "Enter"], ["Renombrar", "F2"], ["Eliminar", "Supr"], ["Ver atajos", Keys.label("shortcuts")]] },
+    { title: t("atajos.grupos.tableros"), rows: [[t("tableros.nuevo"), Keys.label("newBoard")], [t("tableros.atajos.buscar"), Keys.label("findBoard")], [t("tableros.atajos.abrir"), "Enter"], [t("barra.menu.renombrar"), "F2"], [t("papelera.eliminar"), Keys.show("Delete")], [t("tableros.atajos.ver"), Keys.label("shortcuts")]] },
   ],
 };
 Tour.define("boards", [
-  { el: null, title: "¡Estos son tus tableros!", text: "Te enseño esta pantalla en menos de un minuto. Puedes saltarlo y volver a verlo con el botón <b>?</b> de abajo a la izquierda." },
-  { el: "#groupList", place: "right", title: "Grupos", text: "Organiza tus tableros en grupos como <b>Trabajo</b> o <b>Personal</b>. Usa <b>+</b> para crear uno y clic derecho para renombrarlo o cambiar su color." },
-  { el: () => document.querySelector('.sidebar a[href*="view=fav"]'), place: "right", title: "Favoritos y recientes", text: "Marca un tablero con la ⭐ y lo tendrás siempre en <b>Favoritos</b>. <b>Recientes</b> muestra lo último que editaste." },
-  { el: () => grid.querySelector(".card"), title: "Cada tarjeta es un tablero", text: "Haz clic para abrirlo. Con <b>clic derecho</b> lo renombras, duplicas, mueves o exportas para compartirlo. También puedes <b>arrastrarlo</b> sobre un grupo de la izquierda." },
-  { el: ".search", title: "Busca y filtra", text: `Escribe parte del nombre (atajo <b>${Keys.label("findBoard")}</b>) o usa los filtros de abajo.` },
-  { el: "#newBtn", place: "bottom", title: "Crea un tablero", text: `Elige nombre, grupo, fondo y, si quieres, una <b>plantilla</b> para no empezar de cero. Atajo: <b>${Keys.label("newBoard")}</b>.` },
-  { el: "#helpBtn", place: "right", title: "¿Dudas?", text: "Desde aquí vuelves a ver este tutorial, consultas los atajos o activas y desactivas las sugerencias." },
+  { el: null, title: t("tableros.tour.t1"), text: t("tableros.tour.p1") },
+  { el: "#groupList", place: "right", title: t("barra.grupos"), text: t("tableros.tour.p2") },
+  { el: () => document.querySelector('.sidebar a[href*="view=fav"]'), place: "right", title: t("tableros.tour.t3"), text: t("tableros.tour.p3") },
+  { el: () => grid.querySelector(".card"), title: t("tableros.tour.t4"), text: t("tableros.tour.p4") },
+  { el: ".search", title: t("tableros.tour.t5"), text: t("tableros.tour.p5", { key: Keys.label("findBoard") }) },
+  { el: "#newBtn", place: "bottom", title: t("tableros.tour.t6"), text: t("tableros.tour.p6", { key: Keys.label("newBoard") }) },
+  { el: "#helpBtn", place: "right", title: t("tableros.tour.t7"), text: t("tableros.tour.p7") },
 ]);
 
 render();
@@ -284,5 +285,5 @@ renderSuggestions();
 Tour.auto("boards");
 setTimeout(() => {
   if (!Tour.active && lib.boards.length > 2 && !lib.boards.some(b => b.fav))
-    Tips.show("fav", "Marca con la ⭐ los tableros que más uses para encontrarlos rápido en Favoritos.");
+    Tips.show("fav", t("tableros.sugerenciaFav"));
 }, 1500);

@@ -5,10 +5,12 @@
 <!-- Solo recursos propios: nada de internet ni código inline (los estilos inline sí, el editor posiciona con style) -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: chinchero-media:; media-src 'self' blob: chinchero-media:; connect-src 'self' data: blob: chinchero-media:; base-uri 'none'; form-action 'none'; object-src 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Chinchero — Ajustes</title>
+<title data-i18n="titulos.ajustes">Chinchero — Ajustes</title>
 <link rel="stylesheet" href="assets/fonts/fonts.css">
 <link rel="stylesheet" href="assets/theme.css">
 <link rel="stylesheet" href="assets/shell.css">
+<script src="assets/vendor/i18next.min.js"></script>
+<script src="assets/i18n.js"></script>
 <script src="assets/theme.js"></script>
 <script src="assets/store.js"></script>
 <script src="assets/sound.js"></script>
@@ -134,23 +136,29 @@
 <aside class="sidebar" data-active="settings"></aside>
 
 <main>
-  <div class="topbar"><h1>Ajustes</h1></div>
+  <div class="topbar"><h1 data-i18n="barra.ajustes">Ajustes</h1></div>
   <div class="layout">
-  <nav class="tabs" aria-label="Secciones">
-    <a href="#apariencia">Apariencia</a><a href="#tablero">Tablero</a><a href="#asistente">Asistente</a><a href="#datos">Datos</a><a href="#ayuda">Ayuda</a><a href="#atajos">Atajos</a><a href="#acerca">Acerca de</a>
+  <nav class="tabs" aria-label="Secciones" data-i18n="[aria-label]ajustes.secciones">
+    <a href="#apariencia" data-i18n="ajustes.apariencia">Apariencia</a><a href="#tablero" data-i18n="papelera.tablero">Tablero</a><a href="#asistente" data-i18n="ajustes.asistente">Asistente</a><a href="#datos" data-i18n="ajustes.datos">Datos</a><a href="#ayuda" data-i18n="barra.ayuda">Ayuda</a><a href="#atajos" data-i18n="ajustes.atajos">Atajos</a><a href="#acerca" data-i18n="ajustes.acercaDe">Acerca de</a>
   </nav>
 
   <div class="content">
     <section id="apariencia">
-      <h2>Apariencia</h2>
+      <h2 data-i18n="ajustes.apariencia">Apariencia</h2>
       <div class="row">
-        <div class="txt"><b>Tema</b><small>Sistema sigue la configuración de Windows.</small></div>
-        <div class="seg" id="theme">
-          <button data-v="light">Claro</button><button data-v="dark">Oscuro</button><button data-v="system">Sistema</button>
+        <div class="txt"><b data-i18n="ajustes.idioma">Idioma</b><small data-i18n="ajustes.idiomaAyuda">Se aplica al momento en toda la app.</small></div>
+        <div class="seg" id="lang" role="group" aria-label="Idioma" data-i18n="[aria-label]ajustes.idioma">
+          <button data-v="es" lang="es" data-i18n="ajustes.idiomas.es">Español</button><button data-v="en" lang="en" data-i18n="ajustes.idiomas.en">English</button>
         </div>
       </div>
       <div class="row">
-        <div class="txt"><b>Color del hilo</b><small>Se aplica a todos los hilos nuevos y existentes.</small></div>
+        <div class="txt"><b data-i18n="ajustes.tema">Tema</b><small data-i18n="ajustes.sistemaSigueLaConfiguracion">Sistema sigue la configuración de Windows.</small></div>
+        <div class="seg" id="theme">
+          <button data-v="light" data-i18n="bienvenida.claro">Claro</button><button data-v="dark" data-i18n="bienvenida.oscuro">Oscuro</button><button data-v="system" data-i18n="ajustes.sistema">Sistema</button>
+        </div>
+      </div>
+      <div class="row">
+        <div class="txt"><b data-i18n="ajustes.colorDelHilo">Color del hilo</b><small data-i18n="ajustes.seAplicaATodos">Se aplica a todos los hilos nuevos y existentes.</small></div>
         <div class="swatches" id="thread">
           <button style="background:#d6336c" data-v=""></button>
           <button style="background:#e03131" data-v="#e03131"></button>
@@ -161,156 +169,156 @@
         </div>
       </div>
       <div class="row">
-        <div class="txt"><b>Letra de las notas</b><small>Manuscrita da el aspecto de papel; normal se lee mejor en notas largas.</small></div>
-        <div class="seg" id="notefont"><button data-v="hand">Manuscrita</button><button data-v="sans">Normal</button></div>
+        <div class="txt"><b data-i18n="ajustes.letraDeLasNotas">Letra de las notas</b><small data-i18n="ajustes.manuscritaDaElAspecto">Manuscrita da el aspecto de papel; normal se lee mejor en notas largas.</small></div>
+        <div class="seg" id="notefont"><button data-v="hand" data-i18n="ajustes.manuscrita">Manuscrita</button><button data-v="sans" data-i18n="ajustes.normal">Normal</button></div>
       </div>
       <div class="row">
-        <div class="txt"><b>Sonidos de interacción</b><small>Un clic de chinche al clavar, roce de papel al soltar, cinta al fijar, un «tic» al tachar una tarea y papel arrugado al tirar algo a la papelera.</small></div>
-        <label class="switch"><input type="checkbox" id="sounds" data-pref="sounds" data-default="0" aria-label="Sonidos de interacción"><span></span></label>
+        <div class="txt"><b data-i18n="ajustes.sonidosDeInteraccion">Sonidos de interacción</b><small data-i18n="ajustes.unClicDeChinche">Un clic de chinche al clavar, roce de papel al soltar, cinta al fijar, un «tic» al tachar una tarea y papel arrugado al tirar algo a la papelera.</small></div>
+        <label class="switch"><input type="checkbox" id="sounds" data-pref="sounds" data-default="0" aria-label="Sonidos de interacción" data-i18n="[aria-label]ajustes.sonidosDeInteraccion"><span></span></label>
       </div>
       <div class="row" id="volRow">
-        <div class="txt"><b>Volumen</b><small>Se suma al volumen de Windows.</small></div>
-        <div class="vol"><input type="range" id="soundVol" min="0" max="100" step="5" aria-label="Volumen de los sonidos"><output id="soundVolOut"></output></div>
+        <div class="txt"><b data-i18n="ajustes.volumen">Volumen</b><small data-i18n="ajustes.seSumaAlVolumen">Se suma al volumen de Windows.</small></div>
+        <div class="vol"><input type="range" id="soundVol" min="0" max="100" step="5" aria-label="Volumen de los sonidos" data-i18n="[aria-label]ajustes.volumenDeLosSonidos"><output id="soundVolOut"></output></div>
       </div>
       <div class="preview surface-dots" id="preview">
         <svg><path d="M95 30 Q 200 80 300 36" style="stroke:var(--thread)" stroke-width="2.4" fill="none"/></svg>
-        <div class="n" style="left:40px;top:24px;background:var(--note-yellow);transform:rotate(-3deg)"><span class="pin"></span>Así se ven las notas</div>
-        <div class="n" style="left:245px;top:30px;background:var(--note-blue);transform:rotate(2deg)"><span class="pin" style="--pin:#1c7ed6"></span>con su hilo</div>
+        <div class="n" style="left:40px;top:24px;background:var(--note-yellow);transform:rotate(-3deg)" data-i18n="ajustes.asiSeVenLas"><span class="pin"></span>Así se ven las notas</div>
+        <div class="n" style="left:245px;top:30px;background:var(--note-blue);transform:rotate(2deg)" data-i18n="ajustes.conSuHilo"><span class="pin" style="--pin:#1c7ed6"></span>con su hilo</div>
       </div>
     </section>
 
     <section id="tablero">
-      <h2>Tablero</h2>
+      <h2 data-i18n="papelera.tablero">Tablero</h2>
       <div class="row">
-        <div class="txt"><b>Fondo por defecto</b><small>Para tableros y hojas nuevas.</small></div>
+        <div class="txt"><b data-i18n="ajustes.fondoPorDefecto">Fondo por defecto</b><small data-i18n="ajustes.paraTablerosYHojas">Para tableros y hojas nuevas.</small></div>
         <div class="surf" id="surface">
-          <button class="surface-dots active" title="Puntos" data-v="dots"></button>
-          <button class="surface-cork" title="Corcho" data-v="cork"></button>
-          <button class="surface-grid" title="Cuadrícula" data-v="grid"></button>
-          <button class="surface-plain" title="Liso" data-v="plain"></button>
+          <button class="surface-dots active" title="Puntos" data-v="dots" data-i18n="[title]tableros.fondos.dots"></button>
+          <button class="surface-cork" title="Corcho" data-v="cork" data-i18n="[title]tableros.fondos.cork"></button>
+          <button class="surface-grid" title="Cuadrícula" data-v="grid" data-i18n="[title]tableros.fondos.grid"></button>
+          <button class="surface-plain" title="Liso" data-v="plain" data-i18n="[title]tableros.fondos.plain"></button>
         </div>
       </div>
       <div class="row">
-        <div class="txt"><b>Inclinación natural</b><small>Los elementos nuevos aparecen un poco girados, como en un corcho real.</small></div>
-        <label class="switch"><input type="checkbox" data-pref="tilt" data-default="1" aria-label="Inclinación natural"><span></span></label>
+        <div class="txt"><b data-i18n="ajustes.inclinacionNatural">Inclinación natural</b><small data-i18n="ajustes.losElementosNuevosAparecen">Los elementos nuevos aparecen un poco girados, como en un corcho real.</small></div>
+        <label class="switch"><input type="checkbox" data-pref="tilt" data-default="1" aria-label="Inclinación natural" data-i18n="[aria-label]ajustes.inclinacionNatural"><span></span></label>
       </div>
       <div class="row">
-        <div class="txt"><b>Ajustar a la cuadrícula</b><small>Alinea los elementos al soltarlos.</small></div>
-        <label class="switch"><input type="checkbox" data-pref="snap" data-default="0" aria-label="Ajustar a la cuadrícula"><span></span></label>
+        <div class="txt"><b data-i18n="ajustes.ajustarALaCuadricula">Ajustar a la cuadrícula</b><small data-i18n="ajustes.alineaLosElementosAl">Alinea los elementos al soltarlos.</small></div>
+        <label class="switch"><input type="checkbox" data-pref="snap" data-default="0" aria-label="Ajustar a la cuadrícula" data-i18n="[aria-label]ajustes.ajustarALaCuadricula"><span></span></label>
       </div>
       <div class="row">
-        <div class="txt"><b>Abrir el último tablero al iniciar</b></div>
-        <label class="switch"><input type="checkbox" data-pref="lastboard" data-default="1" aria-label="Abrir el último tablero al iniciar"><span></span></label>
+        <div class="txt"><b data-i18n="ajustes.abrirElUltimoTablero">Abrir el último tablero al iniciar</b></div>
+        <label class="switch"><input type="checkbox" data-pref="lastboard" data-default="1" aria-label="Abrir el último tablero al iniciar" data-i18n="[aria-label]ajustes.abrirElUltimoTablero"><span></span></label>
       </div>
     </section>
 
     <section id="asistente">
-      <h2>Asistente con IA</h2>
+      <h2 data-i18n="ajustes.asistenteConIa">Asistente con IA</h2>
       <div class="row">
-        <div class="txt"><b>Activar el asistente</b><small id="aiIntro">Un chat en cada tablero que propone ideas, resume, ordena la hoja en zonas y crea notas, listas e hilos. Es gratis y viene desactivado.</small></div>
-        <label class="switch"><input type="checkbox" id="aiOn" aria-label="Activar el asistente con IA"><span></span></label>
+        <div class="txt"><b data-i18n="ajustes.activarElAsistente">Activar el asistente</b><small id="aiIntro" data-i18n="ajustes.unChatEnCada">Un chat en cada tablero que propone ideas, resume, ordena la hoja en zonas y crea notas, listas e hilos. Es gratis y viene desactivado.</small></div>
+        <label class="switch"><input type="checkbox" id="aiOn" aria-label="Activar el asistente con IA" data-i18n="[aria-label]ajustes.activarElAsistenteCon"><span></span></label>
       </div>
       <div class="row" data-ai>
-        <div class="txt"><b>Proveedor</b><small id="aiProvHelp"></small></div>
-        <div class="seg" id="aiProvider"><button data-v="gemini">Gemini (recomendado)</button><button data-v="ollama">Ollama (sin internet)</button></div>
+        <div class="txt"><b data-i18n="ajustes.proveedor">Proveedor</b><small id="aiProvHelp"></small></div>
+        <div class="seg" id="aiProvider"><button data-v="gemini" data-i18n="ajustes.geminiRecomendado">Gemini (recomendado)</button><button data-v="ollama" data-i18n="ajustes.ollamaSinInternet">Ollama (sin internet)</button></div>
       </div>
       <div class="row" data-ai data-for="ollama">
-        <div class="txt"><b>Ollama</b><small id="aiOllama">Buscando Ollama en tu PC…</small>
-          <fieldset class="ai-pick" id="aiOllamaPick" hidden><legend>Modelo para descargar</legend>
-            <label><input type="radio" name="aiOllamaModel" value="qwen3:4b" checked><span><b>Qwen 3 · recomendado</b><small>Arma tableros más completos y escribe ideas más útiles. 2,5 GB; sin tarjeta gráfica tarda alrededor de un minuto por pedido.</small></span></label>
-            <label><input type="radio" name="aiOllamaModel" value="llama3.2"><span><b>Llama 3.2 · liviano</b><small>Responde más rápido en PCs modestas, pero sus respuestas son más simples. 2 GB.</small></span></label>
+        <div class="txt"><b data-i18n="ajustes.ollama">Ollama</b><small id="aiOllama" data-i18n="ajustes.buscandoOllamaEnTu">Buscando Ollama en tu PC…</small>
+          <fieldset class="ai-pick" id="aiOllamaPick" hidden><legend data-i18n="ajustes.modeloParaDescargar">Modelo para descargar</legend>
+            <label><input type="radio" name="aiOllamaModel" value="qwen3:4b" checked><span><b data-i18n="ajustes.qwen3Recomendado">Qwen 3 · recomendado</b><small data-i18n="ajustes.armaTablerosMasCompletos">Arma tableros más completos y escribe ideas más útiles. 2,5 GB; sin tarjeta gráfica tarda alrededor de un minuto por pedido.</small></span></label>
+            <label><input type="radio" name="aiOllamaModel" value="llama3.2"><span><b data-i18n="ajustes.llama32Liviano">Llama 3.2 · liviano</b><small data-i18n="ajustes.respondeMasRapidoEn">Responde más rápido en PCs modestas, pero sus respuestas son más simples. 2 GB.</small></span></label>
           </fieldset>
           <div class="ai-progress" id="aiProg" hidden><div class="ai-bar"><i id="aiProgBar"></i></div><small id="aiProgTxt" role="status"></small></div>
         </div>
-        <div class="btns"><button class="btn btn-primary" id="aiOllamaAct" hidden></button><button class="btn" id="aiCancel" hidden>Cancelar</button><button class="btn" id="aiOllamaGet" hidden>Descargar a mano</button><button class="btn" id="aiOllamaDel" hidden>Quitar Ollama</button></div>
+        <div class="btns"><button class="btn btn-primary" id="aiOllamaAct" hidden></button><button class="btn" id="aiCancel" hidden data-i18n="comun.cancelar">Cancelar</button><button class="btn" id="aiOllamaGet" hidden data-i18n="ajustes.descargarAMano">Descargar a mano</button><button class="btn" id="aiOllamaDel" hidden data-i18n="ajustes.quitarOllama">Quitar Ollama</button></div>
       </div>
       <div class="row ai-keyrow" data-ai data-for="gemini">
-        <div class="txt"><b>Clave de Gemini</b><small id="aiKeyState"></small>
-          <div class="ai-found" id="aiFound" role="status" hidden><span id="aiFoundTxt"></span><button class="btn btn-primary" id="aiUseClip">Usar esta clave</button><button class="btn" id="aiSkipClip">Ahora no</button></div>
-          <div class="ai-key"><input type="password" id="aiKeyInput" placeholder="O pégala aquí (empieza por AQ. o AIza)" aria-label="Clave de Gemini" autocomplete="off" spellcheck="false"><button class="btn" id="aiKeySave">Guardar</button></div>
+        <div class="txt"><b data-i18n="ajustes.claveDeGemini">Clave de Gemini</b><small id="aiKeyState"></small>
+          <div class="ai-found" id="aiFound" role="status" hidden><span id="aiFoundTxt"></span><button class="btn btn-primary" id="aiUseClip" data-i18n="ajustes.usarEstaClave">Usar esta clave</button><button class="btn" id="aiSkipClip" data-i18n="ajustes.ahoraNo">Ahora no</button></div>
+          <div class="ai-key"><input type="password" id="aiKeyInput" placeholder="O pégala aquí (empieza por AQ. o AIza)" aria-label="Clave de Gemini" autocomplete="off" spellcheck="false" data-i18n="[aria-label]ajustes.claveDeGemini;[placeholder]ajustes.oPegalaAquiEmpieza"><button class="btn" id="aiKeySave" data-i18n="ajustes.guardar">Guardar</button></div>
         </div>
-        <div class="btns" id="aiKeyBtns"><button class="btn btn-primary" id="aiGetKey">Conectar paso a paso</button><button class="btn" id="aiDelKey">Quitar</button></div>
+        <div class="btns" id="aiKeyBtns"><button class="btn btn-primary" id="aiGetKey" data-i18n="ajustes.conectarPasoAPaso">Conectar paso a paso</button><button class="btn" id="aiDelKey" data-i18n="ajustes.quitar">Quitar</button></div>
       </div>
       <div class="row" data-ai>
-        <div class="txt"><b>Modelo</b><small id="aiModelHelp"></small></div>
-        <select class="ai-select" id="aiModel" aria-label="Modelo"></select>
+        <div class="txt"><b data-i18n="ajustes.modelo">Modelo</b><small id="aiModelHelp"></small></div>
+        <select class="ai-select" id="aiModel" aria-label="Modelo" data-i18n="[aria-label]ajustes.modelo"></select>
       </div>
       <div class="row" data-ai>
-        <div class="txt"><b>Probar el asistente</b><small id="aiTestTxt" role="status">Comprueba que el asistente responde con lo que elegiste.</small></div>
-        <button class="btn" id="aiTest">Probar</button>
+        <div class="txt"><b data-i18n="ajustes.probarElAsistente">Probar el asistente</b><small id="aiTestTxt" role="status" data-i18n="ajustes.compruebaQueElAsistente">Comprueba que el asistente responde con lo que elegiste.</small></div>
+        <button class="btn" id="aiTest" data-i18n="ajustes.probar">Probar</button>
       </div>
     </section>
 
     <section id="datos">
-      <h2>Datos</h2>
+      <h2 data-i18n="ajustes.datos">Datos</h2>
       <div class="row">
-        <div class="txt"><b>Carpeta de datos</b><small>Aquí viven tus tableros, imágenes y archivos. Puedes copiarla a otro equipo o a la nube.</small><br>
+        <div class="txt"><b data-i18n="ajustes.carpetaDeDatos">Carpeta de datos</b><small data-i18n="ajustes.aquiVivenTusTableros">Aquí viven tus tableros, imágenes y archivos. Puedes copiarla a otro equipo o a la nube.</small><br>
           <span class="path" id="dataPath"></span></div>
-        <div class="btns"><button class="btn" id="openData">Abrir</button><button class="btn" id="changeData">Cambiar…</button></div>
+        <div class="btns"><button class="btn" id="openData" data-i18n="barra.menu.abrir">Abrir</button><button class="btn" id="changeData" data-i18n="ajustes.cambiar">Cambiar…</button></div>
       </div>
       <div class="row">
-        <div class="txt"><b>Espacio usado</b><small id="usage">Calculando…</small></div>
+        <div class="txt"><b data-i18n="ajustes.espacioUsado">Espacio usado</b><small id="usage" data-i18n="ajustes.calculando">Calculando…</small></div>
       </div>
       <div class="row">
-        <div class="txt"><b>Liberar espacio</b><small id="unused">Buscando imágenes y archivos que ningún tablero usa…</small></div>
-        <div class="btns"><button class="btn" id="cleanBtn" disabled>Liberar espacio…</button></div>
+        <div class="txt"><b data-i18n="ajustes.liberarEspacio">Liberar espacio</b><small id="unused" data-i18n="ajustes.buscandoImagenesYArchivos">Buscando imágenes y archivos que ningún tablero usa…</small></div>
+        <div class="btns"><button class="btn" id="cleanBtn" disabled data-i18n="ajustes.liberarEspacio2">Liberar espacio…</button></div>
       </div>
       <div class="row">
-        <div class="txt"><b>Guardado automático</b><small>Cada cambio se guarda al instante; no hay botón Guardar.</small></div>
-        <label class="switch"><input type="checkbox" checked disabled aria-label="Guardado automático"><span></span></label>
+        <div class="txt"><b data-i18n="ajustes.guardadoAutomatico">Guardado automático</b><small data-i18n="ajustes.cadaCambioSeGuarda">Cada cambio se guarda al instante; no hay botón Guardar.</small></div>
+        <label class="switch"><input type="checkbox" checked disabled aria-label="Guardado automático" data-i18n="[aria-label]ajustes.guardadoAutomatico"><span></span></label>
       </div>
       <div class="row">
-        <div class="txt"><b>Copia de seguridad</b><small id="lastBackup">Guarda todo en un solo archivo .zip donde elijas (un USB, OneDrive…). Además, Chinchero guarda una copia de tus tableros cada vez que lo abres.</small></div>
-        <div class="btns"><button class="btn" id="backupBtn">Hacer copia…</button><button class="btn" id="restoreBtn">Restaurar copia…</button></div>
+        <div class="txt"><b data-i18n="ajustes.copiaDeSeguridad">Copia de seguridad</b><small id="lastBackup" data-i18n="ajustes.guardaTodoEnUn">Guarda todo en un solo archivo .zip donde elijas (un USB, OneDrive…). Además, Chinchero guarda una copia de tus tableros cada vez que lo abres.</small></div>
+        <div class="btns"><button class="btn" id="backupBtn" data-i18n="ajustes.hacerCopia">Hacer copia…</button><button class="btn" id="restoreBtn" data-i18n="ajustes.restaurarCopia">Restaurar copia…</button></div>
       </div>
       <div class="row">
-        <div class="txt"><b>Abrir datos existentes</b><small>Usa una carpeta de Chinchero que ya tengas, por ejemplo de otro equipo.</small></div>
-        <div class="btns"><button class="btn" id="importData">Elegir carpeta…</button></div>
+        <div class="txt"><b data-i18n="ajustes.abrirDatosExistentes">Abrir datos existentes</b><small data-i18n="ajustes.usaUnaCarpetaDe">Usa una carpeta de Chinchero que ya tengas, por ejemplo de otro equipo.</small></div>
+        <div class="btns"><button class="btn" id="importData" data-i18n="ajustes.elegirCarpeta">Elegir carpeta…</button></div>
       </div>
     </section>
 
     <section id="ayuda">
-      <h2>Ayuda</h2>
+      <h2 data-i18n="barra.ayuda">Ayuda</h2>
       <div class="row">
-        <div class="txt"><b>Tutoriales guiados</b><small>Se muestran la primera vez que entras a cada pantalla.</small></div>
-        <label class="switch"><input type="checkbox" data-pref="tours" data-on="on" data-off="off" data-default="1" aria-label="Tutoriales guiados"><span></span></label>
+        <div class="txt"><b data-i18n="ajustes.tutorialesGuiados">Tutoriales guiados</b><small data-i18n="ajustes.seMuestranLaPrimera">Se muestran la primera vez que entras a cada pantalla.</small></div>
+        <label class="switch"><input type="checkbox" data-pref="tours" data-on="on" data-off="off" data-default="1" aria-label="Tutoriales guiados" data-i18n="[aria-label]ajustes.tutorialesGuiados"><span></span></label>
       </div>
       <div class="row">
-        <div class="txt"><b>Sugerencias</b><small>Consejos breves según lo que estés haciendo.</small></div>
-        <label class="switch"><input type="checkbox" data-pref="tips" data-on="on" data-off="off" data-default="1" aria-label="Sugerencias"><span></span></label>
+        <div class="txt"><b data-i18n="tableros.sugerencias">Sugerencias</b><small data-i18n="ajustes.consejosBrevesSegunLo">Consejos breves según lo que estés haciendo.</small></div>
+        <label class="switch"><input type="checkbox" data-pref="tips" data-on="on" data-off="off" data-default="1" aria-label="Sugerencias" data-i18n="[aria-label]tableros.sugerencias"><span></span></label>
       </div>
       <div class="row">
-        <div class="txt"><b>Volver a empezar</b><small>Vuelve a mostrar todos los tutoriales y sugerencias que ya viste.</small></div>
-        <button class="btn" id="resetTours">Reiniciar tutoriales</button>
+        <div class="txt"><b data-i18n="ajustes.volverAEmpezar">Volver a empezar</b><small data-i18n="ajustes.vuelveAMostrarTodos">Vuelve a mostrar todos los tutoriales y sugerencias que ya viste.</small></div>
+        <button class="btn" id="resetTours" data-i18n="ajustes.reiniciarTutoriales">Reiniciar tutoriales</button>
       </div>
     </section>
 
     <section id="atajos">
-      <h2>Atajos de teclado</h2>
+      <h2 data-i18n="ayuda.atajos">Atajos de teclado</h2>
       <div class="row">
-        <div class="txt"><b>Personaliza los atajos</b><small>Haz clic en un atajo y pulsa la nueva combinación. <kbd>Esc</kbd> cancela y <kbd>Supr</kbd> lo deja sin atajo.</small></div>
-        <button class="btn" id="resetKeys">Restablecer todos</button>
+        <div class="txt"><b data-i18n="ajustes.personalizaLosAtajos">Personaliza los atajos</b><small data-i18n="[html]ajustes.hazClicEnUn">Haz clic en un atajo y pulsa la nueva combinación. <kbd>Esc</kbd> cancela y <kbd>Supr</kbd> lo deja sin atajo.</small></div>
+        <button class="btn" id="resetKeys" data-i18n="ajustes.restablecerTodos">Restablecer todos</button>
       </div>
       <table id="keyTable"></table>
       <table>
-        <tr class="grp"><td colspan="2">Fijos</td></tr>
-        <tr><td>Copiar / Cortar / Pegar</td><td><kbd>Ctrl</kbd> + <kbd>C</kbd> <kbd>X</kbd> <kbd>V</kbd></td></tr>
-        <tr><td>Pegar imagen sin marco</td><td><kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>V</kbd></td></tr>
-        <tr><td>Editar el elemento seleccionado</td><td><kbd>Enter</kbd> · <kbd>F2</kbd></td></tr>
-        <tr><td>Mover selección (de 10 en 10 con Shift)</td><td><kbd>←</kbd> <kbd>↑</kbd> <kbd>→</kbd> <kbd>↓</kbd></td></tr>
-        <tr><td>Siguiente / anterior elemento</td><td><kbd>Tab</kbd> · <kbd>Shift</kbd> <kbd>Tab</kbd></td></tr>
-        <tr><td>Opciones del elemento</td><td><kbd>Shift</kbd> <kbd>F10</kbd></td></tr>
-        <tr><td>Mover el lienzo / seleccionar con recuadro</td><td>arrastrar el fondo · <kbd>Shift</kbd> + arrastrar</td></tr>
-        <tr><td>Eliminar</td><td><kbd>Supr</kbd></td></tr>
+        <tr class="grp"><td colspan="2" data-i18n="ajustes.fijos">Fijos</td></tr>
+        <tr><td data-i18n="ajustes.copiarCortarPegar">Copiar / Cortar / Pegar</td><td><kbd>Ctrl</kbd> + <kbd>C</kbd> <kbd>X</kbd> <kbd>V</kbd></td></tr>
+        <tr><td data-i18n="atajos.reservadas.pegarSinMarco">Pegar imagen sin marco</td><td><kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>V</kbd></td></tr>
+        <tr><td data-i18n="ajustes.editarElElementoSeleccionado">Editar el elemento seleccionado</td><td><kbd>Enter</kbd> · <kbd>F2</kbd></td></tr>
+        <tr><td data-i18n="ajustes.moverSeleccionDe10">Mover selección (de 10 en 10 con Shift)</td><td><kbd>←</kbd> <kbd>↑</kbd> <kbd>→</kbd> <kbd>↓</kbd></td></tr>
+        <tr><td data-i18n="ajustes.siguienteAnteriorElemento">Siguiente / anterior elemento</td><td><kbd>Tab</kbd> · <kbd>Shift</kbd> <kbd>Tab</kbd></td></tr>
+        <tr><td data-i18n="atajos.reservadas.opciones">Opciones del elemento</td><td><kbd>Shift</kbd> <kbd>F10</kbd></td></tr>
+        <tr><td data-i18n="ajustes.moverElLienzoSeleccionar">Mover el lienzo / seleccionar con recuadro</td><td data-i18n="[html]ajustes.arrastrarElFondoShift">arrastrar el fondo · <kbd>Shift</kbd> + arrastrar</td></tr>
+        <tr><td data-i18n="papelera.eliminar">Eliminar</td><td><kbd data-i18n="atajos.teclas.Delete">Supr</kbd></td></tr>
       </table>
     </section>
 
     <section id="acerca">
-      <h2>Acerca de</h2>
+      <h2 data-i18n="ajustes.acercaDe">Acerca de</h2>
       <div class="about">
         <div class="brand-mark surface-cork"><span class="pin"></span></div>
-        <div><b>Chinchero</b> <span id="version"></span><br><small>Tu tablero de ideas digital, sin conexión. Se actualiza solo cuando hay una versión nueva.</small></div>
-        <button class="btn" id="checkUpdates">Buscar actualizaciones</button>
+        <div><b data-i18n="ajustes.chinchero">Chinchero</b> <span id="version"></span><br><small data-i18n="ajustes.tuTableroDeIdeas">Tu tablero de ideas digital, sin conexión. Se actualiza solo cuando hay una versión nueva.</small></div>
+        <button class="btn" id="checkUpdates" data-i18n="ajustes.buscarActualizaciones">Buscar actualizaciones</button>
       </div>
     </section>
   </div>

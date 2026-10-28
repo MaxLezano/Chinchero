@@ -5,10 +5,12 @@
 <!-- Solo recursos propios: nada de internet ni código inline (los estilos inline sí, el editor posiciona con style) -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: chinchero-media:; media-src 'self' blob: chinchero-media:; connect-src 'self' data: blob: chinchero-media:; base-uri 'none'; form-action 'none'; object-src 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Chinchero — Papelera</title>
+<title data-i18n="titulos.papelera">Chinchero — Papelera</title>
 <link rel="stylesheet" href="assets/fonts/fonts.css">
 <link rel="stylesheet" href="assets/theme.css">
 <link rel="stylesheet" href="assets/shell.css">
+<script src="assets/vendor/i18next.min.js"></script>
+<script src="assets/i18n.js"></script>
 <script src="assets/theme.js"></script>
 <script src="assets/store.js"></script>
 <style>
@@ -50,15 +52,15 @@
 
 <main>
   <div class="topbar">
-    <h1>Papelera</h1>
-    <button class="btn btn-danger" id="emptyAll">Vaciar papelera</button>
+    <h1 data-i18n="papelera.titulo">Papelera</h1>
+    <button class="btn btn-danger" id="emptyAll" data-i18n="papelera.vaciar">Vaciar papelera</button>
   </div>
   <div class="content">
-    <p class="note-info">Los elementos se eliminan para siempre a los 30 días.</p>
+    <p class="note-info" data-i18n="papelera.aviso30">Los elementos se eliminan para siempre a los 30 días.</p>
     <div class="list" id="list"></div>
     <div class="empty" id="empty">
       <svg class="icon" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M5 7l1 13h12l1-13M9 7V4h6v3"/></svg>
-      <div>La papelera está vacía</div>
+      <div data-i18n="papelera.vacia">La papelera está vacía</div>
     </div>
   </div>
 </main>

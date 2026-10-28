@@ -13,8 +13,9 @@
   // HTML de texto con formato: solo negrita, cursiva, subrayado, tachado, listas, saltos y <font> con un color de
   // TEXT_COLORS o un tamaño de TEXT_SIZES (lo que genera la barra de formato) y la alineación de líneas y listas
   // (text-align izquierda, centro o derecha); ningún otro atributo. Lo demás se descarta (scripts, imágenes, estilos) o se deja solo su texto; títulos y párrafos pasan a líneas.
-  const TEXT_COLORS = { "#c92a2a": "Rojo", "#d9480f": "Naranja", "#2b8a3e": "Verde", "#1864ab": "Azul", "#862e9c": "Morado", "#868e96": "Gris" };
-  const TEXT_SIZES = { 2: "Pequeño", 3: "Normal", 5: "Grande", 6: "Muy grande" };
+  // Valor: clave del nombre (editor.formato.colores.* y editor.formato.tamanos.*)
+  const TEXT_COLORS = { "#c92a2a": "rojo", "#d9480f": "naranja", "#2b8a3e": "verde", "#1864ab": "azul", "#862e9c": "morado", "#868e96": "gris" };
+  const TEXT_SIZES = { 2: "pequeno", 3: "normal", 5: "grande", 6: "muyGrande" };
   const RICH_TAGS = { B: "b", STRONG: "b", I: "i", EM: "i", U: "u", S: "s", STRIKE: "s", DEL: "s", UL: "ul", OL: "ol", LI: "li" };
   const RICH_DROP = /^(SCRIPT|STYLE|TEMPLATE|IFRAME|OBJECT|EMBED|NOSCRIPT|SVG|MATH|HEAD|TITLE|META|LINK|IMG|PICTURE|VIDEO|AUDIO|CANVAS|INPUT|BUTTON|SELECT|TEXTAREA)$/;
   const alignOf = n => { const a = (n.style.textAlign || n.getAttribute("align") || "").toLowerCase(); return /^(left|center|right)$/.test(a) ? a : ""; };
@@ -74,7 +75,8 @@
   const PINNABLE = new Set(["note", "card", "list", "photo", "link", "file", "text"]);
   const SCALED = new Set(["text", "sticker", "stamp"]);
   const CREATE = new Set(["note", "card", "list", "text", "image", "link", "file", "sticker"]);
-  const TYPE_NAMES = { note: "Nota", card: "Ficha", list: "Lista", text: "Texto", photo: "Foto", link: "Enlace", file: "Archivo", sticker: "Sticker", stamp: "Sello", zone: "Zona", draw: "Dibujo" };
+  // Nombre de cada tipo en el idioma actual: TYPE_NAMES.note → «Nota»
+  const TYPE_NAMES = new Proxy({}, { get: (o, k) => t("editor.tipos." + String(k)) });
   const TYPE_ICON = { note: "📝", card: "🗒️", list: "☑️", text: "🔤", photo: "🖼️", link: "🔗", file: "📎", sticker: "⭐", stamp: "🏷️", zone: "🗂️", draw: "✏️" };
   const CLIP = "chinchero:";
 
@@ -108,15 +110,15 @@
 
   const DEFAULTS = {
     note: () => ({ w: 180, h: 170, color: "yellow", text: "", fs: "m", fix: "pin" }),
-    card: () => ({ w: 240, h: 150, title: "Título", text: "", fix: "pin" }),
-    list: () => ({ w: 230, h: 120, title: "Lista", tasks: [{ text: "", done: false }], fix: "pin" }),
-    text: () => ({ text: "Título", s: 1, ink: "" }),
-    photo: () => ({ w: 210, h: 180, src: "", art: "", caption: "Sin título", frame: "polaroid", fit: "cover", fix: "pin" }),
+    card: () => ({ w: 240, h: 150, title: t("editor.nuevos.titulo"), text: "", fix: "pin" }),
+    list: () => ({ w: 230, h: 120, title: t("editor.tipos.list"), tasks: [{ text: "", done: false }], fix: "pin" }),
+    text: () => ({ text: t("editor.nuevos.titulo"), s: 1, ink: "" }),
+    photo: () => ({ w: 210, h: 180, src: "", art: "", caption: t("tableros.sinTitulo"), frame: "polaroid", fit: "cover", fix: "pin" }),
     link: () => ({ w: 260, url: "", domain: "", title: "", grad: GRADS[0], fix: "pin" }),
-    file: () => ({ w: 240, name: "archivo", ext: "", size: "", fix: "pin" }),
+    file: () => ({ w: 240, name: t("editor.nuevos.archivo"), ext: "", size: "", fix: "pin" }),
     sticker: () => ({ emoji: "⭐", img: "", s: 1 }),
-    stamp: () => ({ text: "TEXTO", color: "#e03131", s: 1 }),
-    zone: () => ({ w: 420, h: 300, title: "Zona", color: ZONE_COLORS[0] }),
+    stamp: () => ({ text: t("editor.nuevos.sello"), color: "#e03131", s: 1 }),
+    zone: () => ({ w: 420, h: 300, title: t("editor.tipos.zone"), color: ZONE_COLORS[0] }),
     draw: () => ({ w: 100, h: 100, vw: 100, vh: 100, d: "", color: "#e03131", sw: 3 }),
   };
 
@@ -142,112 +144,112 @@
 
   /* ---------- Plantillas ---------- */
   function kanbanItems() {
-    const z = [["Por hacer", "#4dabf7"], ["Haciendo", "#ffa94d"], ["Hecho", "#69db7c"]].map(([title, color], i) => mk("zone", 140 + i * 380, 110, { w: 340, h: 560, title, color }));
+    const z = [[t("plantillas.porHacer"), "#4dabf7"], [t("plantillas.haciendo"), "#ffa94d"], [t("plantillas.hecho"), "#69db7c"]].map(([title, color], i) => mk("zone", 140 + i * 380, 110, { w: 340, h: 560, title, color }));
     const notes = [
-      mk("note", 170, 160, { color: "yellow", text: "Cerrar la idea de la app", rot: -2 }),
-      mk("note", 170, 380, { color: "blue", text: "Elegir stack para Windows", rot: 2, pin: pinC("#1c7ed6") }),
-      mk("note", 550, 160, { color: "pink", text: "Tutoriales y sugerencias", rot: 1, pin: pinC("#ae3ec9") }),
-      mk("note", 930, 160, { color: "green", text: "Mockups HTML ✓", rot: -1, pin: pinC("#2f9e44") }),
-      mk("note", 930, 380, { color: "green", text: "QA de UX/UI ✓", rot: 2, pin: pinC("#2f9e44") }),
+      mk("note", 170, 160, { color: "yellow", text: t("plantillas.kanban1"), rot: -2 }),
+      mk("note", 170, 380, { color: "blue", text: t("plantillas.kanban2"), rot: 2, pin: pinC("#1c7ed6") }),
+      mk("note", 550, 160, { color: "pink", text: t("plantillas.kanban3"), rot: 1, pin: pinC("#ae3ec9") }),
+      mk("note", 930, 160, { color: "green", text: t("plantillas.kanban4"), rot: -1, pin: pinC("#2f9e44") }),
+      mk("note", 930, 380, { color: "green", text: t("plantillas.kanban5"), rot: 2, pin: pinC("#2f9e44") }),
     ];
     return { items: [...z, ...notes], threads: [] };
   }
 
   function semanaItems() {
-    const days = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+    const days = t("plantillas.dias", { returnObjects: true });
     const z = days.map((title, i) => mk("zone", 140 + i * 260, 110, { w: 240, h: 420, title, color: i < 5 ? "#4dabf7" : "#f783ac" }));
-    const ideas = mk("zone", 140, 570, { w: 1000, h: 300, title: "Ideas de la semana", color: "#ffa94d" });
+    const ideas = mk("zone", 140, 570, { w: 1000, h: 300, title: t("plantillas.ideasSemana"), color: "#ffa94d" });
     const items = [...z, ideas,
-      mk("text", 150, 30, { text: "Mi semana ✏️", rot: -1 }),
-      mk("note", 165, 160, { color: "yellow", text: "Reunión 10:00", rot: -2 }),
-      mk("note", 685, 160, { color: "blue", text: "Entregar informe", rot: 2, pin: pinC("#1c7ed6") }),
-      mk("note", 1465, 160, { color: "pink", text: "Paseo 🌳", rot: -1, pin: pinC("#ae3ec9") }),
-      mk("note", 170, 620, { color: "orange", text: "Probar una receta nueva", rot: 1, pin: pinC("#f59f00") }),
-      mk("list", 1200, 600, { w: 260, title: "Pendientes", pin: pinC("#2f9e44"), tasks: [{ text: "Comprar regalo", done: false }, { text: "Llamar al dentista", done: false }, { text: "Pagar facturas", done: true }] }),
+      mk("text", 150, 30, { text: t("plantillas.miSemana"), rot: -1 }),
+      mk("note", 165, 160, { color: "yellow", text: t("plantillas.reunion"), rot: -2 }),
+      mk("note", 685, 160, { color: "blue", text: t("plantillas.informe"), rot: 2, pin: pinC("#1c7ed6") }),
+      mk("note", 1465, 160, { color: "pink", text: t("plantillas.paseo"), rot: -1, pin: pinC("#ae3ec9") }),
+      mk("note", 170, 620, { color: "orange", text: t("plantillas.receta"), rot: 1, pin: pinC("#f59f00") }),
+      mk("list", 1200, 600, { w: 260, title: t("plantillas.pendientes"), pin: pinC("#2f9e44"), tasks: [{ text: t("plantillas.regalo"), done: false }, { text: t("plantillas.dentista"), done: false }, { text: t("plantillas.facturas"), done: true }] }),
     ];
     return { items, threads: [] };
   }
 
   const TEMPLATES = {
-    blank: () => [newSheet("Hoja 1")],
-    kanban: () => [newSheet("Tablero", { color: "blue", surface: "grid", ...kanbanItems() })],
-    semana: () => [newSheet("Semana", { color: "green", surface: "grid", ...semanaItems() })],
+    blank: () => [newSheet(t("editor.hojaN", { n: 1 }))],
+    kanban: () => [newSheet(t("plantillas.tablero"), { color: "blue", surface: "grid", ...kanbanItems() })],
+    semana: () => [newSheet(t("tableros.plantillas.semana"), { color: "green", surface: "grid", ...semanaItems() })],
     detective() {
-      const p1 = mk("photo", 160, 120, { w: 170, h: 160, art: "person", caption: "Sospechoso A", rot: -4 });
-      const p2 = mk("photo", 540, 90, { w: 170, h: 160, art: "person", caption: "Sospechoso B", rot: 3, pin: pinC("#1c7ed6") });
-      const p3 = mk("photo", 900, 140, { w: 170, h: 160, art: "person", caption: "Testigo", rot: -2, pin: pinC("#2f9e44") });
-      const m = mk("photo", 470, 440, { w: 260, h: 170, art: "map", caption: "Lugar del hecho", rot: 2, pin: pinC("#f59f00") });
-      const n1 = mk("note", 170, 470, { color: "yellow", text: "¿Dónde estaba el martes a las 22 h?", rot: -3 });
-      const n2 = mk("note", 900, 460, { color: "pink", text: "Coartada falsa", rot: 3, pin: pinC("#ae3ec9") });
-      const c = mk("card", 1150, 120, { w: 220, title: "Cronología", text: "21:30 · Sale de casa<br>22:10 · Llamada<br>22:45 · Vuelve", rot: 1.5, pin: pinC("#343a40") });
-      const st = mk("stamp", 760, 50, { text: "SOSPECHOSO", color: "#e03131", rot: -12, s: .8 });
-      return [newSheet("Caso", { color: "pink", surface: "cork", items: [p1, p2, p3, m, n1, n2, c, st],
-        threads: [th(p1, p2, { label: "¿cómplice?" }), th(p1, n1), th(p2, m), th(p3, m), th(p3, n2), th(n2, c), th(m, n1)] })];
+      const p1 = mk("photo", 160, 120, { w: 170, h: 160, art: "person", caption: t("plantillas.sospechosoA"), rot: -4 });
+      const p2 = mk("photo", 540, 90, { w: 170, h: 160, art: "person", caption: t("plantillas.sospechosoB"), rot: 3, pin: pinC("#1c7ed6") });
+      const p3 = mk("photo", 900, 140, { w: 170, h: 160, art: "person", caption: t("plantillas.testigo"), rot: -2, pin: pinC("#2f9e44") });
+      const m = mk("photo", 470, 440, { w: 260, h: 170, art: "map", caption: t("plantillas.lugar"), rot: 2, pin: pinC("#f59f00") });
+      const n1 = mk("note", 170, 470, { color: "yellow", text: t("plantillas.dondeEstaba"), rot: -3 });
+      const n2 = mk("note", 900, 460, { color: "pink", text: t("plantillas.coartada"), rot: 3, pin: pinC("#ae3ec9") });
+      const c = mk("card", 1150, 120, { w: 220, title: t("plantillas.cronologia"), text: t("plantillas.cronologiaTexto"), rot: 1.5, pin: pinC("#343a40") });
+      const st = mk("stamp", 760, 50, { text: t("plantillas.sospechoso"), color: "#e03131", rot: -12, s: .8 });
+      return [newSheet(t("plantillas.caso"), { color: "pink", surface: "cork", items: [p1, p2, p3, m, n1, n2, c, st],
+        threads: [th(p1, p2, { label: t("plantillas.complice") }), th(p1, n1), th(p2, m), th(p3, m), th(p3, n2), th(n2, c), th(m, n1)] })];
     },
     moodboard() {
-      const z = mk("zone", 130, 90, { w: 900, h: 600, title: "Estilo", color: "#9775fa" });
+      const z = mk("zone", 130, 90, { w: 900, h: 600, title: t("plantillas.estilo"), color: "#9775fa" });
       const items = [z,
         mk("photo", 170, 150, { w: 260, h: 200, art: "sunset", frame: "none", fix: "tape", rot: -2 }),
-        mk("photo", 480, 140, { art: "sea", caption: "Calma", rot: 3, pin: pinC("#1c7ed6") }),
+        mk("photo", 480, 140, { art: "sea", caption: t("plantillas.calma"), rot: 3, pin: pinC("#1c7ed6") }),
         mk("photo", 740, 160, { w: 240, h: 300, art: "city", frame: "none", fix: "tape", rot: 1 }),
-        mk("photo", 200, 410, { art: "tree", caption: "Natural", rot: -3, pin: pinC("#2f9e44") }),
-        mk("note", 500, 460, { color: "purple", text: "Cálido pero sereno", rot: 2, pin: pinC("#ae3ec9") }),
-        mk("card", 1080, 140, { w: 220, title: "Paleta", text: "Coral · #FF9A76<br>Lavanda · #9775FA<br>Noche · #1C2541", pin: pinC("#343a40") }),
+        mk("photo", 200, 410, { art: "tree", caption: t("plantillas.natural"), rot: -3, pin: pinC("#2f9e44") }),
+        mk("note", 500, 460, { color: "purple", text: t("plantillas.calido"), rot: 2, pin: pinC("#ae3ec9") }),
+        mk("card", 1080, 140, { w: 220, title: t("plantillas.paleta"), text: t("plantillas.paletaTexto"), pin: pinC("#343a40") }),
         mk("sticker", 1000, 520, { emoji: "🎨", rot: 10 }),
       ];
-      return [newSheet("Moodboard", { color: "purple", surface: "dots", items }), newSheet("Tipografía", { color: "blue" })];
+      return [newSheet(t("tableros.plantillas.moodboard"), { color: "purple", surface: "dots", items }), newSheet(t("plantillas.tipografia"), { color: "blue" })];
     },
     viaje() {
-      const d1 = mk("zone", 140, 110, { w: 440, h: 460, title: "Día 1 · Kioto", color: "#f783ac" });
-      const d2 = mk("zone", 620, 110, { w: 440, h: 460, title: "Día 2 · Nara", color: "#69db7c" });
-      const a = mk("note", 170, 170, { color: "yellow", text: "Fushimi Inari al amanecer", rot: -2 });
-      const b = mk("photo", 360, 300, { w: 180, h: 150, art: "sunset", caption: "Torii", rot: 4, pin: pinC("#1c7ed6") });
-      const c = mk("note", 650, 170, { color: "green", text: "Parque de los ciervos 🦌", rot: 2, pin: pinC("#2f9e44") });
-      const d = mk("note", 820, 330, { color: "blue", text: "Tren de vuelta 18:40", rot: -2, pin: pinC("#1c7ed6") });
+      const d1 = mk("zone", 140, 110, { w: 440, h: 460, title: t("plantillas.dia1"), color: "#f783ac" });
+      const d2 = mk("zone", 620, 110, { w: 440, h: 460, title: t("plantillas.dia2"), color: "#69db7c" });
+      const a = mk("note", 170, 170, { color: "yellow", text: t("plantillas.fushimi"), rot: -2 });
+      const b = mk("photo", 360, 300, { w: 180, h: 150, art: "sunset", caption: t("plantillas.torii"), rot: 4, pin: pinC("#1c7ed6") });
+      const c = mk("note", 650, 170, { color: "green", text: t("plantillas.ciervos"), rot: 2, pin: pinC("#2f9e44") });
+      const d = mk("note", 820, 330, { color: "blue", text: t("plantillas.tren"), rot: -2, pin: pinC("#1c7ed6") });
       const lugares = [
         mk("link", 160, 120, linkData("https://www.japan-guide.com/e/e3915.html")),
         mk("link", 480, 150, { ...linkData("https://maps.google.com/kyoto-nara"), rot: 2, pin: pinC("#1c7ed6") }),
-        mk("photo", 820, 120, { art: "tree", caption: "Arashiyama", rot: -3, pin: pinC("#2f9e44") }),
+        mk("photo", 820, 120, { art: "tree", caption: t("plantillas.arashiyama"), rot: -3, pin: pinC("#2f9e44") }),
       ];
       const eq = [
-        mk("list", 160, 120, { title: "Equipaje", tasks: [{ text: "Pasaporte", done: true }, { text: "Adaptador tipo A", done: false }, { text: "JR Pass", done: false }, { text: "Paraguas", done: false }] }),
-        mk("list", 480, 140, { title: "Antes de salir", rot: 2, pin: pinC("#1c7ed6"), tasks: [{ text: "Avisar al banco", done: true }, { text: "Seguro de viaje", done: false }] }),
+        mk("list", 160, 120, { title: t("plantillas.equipaje"), tasks: [{ text: t("plantillas.pasaporte"), done: true }, { text: t("plantillas.adaptador"), done: false }, { text: t("plantillas.jrPass"), done: false }, { text: t("plantillas.paraguas"), done: false }] }),
+        mk("list", 480, 140, { title: t("plantillas.antesDeSalir"), rot: 2, pin: pinC("#1c7ed6"), tasks: [{ text: t("plantillas.banco"), done: true }, { text: t("plantillas.seguro"), done: false }] }),
       ];
       return [
-        newSheet("Itinerario", { color: "pink", surface: "cork", items: [d1, d2, a, b, c, d], threads: [th(a, b)] }),
-        newSheet("Lugares", { color: "green", items: lugares }),
-        newSheet("Equipaje", { color: "blue", items: eq }),
+        newSheet(t("plantillas.itinerario"), { color: "pink", surface: "cork", items: [d1, d2, a, b, c, d], threads: [th(a, b)] }),
+        newSheet(t("plantillas.lugares"), { color: "green", items: lugares }),
+        newSheet(t("plantillas.equipaje"), { color: "blue", items: eq }),
       ];
     },
   };
 
   function demoSheets() {
-    const t1 = mk("text", 160, 30, { text: "Chinchero v1 ✏️", rot: -2 });
-    const z1 = mk("zone", 150, 120, { w: 660, h: 340, title: "La idea", color: "#4dabf7" });
-    const n1 = mk("note", 190, 160, { color: "yellow", rot: -3, text: "Un tablero de ideas digital, con hilos como en las pelis de detectives" });
-    const p1 = mk("photo", 520, 150, { rot: 4, art: "sunset", caption: "Inspiración 🌄", pin: pinC("#1c7ed6") });
-    const c1 = mk("list", 880, 160, { rot: -1.5, title: "Por hacer", pin: pinC("#2f9e44"), tasks: [
-      { text: "Mockups HTML", done: true }, { text: "Cerrar la idea", done: false }, { text: "Elegir stack Windows", done: false }, { text: "Primera versión", done: false }] });
-    const n2 = mk("note", 240, 520, { color: "blue", rot: 2, text: "Grupos de tableros + hojas como en Excel", pin: pinC("#f59f00") });
-    const p2 = mk("photo", 560, 510, { rot: -5, art: "tree", caption: "Pegada con cinta", fix: "tape" });
-    const n3 = mk("note", 900, 520, { color: "pink", rot: -2, text: "Tema claro / oscuro 🌗", pin: pinC("#ae3ec9") });
-    const f1 = mk("card", 1150, 300, { rot: 1.5, w: 230, title: "Principios", text: "Simple · Sin conexión · Portable<br>Todo a un clic", pin: pinC("#1c7ed6") });
+    const t1 = mk("text", 160, 30, { text: t("plantillas.demo.titulo"), rot: -2 });
+    const z1 = mk("zone", 150, 120, { w: 660, h: 340, title: t("plantillas.demo.idea"), color: "#4dabf7" });
+    const n1 = mk("note", 190, 160, { color: "yellow", rot: -3, text: t("plantillas.demo.n1") });
+    const p1 = mk("photo", 520, 150, { rot: 4, art: "sunset", caption: t("plantillas.demo.inspiracion"), pin: pinC("#1c7ed6") });
+    const c1 = mk("list", 880, 160, { rot: -1.5, title: t("plantillas.porHacer"), pin: pinC("#2f9e44"), tasks: [
+      { text: t("plantillas.demo.t1"), done: true }, { text: t("plantillas.demo.t2"), done: false }, { text: t("plantillas.demo.t3"), done: false }, { text: t("plantillas.demo.t4"), done: false }] });
+    const n2 = mk("note", 240, 520, { color: "blue", rot: 2, text: t("plantillas.demo.n2"), pin: pinC("#f59f00") });
+    const p2 = mk("photo", 560, 510, { rot: -5, art: "tree", caption: t("plantillas.demo.cinta"), fix: "tape" });
+    const n3 = mk("note", 900, 520, { color: "pink", rot: -2, text: t("plantillas.demo.n3"), pin: pinC("#ae3ec9") });
+    const f1 = mk("card", 1150, 300, { rot: 1.5, w: 230, title: t("plantillas.demo.principios"), text: t("plantillas.demo.principiosTexto"), pin: pinC("#1c7ed6") });
     const s1 = mk("sticker", 780, 50, { emoji: "💡", rot: 12 });
-    const s2 = mk("stamp", 1180, 110, { text: "URGENTE", color: "#e03131", rot: -10 });
+    const s2 = mk("stamp", 1180, 110, { text: t("editor.urgente"), color: "#e03131", rot: -10 });
     const s3 = mk("sticker", 440, 660, { emoji: "⭐", rot: -8 });
     const d1 = mk("draw", 1100, 150, { w: 90, h: 80, vw: 90, vh: 80, d: "M85 6 Q 60 60 8 70 M22 58 L8 70 L25 76", color: "#e03131", sw: 3 });
-    const ideas = newSheet("Ideas generales", { color: "yellow", items: [z1, t1, n1, p1, c1, n2, p2, n3, f1, s1, s2, s3, d1],
-      threads: [th(n1, p1), th(p1, c1), th(n1, n2), th(c1, n3, { label: "decidir" })] });
+    const ideas = newSheet(t("editor.ideasGenerales"), { color: "yellow", items: [z1, t1, n1, p1, c1, n2, p2, n3, f1, s1, s2, s3, d1],
+      threads: [th(n1, p1), th(p1, c1), th(n1, n2), th(c1, n3, { label: t("plantillas.demo.decidir") })] });
 
     const l1 = mk("link", 160, 120, { ...linkData("https://www.pinterest.com/ideas/corkboard-ideas"), rot: -2 });
     const l2 = mk("link", 480, 140, { ...linkData("https://dribbble.com/shots/moodboard-app"), rot: 2, pin: pinC("#1c7ed6") });
-    const fl1 = mk("file", 160, 440, { name: "brief-cliente.pdf", ext: "pdf", size: "2,4 MB", rot: 1, pin: pinC("#2f9e44") });
-    const fl2 = mk("file", 480, 460, { name: "presupuesto.xlsx", ext: "xlsx", size: "48 KB", rot: -2 });
-    const pc = mk("photo", 820, 140, { art: "city", caption: "Referencia nocturna", rot: 3, pin: pinC("#ae3ec9") });
-    const nr = mk("note", 820, 460, { color: "orange", text: "Revisar estas referencias el lunes", rot: -2, pin: pinC("#f59f00") });
-    const refs = newSheet("Referencias", { color: "blue", items: [l1, l2, fl1, fl2, pc, nr], threads: [th(l1, nr), th(fl1, l1)] });
+    const fl1 = mk("file", 160, 440, { name: t("plantillas.demo.brief"), ext: "pdf", size: t("plantillas.demo.tamano"), rot: 1, pin: pinC("#2f9e44") });
+    const fl2 = mk("file", 480, 460, { name: t("plantillas.demo.presupuesto"), ext: "xlsx", size: "48 KB", rot: -2 });
+    const pc = mk("photo", 820, 140, { art: "city", caption: t("plantillas.demo.nocturna"), rot: 3, pin: pinC("#ae3ec9") });
+    const nr = mk("note", 820, 460, { color: "orange", text: t("plantillas.demo.revisar"), rot: -2, pin: pinC("#f59f00") });
+    const refs = newSheet(t("plantillas.demo.referencias"), { color: "blue", items: [l1, l2, fl1, fl2, pc, nr], threads: [th(l1, nr), th(fl1, l1)] });
 
-    return [ideas, refs, newSheet("Roadmap", { color: "green", surface: "grid", ...kanbanItems() }), newSheet("Bugs y pendientes", { color: "pink" })];
+    return [ideas, refs, newSheet(t("plantillas.demo.roadmap"), { color: "green", surface: "grid", ...kanbanItems() }), newSheet(t("plantillas.demo.bugs"), { color: "pink" })];
   }
 
   /* ---------- Estado: abrir el tablero o crearlo desde una plantilla ---------- */
@@ -311,8 +313,8 @@
   let loaded = boardId && Store.loadBoard(boardId);
   if (boardId && !loaded) { location.replace("01-tableros.html"); return; }
   if (!loaded) {
-    if (params.get("demo")) createBoard("demo", "Ejemplo: así se usa Chinchero", params.get("group"));
-    const c = createBoard(params.get("template") || "demo", params.get("name") || (params.get("template") ? "Sin título" : "Ideas generales"), params.get("group"), params.get("surface"));
+    if (params.get("demo")) createBoard("demo", t("plantillas.demo.nombre"), params.get("group"));
+    const c = createBoard(params.get("template") || "demo", params.get("name") || (params.get("template") ? t("tableros.sinTitulo") : t("editor.ideasGenerales")), params.get("group"), params.get("surface"));
     boardId = c.id; loaded = c.d;
     history.replaceState(null, "", "?board=" + boardId);
   }
@@ -379,15 +381,15 @@
   }
   function undo() {
     stopEdit();
-    if (!undoStack.length) return toast("No hay nada que deshacer");
+    if (!undoStack.length) return toast(t("editor.msg.nadaDeshacer"));
     redoStack.push(snapshot()); restore(undoStack.pop()); updateUndoButtons();
-    announce("Deshecho");
+    announce(t("ia.deshecho"));
   }
   function redo() {
     stopEdit();
-    if (!redoStack.length) return toast("No hay nada que rehacer");
+    if (!redoStack.length) return toast(t("editor.msg.nadaRehacer"));
     undoStack.push(snapshot()); restore(redoStack.pop()); updateUndoButtons();
-    announce("Rehecho");
+    announce(t("editor.msg.rehecho"));
   }
   function updateUndoButtons() {
     $("#undoBtn").disabled = !undoStack.length;
@@ -398,7 +400,7 @@
   let saveTimer, persistTimer = null;
   function saved() {
     const s = $("#save");
-    s.classList.add("saving"); s.querySelector("span").textContent = "Guardando…";
+    s.classList.add("saving"); s.querySelector("span").textContent = t("editor.guardando");
     clearTimeout(saveTimer);
     clearTimeout(persistTimer);
     persistTimer = setTimeout(persist, 400);
@@ -411,7 +413,7 @@
     Store.saveBoard(boardId, d);
     if (touch) Store.touch(boardId, { name: doc.name, updatedAt: Date.now(), ...boardMeta(d) });
     const s = $("#save");
-    saveTimer = setTimeout(() => { s.classList.remove("saving"); s.querySelector("span").textContent = "Guardado"; }, 200);
+    saveTimer = setTimeout(() => { s.classList.remove("saving"); s.querySelector("span").textContent = t("ajustes.guardado"); }, 200);
   }
   // Al salir se guarda lo pendiente y la posición de la vista de cada hoja
   window.addEventListener("beforeunload", () => persist(persistTimer !== null));
@@ -421,7 +423,7 @@
   // En el lienzo las fotos guardadas usan su miniatura (ver thumbFile en main/store.js); el visor usa la original
   const thumb = src => src.replace(/^chinchero-media:\/\/media\//, "chinchero-media://thumbs/");
   function itemHTML(it) {
-    const fix = it.fix === "pin" ? `<span class="pin" style="left:${esc(it.pin.x * 100)}%;top:${esc(it.pin.y * 100)}%;--pin:${esc(it.pin.color)}" title="Arrastra para unir con un hilo · Mayús+arrastrar para moverla"></span>`
+    const fix = it.fix === "pin" ? `<span class="pin" style="left:${esc(it.pin.x * 100)}%;top:${esc(it.pin.y * 100)}%;--pin:${esc(it.pin.color)}" title="${t("editor.lienzo.chinche")}"></span>`
       : it.fix === "tape" ? '<span class="tape"></span>' : "";
     switch (it.type) {
       case "note": return fix + `<div class="txt" data-edit="text" data-rich>${it.text}</div>`;
@@ -429,16 +431,16 @@
       case "list": {
         const done = it.tasks.filter(t => t.done).length;
         return fix + `<div class="list-head"><span data-edit="title">${esc(it.title)}</span><span class="prog">${done}/${it.tasks.length}</span></div>
-          <ul>${it.tasks.map((t, i) => `<li class="${t.done ? "done" : ""}"><input type="checkbox" data-i="${i}" ${t.done ? "checked" : ""} aria-label="Completar «${esc(t.text)}»"><span class="task" data-edit="task" data-i="${i}">${esc(t.text)}</span></li>`).join("")}</ul>
-          <button class="add-task">+ Añadir tarea</button>`;
+          <ul>${it.tasks.map((task, i) => `<li class="${task.done ? "done" : ""}"><input type="checkbox" data-i="${i}" ${task.done ? "checked" : ""} aria-label="${esc(t("editor.lienzo.completar", { task: task.text }))}"><span class="task" data-edit="task" data-i="${i}">${esc(task.text)}</span></li>`).join("")}</ul>
+          <button class="add-task">+ ${t("editor.lienzo.anadirTarea")}</button>`;
       }
       case "text": return fix + `<div class="txt" data-edit="text">${esc(it.text)}</div>`;
       case "photo": {
-        const media = it.src ? `<img src="${esc(thumb(it.src))}" alt="" decoding="async">` : it.art ? ART[it.art] : '<div class="ph-empty">Arrastra una imagen aquí<br>o haz doble clic para elegirla</div>';
+        const media = it.src ? `<img src="${esc(thumb(it.src))}" alt="" decoding="async">` : it.art ? ART[it.art] : `<div class="ph-empty">${t("editor.lienzo.fotoVacia")}</div>`;
         return fix + `<div class="img ${esc(it.fit)}" style="height:${esc(it.h)}px">${media}</div>` + (it.frame === "polaroid" ? `<div class="caption" data-edit="caption">${esc(it.caption)}</div>` : "");
       }
       case "link": return fix + `<div class="lp" style="--g:${esc(it.grad)}">${esc(it.domain.charAt(0).toUpperCase())}</div><div class="lb"><div class="lt" data-edit="title">${esc(it.title)}</div><div class="lu">🔗 ${esc(it.domain)}</div></div>`;
-      case "file": return fix + `<div class="fi" style="--fc:${esc(FILE_COLORS[it.ext] || "#868e96")}">${esc(it.ext.toUpperCase() || "?")}</div><div><div class="fn">${esc(it.name)}</div><div class="fm">${esc(it.size)} · doble clic para abrir</div></div>`;
+      case "file": return fix + `<div class="fi" style="--fc:${esc(FILE_COLORS[it.ext] || "#868e96")}">${esc(it.ext.toUpperCase() || "?")}</div><div><div class="fn">${esc(it.name)}</div><div class="fm">${esc(it.size)} · ${t("editor.lienzo.dobleClicAbrir")}</div></div>`;
       case "sticker": return it.img ? `<img src="${esc(it.img)}" alt="">` : esc(it.emoji);
       case "stamp": return `<span class="badge" data-edit="text" style="--b:${esc(it.color)}">${esc(it.text)}</span>`;
       case "zone": return `<div class="zt" data-edit="title">${esc(it.title)}</div>`;
@@ -507,8 +509,8 @@
   function handlesHTML(it) {
     const hs = SCALED.has(it.type) ? ["se"] : ["nw", "ne", "sw", "se"];
     // .rz: zonas invisibles justo fuera de cada esquina; al pasar el ratón el cursor indica giro
-    const rz = it.type === "zone" ? "" : ["nw", "ne", "sw", "se"].map(c => `<span class="rz" data-c="${c}" title="Arrastra para girar (Mayús: de 15° en 15°)"></span>`).join("");
-    return `<div class="handles">${rz}${hs.map(h => `<span class="h" data-h="${h}" title="Cambiar tamaño${it.type === "photo" ? " (Mayús: libre)" : " (Mayús: proporcional)"}"></span>`).join("")}</div>`;
+    const rz = it.type === "zone" ? "" : ["nw", "ne", "sw", "se"].map(c => `<span class="rz" data-c="${c}" title="${t("editor.lienzo.girar")}"></span>`).join("");
+    return `<div class="handles">${rz}${hs.map(h => `<span class="h" data-h="${h}" title="${t(it.type === "photo" ? "editor.lienzo.tamanoLibre" : "editor.lienzo.tamanoProporcional")}"></span>`).join("")}</div>`;
   }
 
   // Grupos: los elementos con el mismo `group` se seleccionan y mueven juntos (Ctrl+clic elige uno solo)
@@ -624,14 +626,14 @@
   function addThread(a, b) {
     const sh = sheet();
     if (sh.threads.some(t => (t.a === a.id && t.b === b.id) || (t.a === b.id && t.b === a.id))) {
-      toast("Ya están unidos con un hilo");
+      toast(t("editor.msg.yaUnidos"));
       drawThreads();
       return;
     }
     checkpoint();
     sh.threads.push(th(a, b));
     drawThreads(); saved();
-    announce(`Hilo creado entre ${describe(a)} y ${describe(b)}`);
+    announce(t("editor.msg.hiloCreado", { a: describe(a), b: describe(b) }));
     Tour.emit("thread");
   }
 
@@ -640,7 +642,7 @@
     if (it.fix !== "pin") return noPinMsg(it);
     if (!threadFrom) {
       threadFrom = it; elOf(it.id).classList.add("thread-target");
-      if (byKey) announce(`Hilo desde ${describe(it)}. Elige el otro extremo con Tab y pulsa Enter`);
+      if (byKey) announce(t("editor.msg.hiloDesde", { item: describe(it) }));
       return;
     }
     if (it !== threadFrom) addThread(threadFrom, it);
@@ -651,8 +653,8 @@
 
   function noPinMsg(it) {
     toast(SCALED.has(it.type) && it.type !== "text" || it.type === "zone" || it.type === "draw"
-      ? `${TYPE_NAMES[it.type]}: no lleva chinche, así que no admite hilos`
-      : "Ese elemento no tiene chinche. Pónsela desde su barra para unirlo con hilos.");
+      ? t("editor.msg.sinChincheTipo", { type: TYPE_NAMES[it.type] })
+      : t("editor.msg.sinChinche"));
   }
 
   /* ---------- Vista ---------- */
@@ -741,39 +743,39 @@
 
   viewport.addEventListener("pointerdown", e => {
     if (e.button === 2) return;
-    let t = e.target;
+    let tEl = e.target;
     // Los extremos de un hilo tapan la chinche: la chinche tiene prioridad para poder tender más hilos
-    if (t.closest("#threads")) t = document.elementsFromPoint(e.clientX, e.clientY).find(x => x.classList?.contains("pin")) || t;
+    if (tEl.closest("#threads")) tEl = document.elementsFromPoint(e.clientX, e.clientY).find(x => x.classList?.contains("pin")) || tEl;
     // El recuadro de un grupo seleccionado está por encima: se mira qué hay debajo
-    const onGroupBox = !!t.closest("#groupBox");
-    if (onGroupBox) t = document.elementsFromPoint(e.clientX, e.clientY).find(x => x.closest?.(".item")) || t;
+    const onGroupBox = !!tEl.closest("#groupBox");
+    if (onGroupBox) tEl = document.elementsFromPoint(e.clientX, e.clientY).find(x => x.closest?.(".item")) || tEl;
     // Un clic dentro del elemento que se edita (en su borde o debajo del texto) no corta la edición ni lo mueve:
     // en otro campo del mismo elemento (otra tarea, el título) pasa a editar ese; si no, deja el cursor donde se pueda
-    if (editing && !editing.el.contains(t) && t.closest(".item") === elOf(editing.it.id) && !(editing.it.type === "zone" && !t.closest(".zt")) && !t.matches("input, .pin") && !t.closest(".add-task")) {
+    if (editing && !editing.el.contains(tEl) && tEl.closest(".item") === elOf(editing.it.id) && !(editing.it.type === "zone" && !tEl.closest(".zt")) && !tEl.matches("input, .pin") && !tEl.closest(".add-task")) {
       e.preventDefault();
-      const f = t.closest("[data-edit]");
+      const f = tEl.closest("[data-edit]");
       if (f) return edit(editing.it, f, { x: e.clientX, y: e.clientY });
       const r = document.caretRangeFromPoint?.(e.clientX, e.clientY);
       if (r && editing.el.contains(r.startContainer)) { const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); }
       return;
     }
-    const ended = editing && !editing.el.contains(t) ? editing.it : null;
+    const ended = editing && !editing.el.contains(tEl) ? editing.it : null;
     if (ended) stopEdit();
-    if (t.isContentEditable || t.matches("input")) return;
+    if (tEl.isContentEditable || tEl.matches("input")) return;
     $(".inpop")?.remove();
     stickerPop.classList.remove("open");
     const pt = toWorld(e);
     if (e.button === 1 || spaceDown) return startPan(e);
 
-    const tg = t.closest("#threads .th");
+    const tg = tEl.closest("#threads .th");
     if (tg && tool === "select") return selectThread(tg.dataset.t);
 
-    const itemEl = t.closest(".item");
+    const itemEl = tEl.closest(".item");
     const it = itemEl && byId(itemEl.dataset.id);
-    if (t.classList.contains("h")) return startResize(e, it, t.dataset.h);
-    if (t.classList.contains("rz")) return startRotate(e, it);
-    if (t.closest(".add-task")) { e.preventDefault(); return addTask(it); }
-    if (t.classList.contains("pin") && (tool === "select" || tool === "thread") && !it.locked)
+    if (tEl.classList.contains("h")) return startResize(e, it, tEl.dataset.h);
+    if (tEl.classList.contains("rz")) return startRotate(e, it);
+    if (tEl.closest(".add-task")) { e.preventDefault(); return addTask(it); }
+    if (tEl.classList.contains("pin") && (tool === "select" || tool === "thread") && !it.locked)
       return e.shiftKey ? startPinMove(e, it) : startThreadDrag(e, it);
 
     if (tool === "thread") return it && threadPick(it);
@@ -786,7 +788,7 @@
     if (onGroupBox && !(e.ctrlKey && it)) return startMove(e, it && selection.includes(it.id) ? it : byId(selection[0]));
     // Fondo (o el interior de una zona no seleccionada): arrastrar mueve el lienzo; Shift+arrastrar selecciona varios
     // (el clic que termina de editar el título de una zona tampoco la mueve)
-    const onCanvas = !it || (it.type === "zone" && !t.closest(".zt") && (!selection.includes(it.id) || it === ended));
+    const onCanvas = !it || (it.type === "zone" && !tEl.closest(".zt") && (!selection.includes(it.id) || it === ended));
     if (onCanvas) return e.shiftKey ? startBand(e) : startPan(e, true);
     startMove(e, it);
   });
@@ -857,7 +859,7 @@
           checkpoint();
           if (e.altKey) pasteItems(buildClip(), null, true, 0);
           movers = collectMovers();
-          if (!movers.length) { undoStack.pop(); updateUndoButtons(); toast("Está bloqueado. Desbloquéalo para moverlo."); moved = "blocked"; }
+          if (!movers.length) { undoStack.pop(); updateUndoButtons(); toast(t("editor.msg.bloqueadoMover")); moved = "blocked"; }
           hideCtx();
         }
         if (moved === "blocked") return;
@@ -1017,7 +1019,7 @@
         if (!active) { setSel([it.id]); return; }
         const over = itemAt(ev.clientX, ev.clientY);
         if (over && over !== it) over.fix === "pin" ? addThread(it, over) : noPinMsg(over);
-        else if (!over) toast("Suelta el hilo sobre otro elemento con chinche");
+        else if (!over) toast(t("editor.msg.sueltaHilo"));
         drawThreads(); buildCtx();
       },
     });
@@ -1164,7 +1166,7 @@
         }
         drawSession = null;
         render(); saved();
-        announce("Trazos borrados");
+        announce(t("editor.msg.trazosBorrados"));
       },
     });
   }
@@ -1216,7 +1218,7 @@
     styleItem(el, it);
     setSel([it.id]);
     saved();
-    announce(`Añadido al lienzo: ${TYPE_NAMES[it.type]}`);
+    announce(t("editor.msg.anadido", { type: TYPE_NAMES[it.type] }));
     if (it.type !== "zone" && it.type !== "draw") Sound.play(it.fix || "paper");
     Tour.emit("create:" + it.type);
     setTimeout(() => checkTips(), 300);
@@ -1233,7 +1235,7 @@
     if (kind === "image") { const it = add(mk("photo", 0, 0), pt); pickImage(it); return done(kind); }
     if (kind === "file") { pickFiles("", true, files => addFiles(files, pt)); return done(kind); }
     if (kind === "link") {
-      inputPop(ev.clientX, ev.clientY, "", "Pega o escribe una dirección web", url => {
+      inputPop(ev.clientX, ev.clientY, "", t("editor.msg.direccionWeb"), url => {
         if (url) add(mk("link", 0, 0, linkData(url)), pt);
         done("link");
       });
@@ -1267,9 +1269,9 @@
     it.src = URL.createObjectURL(f);
     // Se muestra al instante y se copia a la carpeta de datos; al terminar, la foto apunta a la copia
     Store.importFile(f).then(url => { it.src = url; if (byId(it.id)) render(); saved(); })
-      .catch(() => toast("No se pudo guardar la imagen en la carpeta de datos"));
+      .catch(() => toast(t("editor.msg.noSeGuardoImagen")));
     it.art = "";
-    it.caption = f.name.replace(/\.[^.]+$/, "").slice(0, 28) || "Imagen";
+    it.caption = f.name.replace(/\.[^.]+$/, "").slice(0, 28) || t("atajos.acciones.tool_image");
     const img = new Image();
     img.onload = () => {
       it.h = Math.round(clamp(it.w * img.naturalHeight / img.naturalWidth, 80, 420));
@@ -1298,7 +1300,7 @@
     imgs.forEach((f, k) => { const it = mk("photo", 0, 0, bare ? { frame: "none" } : {}); fillPhoto(it, f); add(it, { x: pt.x + k * 40, y: pt.y + k * 30 }); });
     others.forEach((f, k) => {
       const it = add(mk("file", 0, 0, fileData(f)), { x: pt.x + k * 30, y: pt.y + (imgs.length ? 220 : 0) + k * 30 });
-      Store.importFile(f).then(url => { it.src = url; saved(); }).catch(() => toast(`No se pudo guardar «${f.name}»`));
+      Store.importFile(f).then(url => { it.src = url; saved(); }).catch(() => toast(t("editor.msg.noSeGuardo", { name: f.name })));
     });
   }
   const openLink = it => Store.native ? Store.desktop("openExternal", it.url) : window.open(it.url, "_blank", "noopener");
@@ -1390,7 +1392,7 @@
     internalClip = buildClip();
     clipFresh = true;
     const n = internalClip.items.length;
-    toast(`${n > 1 ? n + " elementos" : "Elemento"} ${cut ? "cortado" : "copiado"}${n > 1 ? "s" : ""} · Ctrl+V para pegar`);
+    toast(t(cut ? "editor.msg.cortados" : "editor.msg.copiados", { count: n }));
   }
   function copySel() {
     if (!selection.length) return;
@@ -1422,13 +1424,13 @@
     const files = [...dt.files];
     if (files.length) return addFiles(files, pastePoint(), null, bare);
     if (!text.trim()) return internalClip && pasteItems(internalClip, pastePoint());
-    if (isImageUrl(text)) add(mk("photo", 0, 0, { src: text.trim(), caption: "Imagen web", ...(bare && { frame: "none" }) }), pastePoint());
+    if (isImageUrl(text)) add(mk("photo", 0, 0, { src: text.trim(), caption: t("editor.msg.imagenWeb"), ...(bare && { frame: "none" }) }), pastePoint());
     else if (isUrl(text)) add(mk("link", 0, 0, linkData(text)), pastePoint());
     else {
       // La nota sale sin el formato del origen; si traía negrita, listas, etc., el aviso ofrece conservarlo
       const it = mk("note", 0, 0, { text: plainHtml(text.replace(/^\s*\n|\s+$/g, "")) }), html = cleanHtml(dt.getData("text/html"));
       add(it, pastePoint());
-      if (/<(b|i|u|s|ul|ol)>/.test(html)) toast("Nota pegada sin formato", "Conservar formato", () => {
+      if (/<(b|i|u|s|ul|ol)>/.test(html)) toast(t("editor.msg.notaSinFormato"), t("editor.msg.conservarFormato"), () => {
         if (!byId(it.id) || editing?.it === it) return;
         checkpoint(); it.text = html; saved(); render();
       });
@@ -1522,7 +1524,7 @@
     const html = cleanHtml(dt.getData("text/html"));
     if (!/<(b|i|u|s|ul|ol)>/.test(html)) return;
     richPaste = { html, after: el.innerHTML };
-    toast("Pegado sin formato", "Conservar formato", keepFormat);
+    toast(t("editor.msg.pegadoSinFormato"), t("editor.msg.conservarFormato"), keepFormat);
     $(".toast button")?.addEventListener("pointerdown", ev => ev.preventDefault()); // que el clic no termine la edición
   }
   // Cambia lo recién pegado por su versión con formato, si el texto no cambió desde entonces
@@ -1588,7 +1590,7 @@
     const it = byId(cb.closest(".item").dataset.id);
     mutate(() => { it.tasks[+cb.dataset.i].done = cb.checked; });
     if (cb.checked) Sound.play("tick");
-    if (it.tasks.every(t => t.done)) toast(`¡Lista «${it.title}» completada! 🎉`);
+    if (it.tasks.every(task => task.done)) toast(t("editor.msg.listaCompletada", { name: it.title }));
   });
 
   // Barra de formato para notas y fichas. Color y tamaño se aplican a lo seleccionado con <font> (execCommand) y
@@ -1596,25 +1598,26 @@
   const hexRgb = h => `rgb(${[1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)).join(", ")})`;
   function showFmt() {
     const it = editing.it;
-    fmt.innerHTML = `<button data-f="bold" aria-label="Negrita (Ctrl+B)" title="Negrita (Ctrl+B)"><b>B</b></button>
-      <button data-f="italic" aria-label="Cursiva (Ctrl+I)" title="Cursiva (Ctrl+I)"><i class="serif">I</i></button>
-      <button data-f="underline" aria-label="Subrayado (Ctrl+U)" title="Subrayado (Ctrl+U)"><u>S</u></button>
-      <button data-f="strikeThrough" aria-label="Tachado" title="Tachado"><s>T</s></button>
+    const F = k => t("editor.formato." + k);
+    fmt.innerHTML = `<button data-f="bold" aria-label="${F("negrita")}" title="${F("negrita")}"><b>${F("letraNegrita")}</b></button>
+      <button data-f="italic" aria-label="${F("cursiva")}" title="${F("cursiva")}"><i class="serif">${F("letraCursiva")}</i></button>
+      <button data-f="underline" aria-label="${F("subrayado")}" title="${F("subrayado")}"><u>${F("letraSubrayado")}</u></button>
+      <button data-f="strikeThrough" aria-label="${F("tachado")}" title="${F("tachado")}"><s>${F("letraTachado")}</s></button>
       <span class="sep"></span>
-      <button data-pop="color" aria-label="Color del texto" title="Color del texto" aria-expanded="false"><span class="fmt-a">A</span></button>
-      <button data-pop="size" aria-label="Tamaño del texto" title="Tamaño del texto" aria-expanded="false">Aa</button>
-      <button data-f="insertUnorderedList" title="Lista con viñetas">• Lista</button>
+      <button data-pop="color" aria-label="${F("color")}" title="${F("color")}" aria-expanded="false"><span class="fmt-a">A</span></button>
+      <button data-pop="size" aria-label="${F("tamano")}" title="${F("tamano")}" aria-expanded="false">Aa</button>
+      <button data-f="insertUnorderedList" title="${F("vinetas")}">• ${t("editor.tipos.list")}</button>
       <span class="sep"></span>
-      ${[["justifyLeft", "Alinear a la izquierda", "M4 6h16M4 10h10M4 14h16M4 18h10"], ["justifyCenter", "Centrar", "M4 6h16M7 10h10M4 14h16M7 18h10"], ["justifyRight", "Alinear a la derecha", "M4 6h16M10 10h10M4 14h16M10 18h10"]]
+      ${[["justifyLeft", F("izquierda"), "M4 6h16M4 10h10M4 14h16M4 18h10"], ["justifyCenter", F("centrar"), "M4 6h16M7 10h10M4 14h16M7 18h10"], ["justifyRight", F("derecha"), "M4 6h16M10 10h10M4 14h16M10 18h10"]]
         .map(([f, n, d]) => `<button data-f="${f}" aria-label="${n}" title="${n}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="${d}"/></svg></button>`).join("")}
-      ${it.type === "note" ? `<span class="sep"></span>${["s", "m", "l"].map(s => `<button data-fs="${s}" class="${it.fs === s ? "on" : ""}" aria-pressed="${it.fs === s}" title="Tamaño de toda la nota">${{ s: "Pequeña", m: "Normal", l: "Grande" }[s]}</button>`).join("")}` : ""}
-      <span class="sep"></span><button data-done title="Terminar (Esc)">Listo</button>
-      <div class="fmt-pop" data-for="color" role="group" aria-label="Color del texto" hidden>
-        <button data-color="" class="swatch auto" aria-label="Automático" title="Automático"></button>
-        ${Object.entries(TEXT_COLORS).map(([c, n]) => `<button data-color="${c}" class="swatch" style="background:${c}" aria-label="${n}" title="${n}"></button>`).join("")}
+      ${it.type === "note" ? `<span class="sep"></span>${["s", "m", "l"].map(s => `<button data-fs="${s}" class="${it.fs === s ? "on" : ""}" aria-pressed="${it.fs === s}" title="${F("tamanoNota")}">${F({ s: "notaPequena", m: "notaNormal", l: "notaGrande" }[s])}</button>`).join("")}` : ""}
+      <span class="sep"></span><button data-done title="${F("terminar")}">${F("listo")}</button>
+      <div class="fmt-pop" data-for="color" role="group" aria-label="${F("color")}" hidden>
+        <button data-color="" class="swatch auto" aria-label="${F("automatico")}" title="${F("automatico")}"></button>
+        ${Object.entries(TEXT_COLORS).map(([c, n]) => `<button data-color="${c}" class="swatch" style="background:${c}" aria-label="${F("colores." + n)}" title="${F("colores." + n)}"></button>`).join("")}
       </div>
-      <div class="fmt-pop" data-for="size" role="group" aria-label="Tamaño del texto" hidden>
-        ${Object.entries(TEXT_SIZES).map(([v, n]) => `<button data-size="${v}"><font size="${v}">${n}</font></button>`).join("")}
+      <div class="fmt-pop" data-for="size" role="group" aria-label="${F("tamano")}" hidden>
+        ${Object.entries(TEXT_SIZES).map(([v, n]) => `<button data-size="${v}"><font size="${v}">${F("tamanos." + n)}</font></button>`).join("")}
       </div>`;
     fmt.classList.add("open");
     placeFmt();
@@ -1670,11 +1673,10 @@
   });
 
   /* ---------- Barra contextual ---------- */
-  const NOTE_NAMES = { yellow: "Amarillo", blue: "Azul", pink: "Rosa", green: "Verde", purple: "Lila", orange: "Naranja", white: "Blanco" };
-  function sw(act, list, cur, cls = "") {
+    function sw(act, list, cur, cls = "") {
     return list.map(c => {
       const bg = act === "color" && NOTE_COLORS[c] ? NOTE_COLORS[c] : c || "transparent";
-      const name = NOTE_NAMES[c] || (c ? c : "Automático");
+      const name = NOTE_COLORS[c] && act === "color" ? t("editor.ctx.notas." + c) : c || t("editor.formato.automatico");
       return `<button class="swatch ${cls}${c === cur ? " on" : ""}${c === "" ? " auto" : ""}" data-act="${act}" data-v="${c}" aria-pressed="${c === cur}" style="background:${bg}" aria-label="${name}" data-tip="${name}" data-tip-pos="bottom"></button>`;
     }).join("");
   }
@@ -1684,25 +1686,26 @@
 
   function commonTail(its) {
     const allLocked = its.every(o => o.locked);
-    return icon("lock", allLocked ? ICON.lock : ICON.unlock, allLocked ? "Desbloquear" : "Bloquear (Ctrl+Shift+L)")
-      + icon("dup", ICON.dup, "Duplicar (Ctrl+D)") + icon("del", ICON.trash, "Eliminar (Supr)") + icon("more", ICON.more, "Más opciones");
+    const C = k => t("editor.ctx." + k);
+    return icon("lock", allLocked ? ICON.lock : ICON.unlock, allLocked ? C("desbloquear") : C("bloquear"))
+      + icon("dup", ICON.dup, C("duplicar")) + icon("del", ICON.trash, C("eliminar")) + icon("more", ICON.more, C("mas"));
   }
 
   function itemCtx(it) {
-    const p = [];
+    const p = [], C = k => t("editor.ctx." + k);
     switch (it.type) {
       case "note": p.push(sw("color", Object.keys(NOTE_COLORS), it.color, "sq")); break;
       case "text": p.push(sw("ink", INK_COLORS, it.ink)); break;
       case "stamp": p.push(sw("color", STAMP_COLORS, it.color)); break;
       case "zone": p.push(sw("color", ZONE_COLORS, it.color)); break;
-      case "draw": p.push(sw("color", DRAW_COLORS, it.color), seg("sw", [[2, "Fino"], [4, "Medio"], [8, "Grueso"]], it.sw)); break;
-      case "photo": p.push(seg("frame", [["polaroid", "Polaroid"], ["none", "Sin marco"]], it.frame), seg("fit", [["cover", "Rellenar"], ["contain", "Completa"]], it.fit), tbtn("image", "Cambiar imagen…")); break;
-      case "link": p.push(tbtn("open", "Abrir ↗") + tbtn("url", "Editar URL")); break;
-      case "file": p.push(tbtn("open", "Abrir")); break;
-      case "sticker": p.push(tbtn("sticker", "Cambiar sticker")); break;
+      case "draw": p.push(sw("color", DRAW_COLORS, it.color), seg("sw", [[2, t("editor.fino")], [4, t("editor.medio")], [8, t("editor.grueso")]], it.sw)); break;
+      case "photo": p.push(seg("frame", [["polaroid", C("polaroid")], ["none", C("sinMarco")]], it.frame), seg("fit", [["cover", C("rellenar")], ["contain", C("completa")]], it.fit), tbtn("image", C("cambiarImagen"))); break;
+      case "link": p.push(tbtn("open", C("abrirEnlace")) + tbtn("url", C("editarUrl"))); break;
+      case "file": p.push(tbtn("open", t("barra.menu.abrir"))); break;
+      case "sticker": p.push(tbtn("sticker", C("cambiarSticker"))); break;
     }
     if (PINNABLE.has(it.type)) {
-      p.push(seg("fix", it.type === "text" ? [["none", "Sin fijar"], ["pin", "Chinche"]] : [["pin", "Chinche"], ["tape", "Cinta"]], it.fix || "none"));
+      p.push(seg("fix", it.type === "text" ? [["none", C("sinFijar")], ["pin", C("chinche")]] : [["pin", C("chinche")], ["tape", C("cinta")]], it.fix || "none"));
       if (it.fix === "pin") p.push(sw("pin", PIN_COLORS, it.pin.color));
     }
     p.push(commonTail([it]));
@@ -1710,31 +1713,31 @@
   }
 
   function multiCtx(its) {
-    const g = selGroup();
-    const p = [`<span class="txt-btn" style="cursor:default">${g ? "Grupo" : "Selección"} · ${its.length}</span>`
-      + (g ? tbtn("ungroup", "Desagrupar") : `<button class="btn btn-primary" style="padding:5px 10px;font-size:12px" data-act="group" data-tip="Agrupar · Ctrl+G" data-tip-pos="bottom">Agrupar</button>`)];
+    const g = selGroup(), C = k => t("editor.ctx." + k);
+    const p = [`<span class="txt-btn" style="cursor:default">${C(g ? "grupo" : "seleccion")} · ${its.length}</span>`
+      + (g ? tbtn("ungroup", t("atajos.acciones.ungroup")) : `<button class="btn btn-primary" style="padding:5px 10px;font-size:12px" data-act="group" data-tip="${t("atajos.acciones.group")} · ${Keys.label("group")}" data-tip-pos="bottom">${t("atajos.acciones.group")}</button>`)];
     if (its.every(o => o.type === "note")) p.push(sw("color", Object.keys(NOTE_COLORS), null, "sq"));
-    p.push(icon("align", ICON.alignL, "Alinear a la izquierda", "left") + icon("align", ICON.alignT, "Alinear arriba", "top")
-      + icon("tidy", ICON.grid, "Ordenar en cuadrícula") + icon("zone", ICON.zone, "Crear zona alrededor"));
+    p.push(icon("align", ICON.alignL, C("alinearIzquierda"), "left") + icon("align", ICON.alignT, C("alinearArriba"), "top")
+      + icon("tidy", ICON.grid, C("cuadricula")) + icon("zone", ICON.zone, C("zonaAlrededor")));
     p.push(commonTail(its));
     return p;
   }
 
-  function threadCtx(t) {
+  function threadCtx(thr) {
     return [
-      `<span class="txt-btn" style="cursor:default">Hilo</span>`,
-      sw("tcolor", ["", ...PIN_COLORS], t.color),
-      tbtn("tlabel", t.label ? "Editar etiqueta" : "Añadir etiqueta"),
-      seg("tsag", [["0.35", "Tenso"], ["1", "Normal"], ["1.8", "Flojo"]], String(t.sag ?? 1)),
-      icon("tdel", ICON.trash, "Eliminar hilo (Supr)"),
+      `<span class="txt-btn" style="cursor:default">${t("atajos.acciones.tool_thread")}</span>`,
+      sw("tcolor", ["", ...PIN_COLORS], thr.color),
+      tbtn("tlabel", t(thr.label ? "editor.ctx.editarEtiqueta" : "editor.ctx.anadirEtiqueta")),
+      seg("tsag", [["0.35", t("editor.ctx.tenso")], ["1", t("ajustes.normal")], ["1.8", t("editor.ctx.flojo")]], String(thr.sag ?? 1)),
+      icon("tdel", ICON.trash, t("editor.ctx.eliminarHilo")),
     ];
   }
 
   function buildCtx() {
     if (editing || drag || tool !== "select") return hideCtx();
     let parts = null;
-    const t = selThread && sheet().threads.find(x => x.id === selThread);
-    if (t) parts = threadCtx(t);
+    const thr = selThread && sheet().threads.find(x => x.id === selThread);
+    if (thr) parts = threadCtx(thr);
     else if (selection.length > 1) parts = multiCtx(selection.map(byId));
     else if (selection.length === 1) parts = itemCtx(byId(selection[0]));
     if (!parts) return hideCtx();
@@ -1769,7 +1772,7 @@
     if (!b) return;
     const a = b.dataset.act, v = b.dataset.v;
     const its = selection.map(byId).filter(Boolean), it = its.length === 1 ? its[0] : null;
-    const t = selThread && sheet().threads.find(x => x.id === selThread);
+    const thr = selThread && sheet().threads.find(x => x.id === selThread);
     const r = b.getBoundingClientRect();
     switch (a) {
       case "color": mutate(() => its.forEach(o => o.color = v)); break;
@@ -1786,15 +1789,15 @@
       case "lock": toggleLock(); break;
       case "dup": duplicateSel(); break;
       case "del": case "tdel": deleteSel(); break;
-      case "more": t ? threadMenu(r.left, r.bottom + 6) : itemMenu(r.left, r.bottom + 6); break;
+      case "more": thr ? threadMenu(r.left, r.bottom + 6) : itemMenu(r.left, r.bottom + 6); break;
       case "group": groupSel(); break;
       case "ungroup": ungroupSel(); break;
       case "align": align(v); break;
       case "tidy": tidy(); break;
       case "zone": zoneAround(); break;
-      case "tcolor": mutate(() => t.color = v); break;
-      case "tlabel": editThreadLabel(t, r.left, r.bottom); break;
-      case "tsag": mutate(() => t.sag = +v); break;
+      case "tcolor": mutate(() => thr.color = v); break;
+      case "tlabel": editThreadLabel(thr, r.left, r.bottom); break;
+      case "tsag": mutate(() => thr.sag = +v); break;
     }
   });
 
@@ -1803,28 +1806,28 @@
     const n = v === "pin" ? 0 : linkedCount(it);
     mutate(() => { it.fix = v === "none" ? null : v; });
     if (v !== "none") Sound.play(v);
-    if (n) toast(`Se quitó ${n === 1 ? "1 hilo" : n + " hilos"}: solo las chinches admiten hilos`, "Deshacer", undo);
+    if (n) toast(t("editor.msg.hilosQuitados", { count: n }), t("comun.deshacer"), undo);
   }
   function groupSel() {
     const its = selection.map(byId).filter(Boolean);
-    if (its.length < 2) return toast("Selecciona al menos dos elementos para agruparlos");
+    if (its.length < 2) return toast(t("editor.msg.dosParaAgrupar"));
     const g = "g" + nid();
     mutate(() => its.forEach(o => o.group = g));
-    toast("Agrupados: se seleccionan y mueven juntos. Ctrl+clic elige uno solo.");
+    toast(t("editor.msg.agrupados"));
     Tour.emit("group");
   }
   function ungroupSel() {
     const its = selection.map(byId).filter(o => o?.group);
     if (!its.length) return;
     mutate(() => its.forEach(o => delete o.group));
-    toast(its.length === 1 ? "Sacado del grupo" : "Desagrupados");
+    toast(t(its.length === 1 ? "editor.msg.sacadoGrupo" : "editor.msg.desagrupados"));
   }
   function toggleLock() {
     const its = selection.map(byId).filter(Boolean);
     if (!its.length) return;
     const lock = !its.every(o => o.locked);
     mutate(() => its.forEach(o => o.locked = lock));
-    toast(lock ? "Bloqueado: no se moverá ni se borrará por accidente" : "Desbloqueado");
+    toast(t(lock ? "editor.msg.bloqueado" : "editor.msg.desbloqueado"));
   }
   function restack(dir) {
     mutate(() => selection.map(byId).forEach(o => {
@@ -1875,23 +1878,23 @@
       sheet().threads = sheet().threads.filter(t => t.id !== selThread);
       selThread = null;
       applySelection(); saved();
-      if (!quiet) { toast("Hilo eliminado", "Deshacer", undo); Sound.play("trash"); }
-      else announce("Hilo eliminado");
+      if (!quiet) { toast(t("editor.msg.hiloEliminado"), t("comun.deshacer"), undo); Sound.play("trash"); }
+      else announce(t("editor.msg.hiloEliminado"));
       return;
     }
     const ids = selection.filter(id => !byId(id)?.locked);
-    if (!ids.length) { if (selection.length) toast("Está bloqueado. Desbloquéalo para eliminarlo."); return; }
+    if (!ids.length) { if (selection.length) toast(t("editor.msg.bloqueadoEliminar")); return; }
     checkpoint();
     sheet().items = sheet().items.filter(o => !ids.includes(o.id));
     selection = [];
     render(); saved();
-    const msg = ids.length > 1 ? `${ids.length} elementos eliminados` : "Elemento eliminado";
-    if (!quiet) { toast(msg, "Deshacer", undo); Sound.play("trash"); } // cortar (quiet) no suena: no es tirarlo
+    const msg = t("editor.msg.eliminados", { count: ids.length });
+    if (!quiet) { toast(msg, t("comun.deshacer"), undo); Sound.play("trash"); } // cortar (quiet) no suena: no es tirarlo
     else announce(msg);
     checkTips("delete");
   }
-  function editThreadLabel(t, x, y) {
-    inputPop(x, y, t.label, "Etiqueta del hilo (p. ej. «causa»)", v => { if (v !== null) mutate(() => t.label = v); });
+  function editThreadLabel(thr, x, y) {
+    inputPop(x, y, thr.label, t("editor.msg.etiquetaHilo"), v => { if (v !== null) mutate(() => thr.label = v); });
   }
 
   function inputPop(x, y, value, placeholder, cb) {
@@ -1932,43 +1935,43 @@
   function itemMenu(x, y) {
     const its = selection.map(byId).filter(Boolean);
     const it = its.length === 1 ? its[0] : null;
-    const m = [];
+    const m = [], dbl = t("editor.menu.dobleClic");
     if (it) {
-      if (it.type === "photo") m.push({ label: "Ver imagen", kbd: "Doble clic", action: () => openLightbox(it) }, { label: "Cambiar imagen…", action: () => pickImage(it) });
-      if (it.type === "link") m.push({ label: "Abrir enlace", kbd: "Doble clic", action: () => openLink(it) }, { label: "Editar URL…", action: () => editUrl(it, x, y) });
-      if (it.type === "file") m.push({ label: "Abrir archivo", kbd: "Doble clic", action: () => openFile(it) });
-      if (it.type === "sticker") m.push({ label: "Cambiar sticker…", action: () => openStickers(it) });
-      if (hasEdit(it)) m.push({ label: "Editar texto", kbd: "Enter", action: () => edit(it) });
-      if (it.type === "list") m.push({ label: "Añadir tarea", action: () => addTask(it) });
+      if (it.type === "photo") m.push({ label: t("editor.menu.verImagen"), kbd: dbl, action: () => openLightbox(it) }, { label: t("editor.ctx.cambiarImagen"), action: () => pickImage(it) });
+      if (it.type === "link") m.push({ label: t("editor.menu.abrirEnlace"), kbd: dbl, action: () => openLink(it) }, { label: t("editor.menu.editarUrl"), action: () => editUrl(it, x, y) });
+      if (it.type === "file") m.push({ label: t("editor.menu.abrirArchivo"), kbd: dbl, action: () => openFile(it) });
+      if (it.type === "sticker") m.push({ label: t("editor.menu.cambiarSticker"), action: () => openStickers(it) });
+      if (hasEdit(it)) m.push({ label: t("editor.menu.editarTexto"), kbd: "Enter", action: () => edit(it) });
+      if (it.type === "list") m.push({ label: t("editor.lienzo.anadirTarea"), action: () => addTask(it) });
       if (m.length) m.push("-");
     }
-    m.push({ label: "Copiar", kbd: "Ctrl+C", action: copySel },
-      { label: "Cortar", kbd: "Ctrl+X", action: () => { copySel(); deleteSel(true); } });
-    if (internalClip) m.push({ label: "Pegar", kbd: "Ctrl+V", action: () => pasteItems(internalClip, null) });
-    m.push({ label: "Duplicar", kbd: Keys.label("duplicate"), action: duplicateSel }, "-",
-      { label: "Traer al frente", kbd: Keys.label("front"), action: () => restack(1) },
-      { label: "Enviar al fondo", kbd: Keys.label("back"), action: () => restack(-1) });
-    if (window.Asistente?.enabled()) m.push("-", { label: "Ideas relacionadas (IA)", action: () => Asistente.ideas() });
-    if (its.some(o => o.rot)) m.push({ label: "Enderezar", action: () => mutate(() => its.forEach(o => o.rot = 0)) });
+    m.push({ label: t("atajos.reservadas.copiar"), kbd: "Ctrl+C", action: copySel },
+      { label: t("atajos.reservadas.cortar"), kbd: "Ctrl+X", action: () => { copySel(); deleteSel(true); } });
+    if (internalClip) m.push({ label: t("atajos.reservadas.pegar"), kbd: "Ctrl+V", action: () => pasteItems(internalClip, null) });
+    m.push({ label: t("atajos.acciones.duplicate"), kbd: Keys.label("duplicate"), action: duplicateSel }, "-",
+      { label: t("atajos.acciones.front"), kbd: Keys.label("front"), action: () => restack(1) },
+      { label: t("atajos.acciones.back"), kbd: Keys.label("back"), action: () => restack(-1) });
+    if (window.Asistente?.enabled()) m.push("-", { label: t("editor.menu.ideasIa"), action: () => Asistente.ideas() });
+    if (its.some(o => o.rot)) m.push({ label: t("editor.menu.enderezar"), action: () => mutate(() => its.forEach(o => o.rot = 0)) });
     if (it && PINNABLE.has(it.type)) {
       const toPin = it.fix !== "pin";
-      m.push({ label: toPin ? "Fijar con chinche" : it.type === "text" ? "Quitar chinche" : "Fijar con cinta", action: () => setFix(it, toPin ? "pin" : it.type === "text" ? "none" : "tape") });
-      if (!toPin) m.push({ label: "Unir con hilo…", kbd: "Arrastra la chinche", action: () => { setTool("thread"); threadFrom = it; elOf(it.id).classList.add("thread-target"); } });
+      m.push({ label: t(toPin ? "editor.menu.fijarChinche" : it.type === "text" ? "editor.menu.quitarChinche" : "editor.menu.fijarCinta"), action: () => setFix(it, toPin ? "pin" : it.type === "text" ? "none" : "tape") });
+      if (!toPin) m.push({ label: t("editor.menu.unirHilo"), kbd: t("editor.menu.arrastraChinche"), action: () => { setTool("thread"); threadFrom = it; elOf(it.id).classList.add("thread-target"); } });
     }
     if (its.length > 1) m.push("-",
-      selGroup() ? { label: "Desagrupar", kbd: Keys.label("ungroup"), action: ungroupSel } : { label: "Agrupar", kbd: Keys.label("group"), action: groupSel },
-      { label: "Alinear a la izquierda", action: () => align("left") },
-      { label: "Alinear arriba", action: () => align("top") },
-      { label: "Ordenar en cuadrícula", action: tidy },
-      { label: "Crear zona alrededor", action: zoneAround });
-    if (its.some(o => linkedCount(o))) m.push({ label: "Quitar hilos", action: () => mutate(() => {
+      selGroup() ? { label: t("atajos.acciones.ungroup"), kbd: Keys.label("ungroup"), action: ungroupSel } : { label: t("atajos.acciones.group"), kbd: Keys.label("group"), action: groupSel },
+      { label: t("editor.ctx.alinearIzquierda"), action: () => align("left") },
+      { label: t("editor.ctx.alinearArriba"), action: () => align("top") },
+      { label: t("editor.ctx.cuadricula"), action: tidy },
+      { label: t("editor.ctx.zonaAlrededor"), action: zoneAround });
+    if (its.some(o => linkedCount(o))) m.push({ label: t("editor.menu.quitarHilos"), action: () => mutate(() => {
       const ids = new Set(selection);
       sheet().threads = sheet().threads.filter(t => !ids.has(t.a) && !ids.has(t.b));
     }) });
-    if (it?.group) m.push({ label: "Sacar del grupo", action: ungroupSel });
+    if (it?.group) m.push({ label: t("editor.menu.sacarGrupo"), action: ungroupSel });
     const allLocked = its.every(o => o.locked);
-    m.push("-", { label: allLocked ? "Desbloquear" : "Bloquear", kbd: Keys.label("lock"), action: toggleLock },
-      { label: "Eliminar", kbd: "Supr", danger: true, action: () => deleteSel() });
+    m.push("-", { label: t(allLocked ? "editor.menu.desbloquear" : "editor.menu.bloquear"), kbd: Keys.label("lock"), action: toggleLock },
+      { label: t("papelera.eliminar"), kbd: Keys.show("Delete"), danger: true, action: () => deleteSel() });
     showMenu(x, y, m);
   }
 
@@ -1976,29 +1979,29 @@
     const ev = { clientX: x, clientY: y };
     const here = k => () => create(k, pt, ev);
     showMenu(x, y, [
-      { label: "Nota aquí", kbd: Keys.label("tool.note"), action: here("note") },
-      { label: "Ficha", kbd: Keys.label("tool.card"), action: here("card") },
-      { label: "Lista", kbd: Keys.label("tool.list"), action: here("list") },
-      { label: "Texto", kbd: Keys.label("tool.text"), action: here("text") },
-      { label: "Imagen…", kbd: Keys.label("tool.image"), action: here("image") },
-      { label: "Enlace…", kbd: Keys.label("tool.link"), action: here("link") },
-      { label: "Archivo…", kbd: Keys.label("tool.file"), action: here("file") },
-      { label: "Zona", kbd: Keys.label("tool.zone"), action: () => { edit(add(mk("zone", 0, 0), pt), null, null, { continues: true }); } },
+      { label: t("editor.menu.notaAqui"), kbd: Keys.label("tool.note"), action: here("note") },
+      { label: t("editor.tipos.card"), kbd: Keys.label("tool.card"), action: here("card") },
+      { label: t("editor.tipos.list"), kbd: Keys.label("tool.list"), action: here("list") },
+      { label: t("editor.tipos.text"), kbd: Keys.label("tool.text"), action: here("text") },
+      { label: t("editor.menu.imagen"), kbd: Keys.label("tool.image"), action: here("image") },
+      { label: t("editor.menu.enlace"), kbd: Keys.label("tool.link"), action: here("link") },
+      { label: t("editor.menu.archivo"), kbd: Keys.label("tool.file"), action: here("file") },
+      { label: t("editor.tipos.zone"), kbd: Keys.label("tool.zone"), action: () => { edit(add(mk("zone", 0, 0), pt), null, null, { continues: true }); } },
       "-",
-      internalClip && { label: "Pegar", kbd: "Ctrl+V", action: () => pasteItems(internalClip, pt) },
-      { label: "Seleccionar todo", kbd: Keys.label("selectAll"), action: selectAll },
-      { label: "Ajustar a la vista", kbd: Keys.label("fit"), action: fit },
+      internalClip && { label: t("atajos.reservadas.pegar"), kbd: "Ctrl+V", action: () => pasteItems(internalClip, pt) },
+      { label: t("atajos.acciones.selectAll"), kbd: Keys.label("selectAll"), action: selectAll },
+      { label: t("atajos.acciones.fit"), kbd: Keys.label("fit"), action: fit },
     ].filter(Boolean));
   }
 
   function threadMenu(x, y) {
-    const t = sheet().threads.find(x => x.id === selThread);
-    if (!t) return;
+    const thr = sheet().threads.find(x => x.id === selThread);
+    if (!thr) return;
     showMenu(x, y, [
-      { label: t.label ? "Editar etiqueta" : "Añadir etiqueta", kbd: "Doble clic", action: () => editThreadLabel(t, x, y) },
-      { label: "Color automático", action: () => mutate(() => t.color = "") },
+      { label: t(thr.label ? "editor.ctx.editarEtiqueta" : "editor.ctx.anadirEtiqueta"), kbd: t("editor.menu.dobleClic"), action: () => editThreadLabel(thr, x, y) },
+      { label: t("editor.menu.colorAutomatico"), action: () => mutate(() => thr.color = "") },
       "-",
-      { label: "Eliminar hilo", kbd: "Supr", danger: true, action: () => deleteSel() },
+      { label: t("editor.menu.eliminarHilo"), kbd: Keys.show("Delete"), danger: true, action: () => deleteSel() },
     ]);
   }
 
@@ -2007,22 +2010,22 @@
   /* ---------- Doble clic ---------- */
   viewport.addEventListener("dblclick", e => {
     if (tool !== "select") return;
-    let t = e.target;
-    if (t.closest("#groupBox")) t = document.elementsFromPoint(e.clientX, e.clientY).find(x => x.closest?.(".item")) || t;
-    const tg = t.closest("#threads .th");
+    let tEl = e.target;
+    if (tEl.closest("#groupBox")) tEl = document.elementsFromPoint(e.clientX, e.clientY).find(x => x.closest?.(".item")) || tEl;
+    const tg = tEl.closest("#threads .th");
     if (tg) { const th = sheet().threads.find(x => x.id === tg.dataset.t); return th && editThreadLabel(th, e.clientX, e.clientY); }
-    const itemEl = t.closest(".item");
+    const itemEl = tEl.closest(".item");
     const it = itemEl && byId(itemEl.dataset.id);
     // Mientras se edita, el doble clic selecciona una palabra (lo hace el navegador): no se vuelve a empezar la edición
     if (editing && it === editing.it) return;
-    if (!it || (it.type === "zone" && !t.closest(".zt"))) return;
-    if (it.locked) return toast("Está bloqueado. Desbloquéalo para editarlo.");
-    if (t.closest(".t-photo .img")) return it.src || it.art ? openLightbox(it) : pickImage(it);
-    if (it.type === "link" && !t.closest("[data-edit]")) return openLink(it);
+    if (!it || (it.type === "zone" && !tEl.closest(".zt"))) return;
+    if (it.locked) return toast(t("editor.msg.bloqueadoEditar"));
+    if (tEl.closest(".t-photo .img")) return it.src || it.art ? openLightbox(it) : pickImage(it);
+    if (it.type === "link" && !tEl.closest("[data-edit]")) return openLink(it);
     if (it.type === "file") return openFile(it);
     if (it.type === "sticker") return openStickers(it);
     if (it.type === "draw") return;
-    edit(it, t.closest("[data-edit]"), { x: e.clientX, y: e.clientY });
+    edit(it, tEl.closest("[data-edit]"), { x: e.clientX, y: e.clientY });
   });
 
   /* ---------- Visor de fotos ---------- */
@@ -2051,41 +2054,33 @@
   });
 
   /* ---------- Herramientas ---------- */
-  const HINTS = {
-    note: "Haz clic donde quieras la nota", card: "Haz clic donde quieras la ficha", list: "Haz clic donde quieras la lista", text: "Haz clic donde quieras el texto",
-    image: "Haz clic donde quieras la imagen · también puedes arrastrar archivos o pegar con <kbd>Ctrl V</kbd>",
-    link: "Haz clic donde quieras el enlace · o pega una URL con <kbd>Ctrl V</kbd>",
-    file: "Haz clic donde quieras el archivo · o arrástralo desde el Explorador",
-    sticker: "Haz clic para pegar el sticker",
-    zone: "Arrastra para dibujar la zona · o haz clic para una de tamaño estándar",
-    draw: "Dibuja con el ratón · los trazos seguidos forman un solo dibujo · color, grosor y goma en el panel",
-    thread: "Haz clic en dos elementos con chinche · o arrastra de una chinche a otra · con teclado: Tab y Enter en cada extremo",
-  };
+  // Pista de cada herramienta: editor.pistas.<herramienta>
+  const HINTS = new Set(["note", "card", "list", "text", "image", "link", "file", "sticker", "zone", "draw", "thread"]);
   function showHint() {
-    const h = tool === "draw" && drawOpts.erase ? "Pasa la goma por encima de los trazos · " + (drawOpts.erase === "part" ? "borra solo lo que toca" : "borra cada trazo entero") : HINTS[tool];
-    hint.innerHTML = h ? `${h}${toolLocked ? " · <b>herramienta fija</b>" : ""} · <kbd>Esc</kbd> para salir` : "";
+    const h = tool === "draw" && drawOpts.erase ? t(drawOpts.erase === "part" ? "editor.pistas.gomaPartes" : "editor.pistas.gomaTrazos") : HINTS.has(tool) ? t("editor.pistas." + tool) : "";
+    hint.innerHTML = h ? `${h}${toolLocked ? " · <b>" + t("editor.pistas.fija") + "</b>" : ""} · ${t("editor.pistas.salir")}` : "";
     hint.classList.toggle("open", !!h);
   }
 
-  function setTool(t) {
-    if (t === "sticker" && !pendingSticker) return openStickers();
-    tool = t;
-    if (t !== "draw") drawSession = null;
-    if (t !== "sticker") { pendingSticker = null; ghost.style.display = "none"; }
+  function setTool(toolId) {
+    if (toolId === "sticker" && !pendingSticker) return openStickers();
+    tool = toolId;
+    if (toolId !== "draw") drawSession = null;
+    if (toolId !== "sticker") { pendingSticker = null; ghost.style.display = "none"; }
     if (threadFrom) elOf(threadFrom.id)?.classList.remove("thread-target");
     threadFrom = null;
-    if (t === "select") toolLocked = false;
+    if (toolId === "select") toolLocked = false;
     $$("[data-tool]").forEach(b => {
-      const on = b.dataset.tool === t;
+      const on = b.dataset.tool === toolId;
       b.classList.toggle("active", on);
       b.classList.toggle("locked", on && toolLocked);
       b.setAttribute("aria-pressed", on);
     });
-    viewport.classList.toggle("creating", CREATE.has(t) || t === "zone" || t === "draw");
-    viewport.classList.toggle("tool-thread", t === "thread");
-    drawPop.classList.toggle("open", t === "draw");
-    viewport.classList.toggle("erasing", t === "draw" && !!drawOpts.erase);
-    if (t !== "sticker") stickerPop.classList.remove("open");
+    viewport.classList.toggle("creating", CREATE.has(toolId) || toolId === "zone" || toolId === "draw");
+    viewport.classList.toggle("tool-thread", toolId === "thread");
+    drawPop.classList.toggle("open", toolId === "draw");
+    viewport.classList.toggle("erasing", toolId === "draw" && !!drawOpts.erase);
+    if (toolId !== "sticker") stickerPop.classList.remove("open");
     showHint();
     drawThreads();
     buildCtx();
@@ -2094,19 +2089,19 @@
   $("#toolbar").addEventListener("click", e => {
     const b = e.target.closest("[data-tool]");
     if (!b) return;
-    const t = b.dataset.tool;
-    if (t === "sticker") return openStickers();
+    const toolId = b.dataset.tool;
+    if (toolId === "sticker") return openStickers();
     toolLocked = false;
     // detail 0 = activado con teclado: no hay dónde hacer clic, así que se crea en el centro de la vista
-    if (e.detail === 0 && (CREATE.has(t) || t === "zone")) { setTool("select"); return createCenter(t); }
-    setTool(t === tool && t !== "select" ? "select" : t);
+    if (e.detail === 0 && (CREATE.has(toolId) || toolId === "zone")) { setTool("select"); return createCenter(toolId); }
+    setTool(toolId === tool && toolId !== "select" ? "select" : toolId);
   });
   $("#toolbar").addEventListener("dblclick", e => {
     const b = e.target.closest("[data-tool]");
     if (!b || b.dataset.tool === "sticker") return;
     toolLocked = true;
     setTool(b.dataset.tool);
-    toast("Herramienta fija: crea varios seguidos. Esc para soltarla.");
+    toast(t("editor.msg.herramientaFija"));
   });
 
   // Stickers: elegir en la paleta y hacer clic en el tablero
@@ -2114,20 +2109,21 @@
     stickerReplace = replace || null;
     const btn = $('[data-tool="sticker"]').getBoundingClientRect();
     stickerPop.style.top = clamp(btn.top - 120, 60, innerHeight - 420) + "px";
-    $("#stickerTitle").textContent = replace ? "Cambiar sticker" : "Stickers";
+    $("#stickerTitle").textContent = replace ? t("editor.ctx.cambiarSticker") : t("atajos.acciones.tool_sticker");
     stickerPop.classList.toggle("open", replace ? true : !stickerPop.classList.contains("open"));
   }
   function renderMyStickers() {
     $("#myStickers").innerHTML = myStickers.length
-      ? myStickers.map(src => `<button data-st="img" data-src="${esc(src)}" draggable="true" aria-label="Sticker propio"><img src="${esc(src)}" alt="" draggable="false"></button>`).join("")
-      : '<small style="grid-column:1/-1;color:var(--text-muted);font-size:12px;padding:4px">Importa PNG con fondo transparente para usarlos como stickers.</small>';
+      ? myStickers.map(src => `<button data-st="img" data-src="${esc(src)}" draggable="true" aria-label="${t("editor.stickerPropio")}"><img src="${esc(src)}" alt="" draggable="false"></button>`).join("")
+      : `<small style="grid-column:1/-1;color:var(--text-muted);font-size:12px;padding:4px">${t("editor.stickersVacio")}</small>`;
   }
   function stickerSpec(b) {
     const kind = b.dataset.st;
     return kind === "emoji" ? { type: "sticker", o: { emoji: b.textContent.trim(), img: "" } }
       : kind === "img" ? { type: "sticker", o: { img: b.dataset.src, emoji: "" } }
-      : kind === "stamp" ? { type: "stamp", o: { text: b.dataset.text, color: b.dataset.color } }
-      : { type: "stamp", o: { text: "MI SELLO", color: "#7048e8" }, custom: true };
+      // El texto del sello es el del botón, ya en el idioma de la interfaz
+      : kind === "stamp" ? { type: "stamp", o: { text: b.textContent.trim(), color: b.dataset.color } }
+      : { type: "stamp", o: { text: t("editor.miSello"), color: "#7048e8" }, custom: true };
   }
   // Arrastrar un sticker desde la paleta: viaja como dato propio, no como archivo de imagen
   // (si no, el navegador lo entrega como imagen y se creaba una foto con el nombre interno del archivo)
@@ -2177,7 +2173,7 @@
   /* ---------- Hojas ---------- */
   const sheetsEl = $("#sheets");
   function renderSheets() {
-    sheetsEl.innerHTML = doc.sheets.map((s, i) => `<button class="sheet${i === doc.active ? " active" : ""}" data-i="${i}" draggable="true" role="tab" aria-selected="${i === doc.active}" tabindex="${i === doc.active ? 0 : -1}" title="Doble clic para renombrar · arrastra para ordenar · clic derecho para más">
+    sheetsEl.innerHTML = doc.sheets.map((s, i) => `<button class="sheet${i === doc.active ? " active" : ""}" data-i="${i}" draggable="true" role="tab" aria-selected="${i === doc.active}" tabindex="${i === doc.active ? 0 : -1}" title="${t("editor.hojas.pista")}">
       <span class="sw" style="background:${NOTE_COLORS[s.color]}"></span><span class="name">${esc(s.name)}</span></button>`).join("");
   }
   function switchSheet(i) {
@@ -2189,7 +2185,7 @@
     applySurface(); render(); renderSheets(); enterView();
     sheetsEl.children[i]?.scrollIntoView({ block: "nearest" });
     const n = sheet().items.length;
-    announce(`Hoja «${sheet().name}», ${n} ${n === 1 ? "elemento" : "elementos"}`);
+    announce(t("editor.hojas.anuncio", { name: sheet().name, items: t("comun.elementos", { count: n }) }));
     Tour.emit("sheet");
   }
   // Pestañas de hojas con teclado: flechas, Inicio y Fin cambian de hoja; F2 renombra
@@ -2208,7 +2204,7 @@
     n.onkeydown = e => { if (e.key === "Enter" || e.key === "Escape") { e.preventDefault(); n.blur(); sheetsEl.children[i]?.focus(); } }; // con teclado, el foco sigue en la pestaña
     n.onblur = () => {
       n.contentEditable = "false";
-      const v = n.textContent.trim() || "Sin nombre";
+      const v = n.textContent.trim() || t("comun.sinNombre");
       if (v !== doc.sheets[i].name) { checkpoint(); doc.sheets[i].name = v; saved(); }
       renderSheets();
     };
@@ -2248,14 +2244,14 @@
     const i = +s.dataset.i, sh = doc.sheets[i];
     const move = d => { checkpoint(); const cur = sheet(); doc.sheets.splice(i, 1); doc.sheets.splice(i + d, 0, sh); doc.active = doc.sheets.indexOf(cur); renderSheets(); saved(); };
     showMenu(e.clientX, e.clientY - 10, [
-      { label: "Renombrar", kbd: "Doble clic", action: () => renameSheet(i) },
-      { label: "Duplicar", action: () => { checkpoint(); doc.sheets.splice(i + 1, 0, cloneSheet(sh)); if (i < doc.active) doc.active++; switchSheet(i + 1); saved(); } },
-      { label: "Cambiar color", action: () => { checkpoint(); const k = Object.keys(NOTE_COLORS); sh.color = k[(k.indexOf(sh.color) + 1) % k.length]; renderSheets(); saved(); } },
-      i > 0 && { label: "Mover a la izquierda", action: () => move(-1) },
-      i < doc.sheets.length - 1 && { label: "Mover a la derecha", action: () => move(1) },
+      { label: t("barra.menu.renombrar"), kbd: t("editor.menu.dobleClic"), action: () => renameSheet(i) },
+      { label: t("atajos.acciones.duplicate"), action: () => { checkpoint(); doc.sheets.splice(i + 1, 0, cloneSheet(sh)); if (i < doc.active) doc.active++; switchSheet(i + 1); saved(); } },
+      { label: t("barra.menu.color"), action: () => { checkpoint(); const k = Object.keys(NOTE_COLORS); sh.color = k[(k.indexOf(sh.color) + 1) % k.length]; renderSheets(); saved(); } },
+      i > 0 && { label: t("editor.hojas.moverIzquierda"), action: () => move(-1) },
+      i < doc.sheets.length - 1 && { label: t("editor.hojas.moverDerecha"), action: () => move(1) },
       "-",
-      { label: "Eliminar hoja", danger: true, action: () => {
-        if (doc.sheets.length === 1) return toast("Un tablero necesita al menos una hoja");
+      { label: t("editor.hojas.eliminar"), danger: true, action: () => {
+        if (doc.sheets.length === 1) return toast(t("editor.hojas.alMenosUna"));
         checkpoint();
         const cur = sheet();
         doc.sheets.splice(i, 1);
@@ -2263,7 +2259,7 @@
         else doc.active = doc.sheets.indexOf(cur);
         selection = [];
         renderAll(); saved();
-        toast(`Hoja «${sh.name}» eliminada`, "Deshacer", undo);
+        toast(t("editor.hojas.eliminada", { name: sh.name }), t("comun.deshacer"), undo);
       } },
     ].filter(Boolean));
   });
@@ -2309,7 +2305,7 @@
   const boardName = $("#boardName");
   boardName.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === "Escape") { e.preventDefault(); boardName.blur(); } });
   boardName.addEventListener("blur", () => {
-    const v = boardName.textContent.trim() || "Sin título";
+    const v = boardName.textContent.trim() || t("tableros.sinTitulo");
     if (v !== doc.name) { checkpoint(); doc.name = v; saved(); }
     boardName.textContent = doc.name;
     document.title = `${doc.name} — Chinchero`;
@@ -2373,16 +2369,16 @@
     try { await frames(); return await fn(); }
     finally { document.body.classList.remove("exporting"); await frames(); Store.desktop("coverWindow", false); }
   }
-  const emptySheet = () => toast("La hoja está vacía: no hay nada que exportar");
+  const emptySheet = () => toast(t("editor.exportar.hojaVacia"));
   async function exportPng() {
     const shot = await exporting(captureSheet);
     if (shot === null) return emptySheet();
-    if (shot && await Store.desktop("exportPng", shot.png, `${doc.name} - ${sheet().name}`)) toast("Imagen guardada");
+    if (shot && await Store.desktop("exportPng", shot.png, `${doc.name} - ${sheet().name}`)) toast(t("editor.exportar.imagenGuardada"));
   }
   async function copyPng() {
     const shot = await exporting(captureSheet);
     if (shot === null) return emptySheet();
-    if (shot && await Store.desktop("copyPng", shot.png)) toast("Imagen copiada: pégala donde quieras");
+    if (shot && await Store.desktop("copyPng", shot.png)) toast(t("editor.exportar.imagenCopiada"));
   }
   // PDF con una página por hoja; las hojas vacías se saltan
   async function exportPdf(all) {
@@ -2399,36 +2395,37 @@
       return out;
     });
     if (!pages) return;
-    if (!pages.length) return all ? toast("Las hojas están vacías: no hay nada que exportar") : emptySheet();
+    if (!pages.length) return all ? toast(t("editor.exportar.hojasVacias")) : emptySheet();
     const name = all ? doc.name : `${doc.name} - ${sheet().name}`;
-    toast("Preparando el PDF…");
-    if (await Store.desktop("exportPdf", pages, name)) toast(`PDF guardado${all ? ` (${pages.length} ${pages.length === 1 ? "página" : "páginas"})` : ""}`);
+    toast(t("editor.exportar.preparandoPdf"));
+    if (await Store.desktop("exportPdf", pages, name)) toast(all ? t("editor.exportar.pdfPaginas", { count: pages.length }) : t("editor.exportar.pdfGuardado"));
   }
   // Compartir: el tablero entero con sus imágenes en un .chinchero (antes se guarda lo pendiente)
   async function exportBoard() {
     persist(persistTimer !== null);
-    if (await Store.desktop("exportBoard", boardId, doc.name)) toast("Tablero exportado. Quien lo reciba lo abre con doble clic o lo arrastra a Chinchero");
+    if (await Store.desktop("exportBoard", boardId, doc.name)) toast(t("tableros.exportado"));
   }
   // Un .chinchero soltado sobre el lienzo se importa como tablero nuevo (en el mismo grupo) y se abre
   async function importBoards(files) {
     const added = [];
     for (const f of files) { const b = await Store.importBoard(f, Store.board(boardId)?.group); if (b) added.push(b); }
     if (!added.length) return;
-    try { sessionStorage.setItem("chinchero-aviso", added.length === 1 ? `Tablero «${added[0].name}» importado` : `${added.length} tableros importados`); } catch {}
+    try { sessionStorage.setItem("chinchero-aviso", added.length === 1 ? t("tableros.importadoUno", { name: added[0].name }) : t("tableros.importados", { count: added.length })); } catch {}
     location.href = "02-tablero.html?board=" + added[added.length - 1].id;
   }
   $("#exportBtn").onclick = e => {
     const r = e.currentTarget.getBoundingClientRect();
     showMenu(r.left - 160, r.bottom + 6, [
-      { label: "Exportar hoja como imagen PNG…", action: exportPng },
-      { label: "Exportar hoja como PDF…", action: () => exportPdf(false) },
-      ...(doc.sheets.length > 1 ? [{ label: "Exportar todas las hojas como PDF…", action: () => exportPdf(true) }] : []),
-      { label: "Exportar tablero para compartir…", action: exportBoard },
+      { label: t("editor.exportar.png") + "…", action: exportPng },
+      { label: t("editor.exportar.pdf") + "…", action: () => exportPdf(false) },
+      ...(doc.sheets.length > 1 ? [{ label: t("editor.exportar.pdfTodas") + "…", action: () => exportPdf(true) }] : []),
+      { label: t("editor.exportar.compartir") + "…", action: exportBoard },
       "-",
-      { label: "Copiar hoja como imagen", action: copyPng },
+      { label: t("editor.exportar.copiar"), action: copyPng },
     ]);
   };
-  const THREAD_MODES = [["over", "Encima de todo"], ["dim", "Atenuados (resalta los del elemento seleccionado)"], ["hidden", "Ocultos"]];
+  // Nombre de cada modo: editor.hilos.<modo>
+  const THREAD_MODES = ["over", "dim", "hidden"];
   function applyThreadMode() {
     const m = getPref("threads") || "over";
     threadsSvg.classList.toggle("dim", m === "dim");
@@ -2437,7 +2434,7 @@
   }
   $("#threadsBtn").onclick = e => {
     const r = e.currentTarget.getBoundingClientRect(), cur = getPref("threads") || "over";
-    showMenu(r.left - 200, r.bottom + 6, THREAD_MODES.map(([v, l]) => ({ label: (v === cur ? "✓ " : "   ") + l, action: () => { setPref("threads", v); applyThreadMode(); } })));
+    showMenu(r.left - 200, r.bottom + 6, THREAD_MODES.map(v => ({ label: (v === cur ? "✓ " : "   ") + t("editor.hilos." + v), action: () => { setPref("threads", v); applyThreadMode(); } })));
   };
   $("#helpBtn").onclick = e => showHelp(e.currentTarget, "editor", shortcutGroups());
 
@@ -2519,7 +2516,7 @@
       case "card": return `${o.title} — ${plain(o.text)}`;
       case "list": return `${o.title}: ${o.tasks.map(t => t.text).join(", ")}`;
       case "text": case "stamp": return o.text;
-      case "photo": return o.caption || "Foto";
+      case "photo": return o.caption || TYPE_NAMES.photo;
       case "link": return `${o.title} (${o.domain})`;
       case "file": return o.name;
       case "zone": return o.title;
@@ -2528,10 +2525,10 @@
   }
   // Cómo se nombra un elemento al anunciarlo: tipo y su texto, abreviado
   function describe(o) {
-    const t = (itemText(o) || "").trim();
-    return TYPE_NAMES[o.type] + (t ? ` «${t.length > 60 ? t.slice(0, 60) + "…" : t}»` : "");
+    const itTxt = (itemText(o) || "").trim();
+    return TYPE_NAMES[o.type] + (itTxt ? ` «${itTxt.length > 60 ? itTxt.slice(0, 60) + "…" : itTxt}»` : "");
   }
-  const movedMsg = n => n > 1 ? `${n} elementos movidos` : "Elemento movido";
+  const movedMsg = n => t("editor.msg.movidos", { count: n });
 
   function openCmdk() {
     stopEdit();
@@ -2561,33 +2558,33 @@
       if (txt && (!q || norm(txt).includes(q))) found.push({ icon: TYPE_ICON[o.type], label: txt, sub: `${TYPE_NAMES[o.type]} · ${s.name}`, run: () => goToItem(si, o.id) });
     }));
     const actions = [
-      { icon: "📝", label: "Nueva nota", sub: Keys.label("tool.note"), run: () => createCenter("note") },
-      { icon: "🗒️", label: "Nueva ficha", sub: Keys.label("tool.card"), run: () => createCenter("card") },
-      { icon: "☑️", label: "Nueva lista", sub: Keys.label("tool.list"), run: () => createCenter("list") },
-      { icon: "🗂️", label: "Nueva zona", sub: Keys.label("tool.zone"), run: () => edit(add(mk("zone", 0, 0), viewCenter()), null, null, { continues: true }) },
-      { icon: "🖼️", label: "Añadir imagen…", sub: Keys.label("tool.image"), run: () => createCenter("image") },
-      { icon: "🔗", label: "Añadir enlace…", sub: Keys.label("tool.link"), run: () => createCenter("link") },
-      ...doc.sheets.map((s, i) => ({ icon: "📄", label: `Ir a la hoja «${s.name}»`, sub: i === doc.active ? "actual" : "", run: () => switchSheet(i) })),
-      { icon: "➕", label: "Nueva hoja", sub: "", run: addSheet },
-      { icon: "📅", label: "Nueva hoja con plantilla Semana", sub: "", run: addWeekSheet },
-      { icon: "✨", label: "Asistente con IA", sub: "", run: () => Asistente.open() },
-      { icon: "🔍", label: "Ajustar a la vista", sub: Keys.label("fit"), run: fit },
-      { icon: "🌗", label: "Cambiar tema claro/oscuro", sub: "", run: () => toggleTheme() },
-      { icon: "⌨️", label: "Ver atajos de teclado", sub: Keys.label("shortcuts"), run: () => showShortcuts(shortcutGroups()) },
-      { icon: "🎓", label: "Ver tutorial del tablero", sub: "", run: () => Tour.start("editor") },
-      { icon: "📤", label: "Exportar hoja como imagen PNG", sub: "", run: exportPng },
-      { icon: "📄", label: "Exportar hoja como PDF", sub: "", run: () => exportPdf(false) },
-      ...(doc.sheets.length > 1 ? [{ icon: "📚", label: "Exportar todas las hojas como PDF", sub: "", run: () => exportPdf(true) }] : []),
-      { icon: "📦", label: "Exportar tablero para compartir (.chinchero)", sub: "", run: exportBoard },
-      { icon: "📋", label: "Copiar hoja como imagen", sub: "", run: copyPng },
+      { icon: "📝", label: t("editor.cmdk.nota"), sub: Keys.label("tool.note"), run: () => createCenter("note") },
+      { icon: "🗒️", label: t("editor.cmdk.ficha"), sub: Keys.label("tool.card"), run: () => createCenter("card") },
+      { icon: "☑️", label: t("editor.cmdk.lista"), sub: Keys.label("tool.list"), run: () => createCenter("list") },
+      { icon: "🗂️", label: t("editor.cmdk.zona"), sub: Keys.label("tool.zone"), run: () => edit(add(mk("zone", 0, 0), viewCenter()), null, null, { continues: true }) },
+      { icon: "🖼️", label: t("editor.cmdk.imagen"), sub: Keys.label("tool.image"), run: () => createCenter("image") },
+      { icon: "🔗", label: t("editor.cmdk.enlace"), sub: Keys.label("tool.link"), run: () => createCenter("link") },
+      ...doc.sheets.map((s, i) => ({ icon: "📄", label: t("editor.cmdk.irHoja", { name: s.name }), sub: i === doc.active ? t("editor.cmdk.actual") : "", run: () => switchSheet(i) })),
+      { icon: "➕", label: t("editor.nuevaHoja"), sub: "", run: addSheet },
+      { icon: "📅", label: t("editor.cmdk.hojaSemana"), sub: "", run: addWeekSheet },
+      { icon: "✨", label: t("ajustes.asistenteConIa"), sub: "", run: () => Asistente.open() },
+      { icon: "🔍", label: t("atajos.acciones.fit"), sub: Keys.label("fit"), run: fit },
+      { icon: "🌗", label: t("editor.cmdk.tema"), sub: "", run: () => toggleTheme() },
+      { icon: "⌨️", label: t("editor.cmdk.atajos"), sub: Keys.label("shortcuts"), run: () => showShortcuts(shortcutGroups()) },
+      { icon: "🎓", label: t("editor.cmdk.tutorial"), sub: "", run: () => Tour.start("editor") },
+      { icon: "📤", label: t("editor.exportar.png"), sub: "", run: exportPng },
+      { icon: "📄", label: t("editor.exportar.pdf"), sub: "", run: () => exportPdf(false) },
+      ...(doc.sheets.length > 1 ? [{ icon: "📚", label: t("editor.exportar.pdfTodas"), sub: "", run: () => exportPdf(true) }] : []),
+      { icon: "📦", label: t("editor.exportar.compartir") + " (.chinchero)", sub: "", run: exportBoard },
+      { icon: "📋", label: t("editor.exportar.copiar"), sub: "", run: copyPng },
     ].filter(a => !q || norm(a.label).includes(q));
     const shown = q ? found.slice(0, 30) : found.slice(0, 6);
     cmdkRows = [...shown, ...actions];
     cmdkIdx = 0;
     const row = (r, i) => `<li data-k="${i}" role="option"><span class="ci">${r.icon}</span><span class="cl">${esc(r.label)}</span><small>${esc(r.sub)}</small></li>`;
-    cmdkList.innerHTML = (shown.length ? `<li class="cmdk-sec">${q ? "En este tablero" : "Elementos del tablero"}</li>` + shown.map(row).join("") : "")
+    cmdkList.innerHTML = (shown.length ? `<li class="cmdk-sec">${t(q ? "editor.cmdk.enEsteTablero" : "editor.cmdk.elementos")}</li>` + shown.map(row).join("") : "")
       + (actions.length ? '<li class="cmdk-sec">Acciones</li>' + actions.map((r, i) => row(r, i + shown.length)).join("") : "")
-      + (!cmdkRows.length ? '<li class="cmdk-empty">Sin resultados</li>' : "");
+      + (!cmdkRows.length ? `<li class="cmdk-empty">${t("tableros.vacio.sinResultados")}</li>` : "");
     markCmdk();
   }
   function markCmdk() {
@@ -2734,17 +2731,17 @@
       }
     };
     const tell = (verb, it) => {
-      const t = (itemText(it) || "").replace(/\s+/g, " ").trim();
-      did.push(`${verb} ${AI_NAMES[it.type] || it.type} ${it.id}${t ? ` «${t.length > 40 ? t.slice(0, 40) + "…" : t}»` : ""}`);
+      const itTxt = (itemText(it) || "").replace(/\s+/g, " ").trim();
+      did.push(`${verb} ${AI_NAMES[it.type] || it.type} ${it.id}${itTxt ? ` «${itTxt.length > 40 ? itTxt.slice(0, 40) + "…" : itTxt}»` : ""}`);
     };
     // Una zona alrededor de esos elementos, ordenados en cuadrícula desde x0, y0
     const zoneOf = (its, x0, y0, a) => {
       const sz = its.map(rectOf), cols = Math.ceil(Math.sqrt(its.length));
       const cw = Math.max(...sz.map(r => r.w)) + 30, rh = Math.max(...sz.map(r => r.h)) + 30;
       its.forEach((o, i) => { o.x = x0 + 40 + (i % cols) * cw; o.y = y0 + 56 + Math.floor(i / cols) * rh; });
-      const z = mk("zone", x0, y0, { w: cols * cw + 50, h: Math.ceil(its.length / cols) * rh + 76, title: aiStr(a.titulo, 120) || "Zona", color: AI_HEX.zone[aiStr(a.color).toLowerCase()] || ZONE_COLORS[zZoneTop % ZONE_COLORS.length] });
+      const z = mk("zone", x0, y0, { w: cols * cw + 50, h: Math.ceil(its.length / cols) * rh + 76, title: aiStr(a.titulo, 120) || t("editor.tipos.zone"), color: AI_HEX.zone[aiStr(a.color).toLowerCase()] || ZONE_COLORS[zZoneTop % ZONE_COLORS.length] });
       sh.items.push(z); made.push(z); changes++;
-      tell("creé", z);
+      tell("creé", z); // i18n-ok: registro para el modelo
       return z;
     };
     const goSheet = i => {
@@ -2779,7 +2776,7 @@
       place(it, find(a.cerca));
       sh.items.push(it); made.push(it); changes++;
       if (typeof a.ref === "string") refs.set(a.ref, it);
-      tell("creé", it);
+      tell("creé", it); // i18n-ok: registro para el modelo
       return it;
     };
     for (const a of actions) {
@@ -2797,23 +2794,23 @@
         place(it, find(a.cerca));
         sh.items.push(it); made.push(it); changes++;
         if (typeof a.ref === "string") refs.set(a.ref, it);
-        tell("dibujé", it);
+        tell("dibujé", it); // i18n-ok: registro para el modelo
       } else if (a.op === "unir") {
         const x = find(a.a), y = find(a.b);
         if (!x || !y || x === y || x.fix !== "pin" || y.fix !== "pin") continue;
         if (sh.threads.some(t => (t.a === x.id && t.b === y.id) || (t.a === y.id && t.b === x.id))) continue;
         sh.threads.push(th(x, y, { label: aiStr(a.etiqueta, 40) })); changes++;
-        did.push(`uní ${x.id} con ${y.id}`);
+        did.push(`uní ${x.id} con ${y.id}`); // i18n-ok: registro para el modelo
       } else if (a.op === "editar") {
         const it = find(a.id);
         if (!it || it.locked) continue;
         setFields(it, a); changes++;
-        tell("edité", it);
+        tell("edité", it); // i18n-ok: registro para el modelo
       } else if (a.op === "mover") {
         const it = find(a.id);
         if (!it || it.locked || !Number.isFinite(a.x) || !Number.isFinite(a.y)) continue;
         it.x = Math.round(clamp(a.x, -1e4, 1e5)); it.y = Math.round(clamp(a.y, -1e4, 1e5)); changes++;
-        did.push(`moví ${it.id}`);
+        did.push(`moví ${it.id}`); // i18n-ok: registro para el modelo
       } else if (a.op === "agrupar" && Array.isArray(a.ids)) {
         render(); // los recién creados necesitan su tamaño real
         const its = [...new Set(a.ids.map(find))].filter(o => o && o.type !== "zone" && !o.locked);
@@ -2826,7 +2823,7 @@
         if (a.renombrar === true) {
           // Renombra la hoja abierta (mejor que crear otra y dejar esta vacía)
           if (!name || name === sh.name) continue;
-          did.push(`renombré la hoja «${sh.name}» a «${name}»`);
+          did.push(`renombré la hoja «${sh.name}» a «${name}»`); // i18n-ok: registro para el modelo
           sh.name = name; renamed = true; changes++;
           continue;
         }
@@ -2843,15 +2840,15 @@
         if (i === doc.active) continue;
         // Llevar todo a una hoja nueva dejaría esta vacía: se renombra (los modelos lo piden así aunque se les explique)
         if (i < 0 && name && moving.length && sh.items.every(o => moving.includes(o))) {
-          did.push(`renombré la hoja «${sh.name}» a «${name}» (tenía solo eso)`);
+          did.push(`renombré la hoja «${sh.name}» a «${name}» (tenía solo eso)`); // i18n-ok: registro para el modelo
           sh.name = name; renamed = true; changes++;
           continue;
         }
         if (i < 0) {
           doc.sheets.push(newSheet(name || `Hoja ${doc.sheets.length + 1}`, { color: Object.keys(NOTE_COLORS)[doc.sheets.length % 5] }));
           i = doc.sheets.length - 1;
-          did.push(`creé la hoja «${doc.sheets[i].name}» y fui a ella`);
-        } else did.push(`fui a la hoja «${doc.sheets[i].name}»`);
+          did.push(`creé la hoja «${doc.sheets[i].name}» y fui a ella`); // i18n-ok: registro para el modelo
+        } else did.push(`fui a la hoja «${doc.sheets[i].name}»`); // i18n-ok: registro para el modelo
         const from = sh, ids = new Set(moving.map(o => o.id)), rs = moving.map(rectOf);
         goSheet(i);
         if (moving.length) {
@@ -2863,7 +2860,7 @@
           from.items = from.items.filter(o => !ids.has(o.id));
           from.threads = from.threads.filter(t => !ids.has(t.a) && !ids.has(t.b));
           made.push(...moving);
-          did.push(`llevé ${[...ids].join(", ")} a esa hoja`);
+          did.push(`llevé ${[...ids].join(", ")} a esa hoja`); // i18n-ok: registro para el modelo
           resetFree();
         }
         changes++;
@@ -2872,7 +2869,7 @@
         if (!it || it.locked) continue;
         sh.items = sh.items.filter(o => o !== it);
         sh.threads = sh.threads.filter(t => t.a !== it.id && t.b !== it.id); changes++;
-        did.push(`borré ${it.id}`);
+        did.push(`borré ${it.id}`); // i18n-ok: registro para el modelo
       }
     }
     // Zonas con contenido: cada una en su bloque, en fila a la derecha de lo demás, para que no se pisen
@@ -2899,7 +2896,7 @@
       selection = []; selThread = null;
       renderAll();
       sheetsEl.children[doc.active]?.scrollIntoView({ block: "nearest" });
-      announce(`Hoja «${sh.name}»`);
+      announce(t("editor.hojas.hoja", { name: sh.name }));
     } else {
       render();
       if (renamed) renderSheets();
@@ -3037,52 +3034,50 @@
   function checkTips(reason) {
     if (Tour.active || !Tips.enabled) return;
     const sh = sheet(), its = sh.items;
-    const tips = {
-      delete: ["undo", "¿Te equivocaste? <b>Ctrl+Z</b> deshace cualquier cambio, también borrar."],
-      pan: ["pan", "Arrastrando el fondo te mueves y con la <b>rueda</b> haces zoom. Para seleccionar varios elementos, mantén <b>Shift</b> y arrastra un recuadro."],
-      multi: ["multi", "Con varios elementos seleccionados puedes <b>agruparlos</b> (Ctrl+G) para moverlos juntos, alinearlos u ordenarlos en cuadrícula."],
-      photo: ["photo", "Doble clic en una foto para verla en grande. Desde su barra puedes quitarle el marco o ver la imagen completa."],
-      paste: ["paste", "Al pegar, el <b>texto</b> se convierte en nota y una <b>URL</b> en un enlace con vista previa."],
-      repeat: ["lock-tool", "¿Creando varios seguidos? Haz <b>doble clic</b> en una herramienta para dejarla fija hasta que pulses Esc."],
-      zoom: ["minimap", "Usa el <b>minimapa</b> de abajo a la derecha para saltar a cualquier parte. <b>Shift+1</b> encuadra todo."],
-    };
-    if (tips[reason]) return Tips.show(...tips[reason]);
+    // Motivo → sugerencia (texto en editor.sugerencias.<id>)
+    const tips = { delete: "undo", pan: "pan", multi: "multi", photo: "photo", paste: "paste", repeat: "lock-tool", zoom: "minimap" };
+    const tip = (id, action) => Tips.show(id, t("editor.sugerencias." + id), action);
+    if (tips[reason]) return tip(tips[reason]);
     const pinned = its.filter(o => o.fix === "pin").length;
-    if (pinned >= 3 && !sh.threads.length) return Tips.show("thread", "Une ideas relacionadas: <b>arrastra desde una chinche</b> hasta otra para tender un hilo.");
+    if (pinned >= 3 && !sh.threads.length) return tip("thread");
     if (its.length >= 8 && !its.some(o => o.type === "zone"))
-      return Tips.show("zone", "Tu hoja está creciendo. Agrupa elementos en una <b>zona</b>: al moverla, se mueve todo lo que tiene dentro.", { label: "Crear zona", fn: () => setTool("zone") });
-    if (its.length >= 5) return Tips.show("search", "Pulsa <b>Ctrl+K</b> para buscar cualquier nota, foto o lista en todas las hojas del tablero.");
+      return tip("zone", { label: t("editor.sugerencias.crearZona"), fn: () => setTool("zone") });
+    if (its.length >= 5) return tip("search");
   }
 
   /* ---------- Atajos y tutorial ---------- */
   // Con las combinaciones actuales (se pueden cambiar en Ajustes); «—» = sin atajo
   const ks = (...ids) => ids.map(id => Keys.label(id) || "—").join(" ");
+  // Filas: [clave del nombre en editor.atajos.*, teclas]; las teclas con palabras («Doble-clic») también se traducen
+  const K = k => t("editor.atajos.teclas." + k);
   const shortcutGroups = () => [
-    { title: "Herramientas", rows: [["Seleccionar", ks("tool.select")], ["Nota / Ficha / Lista / Texto", ks("tool.note", "tool.card", "tool.list", "tool.text")], ["Imagen / Enlace / Archivo", ks("tool.image", "tool.link", "tool.file")], ["Stickers / Zona / Dibujo", ks("tool.sticker", "tool.zone", "tool.draw")], ["Goma (dentro del dibujo)", ks("eraser")], ["Hilo", ks("tool.thread")], ["Hilo con teclado: elegir cada extremo", "Tab Enter"], ["Dejar herramienta fija", "Doble-clic"]] },
-    { title: "Edición", rows: [["Deshacer / Rehacer", ks("undo", "redo")], ["Copiar / Cortar / Pegar", "Ctrl+C Ctrl+X Ctrl+V"], ["Duplicar", ks("duplicate")], ["Duplicar arrastrando", "Alt+arrastrar"], ["Editar seleccionado", "Enter"], ["Seleccionar todo", ks("selectAll")], ["Seleccionar con recuadro", "Shift+arrastrar"], ["Agrupar / Desagrupar", ks("group", "ungroup")], ["Pegar imagen sin marco", "Ctrl+Shift+V"], ["Elegir uno dentro de un grupo", "Ctrl+clic"], ["Añadir a la selección", "Shift+clic"], ["Mover 1 px / 10 px", "Flechas Shift+Flechas"], ["Siguiente / anterior elemento", "Tab Shift+Tab"], ["Opciones del elemento", "Shift+F10"], ["Al frente / al fondo", ks("front", "back")], ["Bloquear", ks("lock")], ["Eliminar", "Supr"], ["Ver los atajos", ks("shortcuts")]] },
-    { title: "Vista", rows: [["Buscar y acciones", ks("search")], ["Mover lienzo", "Arrastrar-fondo"], ["Zoom", "Rueda"], ["Desplazar en horizontal", "Shift+rueda"], ["Zoom 100% / Ajustar", ks("zoom100", "fit")], ["Hoja anterior / siguiente", ks("prevSheet", "nextSheet")]] },
-    { title: "Chinches e hilos", rows: [["Tender un hilo", "Arrastrar-chinche"], ["Mover la chinche", "Shift+arrastrar"], ["Etiqueta del hilo", "Doble-clic"], ["Girar", "Arrastrar-junto-a-una-esquina"], ["Girar de 15° en 15°", "Shift+girar"]] },
-  ];
+    ["herramientas", [["seleccionar", ks("tool.select")], ["notaFichaListaTexto", ks("tool.note", "tool.card", "tool.list", "tool.text")], ["imagenEnlaceArchivo", ks("tool.image", "tool.link", "tool.file")], ["stickersZonaDibujo", ks("tool.sticker", "tool.zone", "tool.draw")], ["goma", ks("eraser")], ["hilo", ks("tool.thread")], ["hiloTeclado", "Tab Enter"], ["herramientaFija", K("dobleClic")]]], // i18n-ok: teclas
+    ["edicion", [["deshacerRehacer", ks("undo", "redo")], ["copiarCortarPegar", "Ctrl+C Ctrl+X Ctrl+V"], ["duplicar", ks("duplicate")], ["duplicarArrastrando", K("altArrastrar")], ["editar", "Enter"], ["seleccionarTodo", ks("selectAll")], ["recuadro", K("shiftArrastrar")], ["agruparDesagrupar", ks("group", "ungroup")], ["pegarSinMarco", "Ctrl+Shift+V"], ["unoDelGrupo", K("ctrlClic")], ["anadirSeleccion", K("shiftClic")], ["mover", K("flechas")], ["siguienteAnterior", "Tab Shift+Tab"], ["opciones", "Shift+F10"], ["frenteFondo", ks("front", "back")], ["bloquear", ks("lock")], ["eliminar", Keys.show("Delete")], ["verAtajos", ks("shortcuts")]]],
+    ["vista", [["buscar", ks("search")], ["moverLienzo", K("arrastrarFondo")], ["zoom", K("rueda")], ["horizontal", K("shiftRueda")], ["zoomAjustar", ks("zoom100", "fit")], ["hojaAnteriorSiguiente", ks("prevSheet", "nextSheet")]]],
+    ["chinches", [["tenderHilo", K("arrastrarChinche")], ["moverChinche", K("shiftArrastrar")], ["etiquetaHilo", K("dobleClic")], ["girar", K("arrastrarEsquina")], ["girar15", K("shiftGirar")]]],
+  ].map(([g, rows]) => ({ title: t("editor.atajos.grupos." + g), rows: rows.map(([k, keys]) => [t("editor.atajos." + k), keys]) }));
 
+  const T = (n, o) => ({ title: t(`editor.tour.t${n}`), text: t(`editor.tour.p${n}`, o) });
+  const noteKey = Keys.label("tool.note");
   Tour.define("editor", [
-    { el: null, title: "¡Bienvenido a tu tablero!", text: "Te enseño lo básico en 2 minutos. Algunos pasos te pedirán que hagas algo; si prefieres, puedes saltarlos. Este tutorial siempre está en el botón <b>?</b> de arriba." },
-    { el: "#toolbar", place: "right", title: "Todo lo que puedes pinchar", text: "Notas, fichas, listas, texto, imágenes, enlaces, archivos, stickers, zonas, dibujo e hilos. Pasa el ratón por encima para ver el <b>atajo</b> de cada uno." },
-    { el: "#viewport", await: "create:note", task: `Pulsa ${Keys.label("tool.note") || "la nota"} y haz clic en un hueco`, title: "Crea una nota", text: `Elige la <b>nota</b> en la barra de la izquierda${Keys.get("tool.note") ? ` (o pulsa <b>${Keys.label("tool.note")}</b>)` : ""} y haz clic donde quieras ponerla.` },
-    { el: "#viewport", await: "edit-end", task: "Escribe algo y haz clic fuera", title: "Escribe tu idea", text: "Mientras escribes aparece una barra para <b>negrita</b>, listas y tamaño de letra. Para editar después, <b>doble clic</b> sobre el elemento." },
-    { el: () => $(".item.sel") || $("#viewport"), await: "move", task: "Arrastra la nota a otro sitio", title: "Mueve, ajusta y gira", text: "Arrastra para mover. Los <b>cuadraditos</b> de las esquinas cambian el tamaño y, si acercas el ratón <b>justo por fuera</b> de una esquina, puedes girarla. La barra flotante cambia color, chinche o la bloquea." },
-    { el: "#viewport", await: "thread", task: "Arrastra de una chinche a otra", title: "Une ideas con hilos", text: "Arrastra desde la <b>chinche</b> de un elemento hasta la de otro. Haz clic en un hilo para cambiar su color o ponerle una <b>etiqueta</b>. Mayús + arrastrar mueve la chinche." },
-    { el: '[data-tool="zone"]', place: "right", title: "Agrupa con zonas", text: "Dibuja una zona y todo lo que pongas dentro se moverá con ella. Ideal para categorías o columnas tipo Kanban." },
-    { el: "#viewport", await: "pan", task: "Arrastra el fondo del tablero", title: "Muévete y haz zoom", text: "Arrastra el <b>fondo</b> para moverte y usa la <b>rueda</b> para acercar o alejar. Para seleccionar varios, mantén <b>Shift</b> y arrastra un recuadro." },
-    { el: ".bottombar .sheets", place: "top", title: "Hojas", text: "Cada tablero tiene hojas, como Excel. <b>Doble clic</b> para renombrar, arrástralas para ordenarlas y clic derecho para duplicar o cambiar su color." },
-    { el: "#undoGroup", place: "bottom", title: "Sin miedo a equivocarte", text: `Todo se <b>guarda solo</b>. Si algo sale mal, <b>${Keys.label("undo")}</b> lo deshace.` },
-    { el: "#searchBtn", place: "bottom", title: "Encuentra cualquier cosa", text: `<b>${Keys.label("search")}</b> busca notas, fotos y listas en todas las hojas, y te da acceso rápido a todas las acciones.` },
-    { el: "#helpBtn", place: "bottom", title: "¡Listo!", text: "Aquí tienes los atajos, este tutorial y las opciones de sugerencias. ¡A pinchar ideas! 📌" },
+    { el: null, ...T(1) },
+    { el: "#toolbar", place: "right", ...T(2) },
+    { el: "#viewport", await: "create:note", task: t(noteKey ? "editor.tour.tarea3" : "editor.tour.tarea3SinAtajo", { key: noteKey }), title: t("editor.tour.t3"), text: t(noteKey ? "editor.tour.p3" : "editor.tour.p3SinAtajo", { key: noteKey }) },
+    { el: "#viewport", await: "edit-end", task: t("editor.tour.tarea4"), ...T(4) },
+    { el: () => $(".item.sel") || $("#viewport"), await: "move", task: t("editor.tour.tarea5"), ...T(5) },
+    { el: "#viewport", await: "thread", task: t("editor.tour.tarea6"), ...T(6) },
+    { el: '[data-tool="zone"]', place: "right", ...T(7) },
+    { el: "#viewport", await: "pan", task: t("editor.tour.tarea8"), ...T(8) },
+    { el: ".bottombar .sheets", place: "top", ...T(9) },
+    { el: "#undoGroup", place: "bottom", ...T(10, { key: Keys.label("undo") }) },
+    { el: "#searchBtn", place: "bottom", ...T(11, { key: Keys.label("search") }) },
+    { el: "#helpBtn", place: "bottom", ...T(12) },
   ]);
 
   /* ---------- Inicio ---------- */
   const group = Store.group(Store.board(boardId)?.group);
   if (group) {
-    $(".crumb .group").innerHTML = `<span class="dot" style="background:${esc(group.color)}"></span>${esc(group.name)} /`;
+    $(".crumb .group").innerHTML = `<span class="dot" style="background:${esc(group.color)}"></span>${esc(group.name)} /`; // i18n-ok: nombre del grupo
     $(".back").href = "01-tableros.html?group=" + group.id;
   }
   recalcZ();
