@@ -1,7 +1,6 @@
 // Prueba de carga con la app real: un tablero con 500 elementos (100 fotos grandes) y 120 hilos.
 // Mide cuánto tarda en abrir y la fluidez (duración de los fotogramas) al arrastrar, hacer zoom y mover todo.
 // Perfil y datos aislados en tests/out. Uso: node tests/carga.js
-const { spawn, spawnSync } = require("child_process");
 const puppeteer = require("puppeteer-core");
 const fs = require("fs");
 const path = require("path");
@@ -33,9 +32,7 @@ const ELECTRON = path.join(APP, "node_modules/electron/dist/electron.exe");
 const ENV = { ...Object.fromEntries(Object.entries(process.env).filter(([k]) => k !== "ELECTRON_RUN_AS_NODE")), CHINCHERO_USER_DATA: USER, CHINCHERO_DATA_DIR: DATA };
 
 // Electron lanzado por las pruebas: se cierra con todo su árbol al salir, aunque una prueba falle con una excepción
-const vivos = new Set();
-const lanzar = (...a) => { const p = spawn(...a); vivos.add(p); p.on("exit", () => vivos.delete(p)); return p; };
-process.on("exit", () => { for (const p of vivos) spawnSync("taskkill", ["/pid", String(p.pid), "/T", "/F"], { stdio: "ignore" }); });
+const { lanzar, cerrar } = require("./procesos");
 
 // Tablero sintético: cuadrícula de 25 × 20 con notas, fichas, listas, textos, stickers y fotos repartidas
 function makeBoard(urls) {
@@ -191,7 +188,7 @@ delete process.env.ELECTRON_RUN_AS_NODE;
   ok("mover todo con las flechas responde rápido", tNudge < 50, `${tNudge} ms por pulsación`);
   await page.screenshot({ path: `${SHOTS}/c3-movido.png` });
 
-  await browser.disconnect(); proc.kill();
+  await browser.disconnect(); await cerrar(proc);
   fs.writeFileSync(path.join(SHOTS, "log.txt"), log.join("\n"));
   if (log.some(l => /^FAIL|PAGEERROR|Content Security Policy/.test(l))) process.exitCode = 1;
   console.log(log.join("\n"));

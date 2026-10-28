@@ -1,6 +1,6 @@
 // Prueba de punta a punta de la app Electron real: primer inicio, crear tablero, guardar en disco, reabrir.
 // Perfil y datos aislados en tests/out. Uso: node tests/e2e-app.js
-const { spawn, spawnSync } = require("child_process");
+const { spawnSync } = require("child_process");
 const puppeteer = require("puppeteer-core");
 const fs = require("fs");
 const path = require("path");
@@ -27,10 +27,8 @@ const ENV = { ...Object.fromEntries(Object.entries(process.env).filter(([k]) => 
   // Quitar Ollama borra sus modelos (~/.ollama) y el acceso del inicio de Windows: en las pruebas, carpetas propias
   USERPROFILE: path.join(TMP, "home"), APPDATA: path.join(TMP, "appdata") };
 
-// Electron lanzado por las pruebas: se cierra con todo su árbol al salir, aunque una prueba falle con una excepción
-const vivos = new Set();
-const lanzar = (...a) => { const p = spawn(...a); vivos.add(p); p.on("exit", () => vivos.delete(p)); return p; };
-process.on("exit", () => { for (const p of vivos) spawnSync("taskkill", ["/pid", String(p.pid), "/T", "/F"], { stdio: "ignore" }); });
+// Electron lanzado por las pruebas: se cierra al salir, aunque una prueba falle con una excepción
+const { lanzar, cerrar } = require("./procesos");
 // Las pruebas copian claves falsas al portapapeles del sistema: al salir se deja como estaba (o vacío si no era texto),
 // si no, Chinchero de verdad ofrecería después «usar» la clave de prueba
 const ps = (cmd, input) => spawnSync("powershell", ["-NoProfile", "-NonInteractive", "-Command", "[Console]::InputEncoding = [Console]::OutputEncoding = [Text.Encoding]::UTF8; " + cmd], { input, encoding: "utf8" });
@@ -203,7 +201,7 @@ delete process.env.ELECTRON_RUN_AS_NODE;
   await page.screenshot({ path: `${SHOTS}/a2-boards.png` });
 
   // 5) Cerrar y reabrir: vuelve al último tablero con el contenido
-  await browser.disconnect(); proc.kill(); await sleep(1500);
+  await browser.disconnect(); await cerrar(proc);
   ({ proc, browser, page } = await launch());
   await sleep(1800);
   const beforeFetch = log.length; // los 404 de esta prueba son esperados
@@ -526,7 +524,7 @@ delete process.env.ELECTRON_RUN_AS_NODE;
   ok("abrir un .chinchero con doble clic (app abierta) lo importa y lo abre", !!opened && await page.evaluate(() => document.body.innerText.includes("Nota guardada en disco")), page.url());
   await page.screenshot({ path: `${SHOTS}/a7-doble-clic.png` });
 
-  await browser.disconnect(); proc.kill();
+  await browser.disconnect(); await cerrar(proc);
   fs.writeFileSync(path.join(SHOTS, "log.txt"), log.join("\n"));
   if (log.some(l => /^FAIL|PAGEERROR|Content Security Policy/.test(l))) process.exitCode = 1;
   console.log(log.join("\n"));

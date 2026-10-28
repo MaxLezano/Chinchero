@@ -9,7 +9,7 @@
 // La nueva es el código fuente con el Electron de desarrollo, o la empaquetada con CHINCHERO_EXE
 // (npm run dist:dir → dist/win-unpacked/Chinchero.exe), que además prueba el cambio de versión de Electron.
 // Necesita internet la primera vez (después usa el instalador guardado en tests/out/actualizacion).
-const { spawn, spawnSync } = require("child_process");
+const { spawnSync } = require("child_process");
 const puppeteer = require("puppeteer-core");
 const http = require("http");
 const fs = require("fs");
@@ -25,10 +25,7 @@ const log = [];
 const ok = (n, c, x = "") => log.push(`${c ? "PASS" : "FAIL"} ${n}${x ? " — " + x : ""}`);
 
 // Electron lanzado por la prueba: se cierra con todo su árbol al salir, aunque algo falle
-const vivos = new Set();
-const lanzar = (...a) => { const p = spawn(...a); vivos.add(p); p.on("exit", () => vivos.delete(p)); return p; };
-const matar = p => spawnSync("taskkill", ["/pid", String(p.pid), "/T", "/F"], { stdio: "ignore" });
-process.on("exit", () => { for (const p of vivos) matar(p); });
+const { vivos, lanzar, matar } = require("./procesos");
 
 // La clave falsa se arma por partes para que los escáneres de secretos no la tomen por una real
 const AI_KEY = ["AIza", "Actualizacion_0123456789abcdefghijk"].join("");
