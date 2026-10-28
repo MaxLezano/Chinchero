@@ -923,6 +923,48 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     await s.close();
   }
 
+  // Formato también en fichas (tamaño de todo el texto) y en las tareas de las listas (texto, no título)
+  {
+    const p = await open("02-tablero.html?template=blank&name=Formato", { prefs: NO_TOURS });
+    await p.evaluate(() => Editor.applyAI([
+      { op: "crear", tipo: "lista", titulo: "Compras", tareas: ["pan & leche", "fruta"] },
+      { op: "crear", tipo: "ficha", titulo: "Plan", texto: "uno dos" },
+    ]));
+    await sleep(300);
+    const at = sel => p.$eval(sel, e => { const r = e.getBoundingClientRect(); return { x: r.left + 8, y: r.top + r.height / 2 }; });
+    const bar = () => p.$$eval(".fmt button", b => b.map(x => x.dataset.f || x.dataset.pop || x.dataset.fs || (x.hasAttribute("data-done") ? "done" : "")).filter(Boolean));
+    // Tarea: negrita y color en parte del texto
+    let pt = await at(".t-list .task");
+    await p.mouse.click(pt.x, pt.y, { clickCount: 2 }); await sleep(200);
+    await p.keyboard.down("Control"); await p.keyboard.press("a"); await p.keyboard.up("Control");
+    const tb = await bar();
+    ok("lista: la tarea tiene barra de formato (sin viñetas ni alineación)", tb.includes("bold") && tb.includes("color") && tb.includes("size") && tb.includes("l")
+      && !tb.includes("insertUnorderedList") && !tb.includes("justifyCenter"), tb.join(","));
+    await p.click('.fmt [data-f="bold"]'); await p.click('.fmt [data-pop="color"]'); await p.click('.fmt [data-color="#c92a2a"]');
+    await p.click('.fmt [data-fs="l"]'); await sleep(100);
+    await p.keyboard.press("Escape"); await sleep(250);
+    const task = await p.evaluate(() => {
+      const el = document.querySelector(".t-list .task");
+      return { html: el.innerHTML, fs: document.querySelector(".t-list").dataset.fs, size: parseFloat(getComputedStyle(el).fontSize), aria: document.querySelector(".t-list input").getAttribute("aria-label") };
+    });
+    ok("lista: la tarea guarda negrita y color, y el texto plano sigue igual", /<b>/.test(task.html) && /color="#c92a2a"/.test(task.html) && task.aria === "Completar «pan & leche»", JSON.stringify(task));
+    ok("lista: «Grande» agranda todo el texto de las tareas", task.fs === "l" && task.size === 16, JSON.stringify(task));
+    await p.evaluate(() => Editor.undo()); await sleep(200);
+    ok("lista: Ctrl+Z quita el formato de la tarea", !/<b>/.test(await p.$eval(".t-list .task", e => e.innerHTML)));
+    // Ficha: tamaño de todo el texto
+    pt = await at(".t-card .txt");
+    await p.mouse.click(pt.x, pt.y, { clickCount: 2 }); await sleep(200);
+    const cb = await bar();
+    ok("ficha: la barra ofrece el tamaño de todo el texto", ["s", "m", "l"].every(x => cb.includes(x)) && cb.includes("color") && cb.includes("justifyCenter"), cb.join(","));
+    await p.click('.fmt [data-fs="s"]'); await sleep(100);
+    await p.keyboard.press("Escape"); await sleep(250);
+    ok("ficha: «Pequeño» achica el texto y se mantiene", await p.$eval(".t-card", e => e.dataset.fs === "s" && parseFloat(getComputedStyle(e.querySelector(".txt")).fontSize) === 12));
+    // El texto de ayuda de los campos vacíos sale del idioma (antes estaba escrito en el CSS)
+    await p.evaluate(() => Editor.applyAI([{ op: "crear", tipo: "nota", texto: "" }])); await sleep(200);
+    ok("vacíos: el texto de ayuda viene del idioma", await p.evaluate(() => getComputedStyle(document.querySelector(".t-note .txt:empty"), "::before").content === '"Escribe aquí…"'));
+    await p.close();
+  }
+
   // Idioma: se cambia solo en Ajustes, se aplica al momento (sin recargar) y queda para las demás pantallas
   {
     const s = await open("03-ajustes.html", { prefs: NO_TOURS });

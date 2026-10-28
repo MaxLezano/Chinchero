@@ -48,7 +48,8 @@ body { overflow: hidden; user-select: none; }
 
 [data-edit] { outline: none; }
 [data-edit][contenteditable="true"] { cursor: text; user-select: text; }
-.txt:empty::before { content: "Escribe aquí…"; opacity: .45; }
+/* El texto de ayuda viene de data-ph (en el idioma de la interfaz) */
+.txt:empty::before { content: attr(data-ph); opacity: .45; }
 
 /* Asas de tamaño y giro (no crecen con el zoom) */
 .handles { position: absolute; inset: 0; pointer-events: none; }
@@ -97,7 +98,12 @@ body { overflow: hidden; user-select: none; }
 .t-list li input { accent-color: #e8590c; margin: 0; flex: none; cursor: pointer; }
 .t-list li .task { flex: 1; min-width: 20px; }
 .t-list li.done .task { text-decoration: line-through; color: #999; }
-.t-list .task:empty::before { content: "Nueva tarea"; opacity: .4; }
+.t-list .task:empty::before { content: attr(data-ph); opacity: .4; }
+/* Tamaño de todo el texto de fichas y listas (barra de formato); el interlineado no cambia, así siguen las rayas */
+.t-card[data-fs="s"] .txt { font-size: 12px; }
+.t-card[data-fs="l"] .txt { font-size: 17px; }
+.t-list[data-fs="s"] .task { font-size: 11.5px; }
+.t-list[data-fs="l"] .task { font-size: 16px; }
 .t-list .add-task { border: 0; background: none; color: #868e96; font-size: 12px; padding: 0; line-height: 26px; }
 .t-list .add-task:hover { color: #c2410c; }
 

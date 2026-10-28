@@ -22,7 +22,7 @@ const flat = (o, p = "", out = {}) => {
 const walk = d => fs.readdirSync(d, { withFileTypes: true }).flatMap(e => {
   const f = path.join(d, e.name);
   if (e.isDirectory()) return ["locales", "vendor", "fonts", "screens", "node_modules"].includes(e.name) ? [] : walk(f);
-  return /\.(js|html)$/.test(e.name) ? [f] : [];
+  return /\.(js|html|css)$/.test(e.name) ? [f] : [];
 });
 // Tramos ignorados: se reemplazan por espacios para conservar los números de línea
 const skipRegions = s => s.replace(/i18n-off[\s\S]*?i18n-on/g, m => m.replace(/[^\n]/g, " "))
@@ -73,7 +73,10 @@ for (const set of SETS) {
     for (const m of src.matchAll(/data-i18n="([^"$]+)"/g))
       for (const part of m[1].split(";")) { const k = part.replace(/^\[[\w-]+\]/, "").trim(); if (!has(k)) missing.push(`${rel}:${lineOf(src, m.index)} ${k}`); }
 
-    if (f.endsWith(".html")) {
+    if (f.endsWith(".css")) {
+      // Textos generados con content: deben venir de un atributo (attr(data-ph)), no escritos en el CSS
+      for (const m of src.matchAll(/content:\s*"([^"]*)"/g)) if (LETTER.test(m[1])) loose.push(`${rel}:${lineOf(src, m.index)} content «${m[1]}»`);
+    } else if (f.endsWith(".html")) {
       // Texto entre etiquetas: el elemento que lo contiene (o uno de sus padres con [html]) lleva data-i18n
       // Fuera: código, estilos, dibujos y teclas (<kbd>Ctrl</kbd> es igual en todos los idiomas)
       const body = src.replace(/<(script|style|svg|kbd)\b[\s\S]*?<\/\1>/gi, blank);

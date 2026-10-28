@@ -735,7 +735,8 @@
       "notaGrande": "Grande",
       "terminar": "Terminar (Esc)",
       "listo": "Listo",
-      "automatico": "Automático"
+      "automatico": "Automático",
+      "tamanoTodo": "Tamaño de todo el texto"
     },
     "guardando": "Guardando…",
     "stickerPropio": "Sticker propio",
@@ -792,7 +793,9 @@
       "dobleClicAbrir": "doble clic para abrir",
       "girar": "Arrastra para girar (Mayús: de 15° en 15°)",
       "tamanoLibre": "Cambiar tamaño (Mayús: libre)",
-      "tamanoProporcional": "Cambiar tamaño (Mayús: proporcional)"
+      "tamanoProporcional": "Cambiar tamaño (Mayús: proporcional)",
+      "escribeAqui": "Escribe aquí…",
+      "nuevaTarea": "Nueva tarea"
     },
     "ctx": {
       "notas": {

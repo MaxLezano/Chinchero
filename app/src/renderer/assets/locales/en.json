@@ -735,7 +735,8 @@
       "notaGrande": "Large",
       "terminar": "Finish (Esc)",
       "listo": "Done",
-      "automatico": "Automatic"
+      "automatico": "Automatic",
+      "tamanoTodo": "Size of all the text"
     },
     "guardando": "Saving…",
     "stickerPropio": "Custom sticker",
@@ -792,7 +793,9 @@
       "dobleClicAbrir": "double-click to open",
       "girar": "Drag to rotate (Shift: in 15° steps)",
       "tamanoLibre": "Resize (Shift: free)",
-      "tamanoProporcional": "Resize (Shift: proportional)"
+      "tamanoProporcional": "Resize (Shift: proportional)",
+      "escribeAqui": "Type here…",
+      "nuevaTarea": "New task"
     },
     "ctx": {
       "notas": {

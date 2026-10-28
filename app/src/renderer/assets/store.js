@@ -48,6 +48,7 @@
   function cleanImported(v, key = "", parent = null) {
     if (typeof v === "string") {
       if (key === "text" && (parent?.type === "note" || parent?.type === "card")) return cleanRich(v);
+      if (key === "html" && parent && "done" in parent) return cleanRich(v); // tarea de lista con formato
       return TEXT_KEYS.has(key) ? v : v.replace(/["'`<>&]/g, "");
     }
     if (Array.isArray(v)) return v.map(x => cleanImported(x, key, parent));

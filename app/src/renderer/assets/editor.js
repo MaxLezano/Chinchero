@@ -426,12 +426,12 @@
     const fix = it.fix === "pin" ? `<span class="pin" style="left:${esc(it.pin.x * 100)}%;top:${esc(it.pin.y * 100)}%;--pin:${esc(it.pin.color)}" title="${t("editor.lienzo.chinche")}"></span>`
       : it.fix === "tape" ? '<span class="tape"></span>' : "";
     switch (it.type) {
-      case "note": return fix + `<div class="txt" data-edit="text" data-rich>${it.text}</div>`;
-      case "card": return fix + `<div class="card-title" data-edit="title">${esc(it.title)}</div><div class="txt" data-edit="text" data-rich>${it.text}</div>`;
+      case "note": return fix + `<div class="txt" data-edit="text" data-rich data-ph="${t("editor.lienzo.escribeAqui")}">${it.text}</div>`;
+      case "card": return fix + `<div class="card-title" data-edit="title">${esc(it.title)}</div><div class="txt" data-edit="text" data-rich data-ph="${t("editor.lienzo.escribeAqui")}">${it.text}</div>`;
       case "list": {
         const done = it.tasks.filter(t => t.done).length;
         return fix + `<div class="list-head"><span data-edit="title">${esc(it.title)}</span><span class="prog">${done}/${it.tasks.length}</span></div>
-          <ul>${it.tasks.map((task, i) => `<li class="${task.done ? "done" : ""}"><input type="checkbox" data-i="${i}" ${task.done ? "checked" : ""} aria-label="${esc(t("editor.lienzo.completar", { task: task.text }))}"><span class="task" data-edit="task" data-i="${i}">${esc(task.text)}</span></li>`).join("")}</ul>
+          <ul>${it.tasks.map((task, i) => `<li class="${task.done ? "done" : ""}"><input type="checkbox" data-i="${i}" ${task.done ? "checked" : ""} aria-label="${esc(t("editor.lienzo.completar", { task: task.text }))}"><span class="task" data-edit="task" data-i="${i}" data-rich data-ph="${t("editor.lienzo.nuevaTarea")}">${task.html || esc(task.text)}</span></li>`).join("")}</ul>
           <button class="add-task">+ ${t("editor.lienzo.anadirTarea")}</button>`;
       }
       case "text": return fix + `<div class="txt" data-edit="text">${esc(it.text)}</div>`;
@@ -459,6 +459,8 @@
     if (it.type === "zone" || it.type === "draw") el.style.height = it.h + "px";
     if (SCALED.has(it.type)) el.style.setProperty("--s", it.s);
     if (it.type === "note") { el.style.setProperty("--c", NOTE_COLORS[it.color]); el.style.setProperty("--fs", FS[it.fs]); }
+    // Fichas y listas: tamaño de todo el texto (s, m, l) con data-fs, para no mover las rayas del papel
+    if (it.type === "card" || it.type === "list") el.dataset.fs = it.fs === "s" || it.fs === "l" ? it.fs : "m";
     if (it.type === "text") el.style.setProperty("--ink", it.ink || "var(--text)");
     if (it.type === "zone") el.style.setProperty("--zc", it.color);
   }
@@ -1479,12 +1481,21 @@
 
   const fieldOf = (it, field, i) => elOf(it.id)?.querySelector(`[data-edit="${CSS.escape(field)}"]${i != null ? `[data-i="${CSS.escape(i)}"]` : ""}`);
 
+  // Una tarea guarda su texto plano y, si tiene formato, también su HTML saneado (en una sola línea)
+  function setTask(task, el) {
+    const html = cleanHtml(el.innerHTML).replace(/<br>|<\/?(div|ul|ol|li)>/g, " ").replace(/\s+/g, " ").trim();
+    task.text = plain(html).trim();
+    if (/<(b|i|u|s|font)\b/.test(html)) task.html = html; else delete task.html;
+  }
+
   function saveField(it, field, i, el) {
-    const val = el.hasAttribute("data-rich") ? cleanHtml(el.innerHTML) : el.textContent.trim();
     if (field === "task") {
-      if (!val && it.tasks.length > 1) it.tasks.splice(+i, 1);
-      else if (it.tasks[+i]) it.tasks[+i].text = val;
-    } else it[field] = val || (field === "title" || it.type === "text" || it.type === "stamp" ? TYPE_NAMES[it.type] : "");
+      if (!el.textContent.trim() && it.tasks.length > 1) it.tasks.splice(+i, 1);
+      else if (it.tasks[+i]) setTask(it.tasks[+i], el);
+      return;
+    }
+    const val = el.hasAttribute("data-rich") ? cleanHtml(el.innerHTML) : el.textContent.trim();
+    it[field] = val || (field === "title" || it.type === "text" || it.type === "stamp" ? TYPE_NAMES[it.type] : "");
   }
 
   function stopEdit() {
@@ -1519,7 +1530,8 @@
     e.preventDefault();
     richPaste = null;
     if (!text || text.startsWith(CLIP)) return; // un elemento copiado de Chinchero no se pega como texto
-    if (!el.hasAttribute("data-rich")) return document.execCommand("insertText", false, text.replace(/\s*\n\s*/g, " ").trim());
+    // Títulos y tareas: una sola línea
+    if (!el.hasAttribute("data-rich") || editing.field === "task") return document.execCommand("insertText", false, text.replace(/\s*\n\s*/g, " ").trim());
     document.execCommand("insertHTML", false, plainHtml(text));
     const html = cleanHtml(dt.getData("text/html"));
     if (!/<(b|i|u|s|ul|ol)>/.test(html)) return;
@@ -1559,7 +1571,7 @@
         e.preventDefault();
         const j = i + (e.key === "ArrowUp" ? -1 : 1);
         if (j < 0 || j >= it.tasks.length) return;
-        it.tasks[i].text = el.textContent.trim();
+        setTask(it.tasks[i], el);
         stopEdit();
         checkpoint();
         [it.tasks[i], it.tasks[j]] = [it.tasks[j], it.tasks[i]];
@@ -1593,12 +1605,15 @@
     if (it.tasks.every(task => task.done)) toast(t("editor.msg.listaCompletada", { name: it.title }));
   });
 
-  // Barra de formato para notas y fichas. Color y tamaño se aplican a lo seleccionado con <font> (execCommand) y
-  // se eligen en un panel que se abre debajo de la barra
+  // Barra de formato para notas, fichas y tareas de listas. Color y tamaño se aplican a lo seleccionado con <font>
+  // (execCommand) y se eligen en un panel que se abre debajo de la barra. Las tareas son de una línea: sin viñetas ni
+  // alineación. Abajo, el tamaño de todo el texto del elemento
   const hexRgb = h => `rgb(${[1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)).join(", ")})`;
   function showFmt() {
-    const it = editing.it;
+    const it = editing.it, task = editing.field === "task";
     const F = k => t("editor.formato." + k);
+    const fsNames = it.type === "note" ? { s: "notaPequena", m: "notaNormal", l: "notaGrande" } : { s: "tamanos.pequeno", m: "tamanos.normal", l: "tamanos.grande" };
+    const fs = it.fs || "m";
     fmt.innerHTML = `<button data-f="bold" aria-label="${F("negrita")}" title="${F("negrita")}"><b>${F("letraNegrita")}</b></button>
       <button data-f="italic" aria-label="${F("cursiva")}" title="${F("cursiva")}"><i class="serif">${F("letraCursiva")}</i></button>
       <button data-f="underline" aria-label="${F("subrayado")}" title="${F("subrayado")}"><u>${F("letraSubrayado")}</u></button>
@@ -1606,11 +1621,11 @@
       <span class="sep"></span>
       <button data-pop="color" aria-label="${F("color")}" title="${F("color")}" aria-expanded="false"><span class="fmt-a">A</span></button>
       <button data-pop="size" aria-label="${F("tamano")}" title="${F("tamano")}" aria-expanded="false">Aa</button>
-      <button data-f="insertUnorderedList" title="${F("vinetas")}">• ${t("editor.tipos.list")}</button>
+      ${task ? "" : `<button data-f="insertUnorderedList" title="${F("vinetas")}">• ${t("editor.tipos.list")}</button>
       <span class="sep"></span>
       ${[["justifyLeft", F("izquierda"), "M4 6h16M4 10h10M4 14h16M4 18h10"], ["justifyCenter", F("centrar"), "M4 6h16M7 10h10M4 14h16M7 18h10"], ["justifyRight", F("derecha"), "M4 6h16M10 10h10M4 14h16M10 18h10"]]
-        .map(([f, n, d]) => `<button data-f="${f}" aria-label="${n}" title="${n}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="${d}"/></svg></button>`).join("")}
-      ${it.type === "note" ? `<span class="sep"></span>${["s", "m", "l"].map(s => `<button data-fs="${s}" class="${it.fs === s ? "on" : ""}" aria-pressed="${it.fs === s}" title="${F("tamanoNota")}">${F({ s: "notaPequena", m: "notaNormal", l: "notaGrande" }[s])}</button>`).join("")}` : ""}
+        .map(([f, n, d]) => `<button data-f="${f}" aria-label="${n}" title="${n}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="${d}"/></svg></button>`).join("")}`}
+      <span class="sep"></span>${["s", "m", "l"].map(s => `<button data-fs="${s}" class="${fs === s ? "on" : ""}" aria-pressed="${fs === s}" title="${F(it.type === "note" ? "tamanoNota" : "tamanoTodo")}">${F(fsNames[s])}</button>`).join("")}
       <span class="sep"></span><button data-done title="${F("terminar")}">${F("listo")}</button>
       <div class="fmt-pop" data-for="color" role="group" aria-label="${F("color")}" hidden>
         <button data-color="" class="swatch auto" aria-label="${F("automatico")}" title="${F("automatico")}"></button>
@@ -1665,7 +1680,8 @@
     if (b.dataset.color != null || b.dataset.size) togglePop(null);
     if (b.dataset.fs) {
       editing.it.fs = b.dataset.fs;
-      elOf(editing.it.id).style.setProperty("--fs", FS[b.dataset.fs]);
+      if (editing.it.type === "note") elOf(editing.it.id).style.setProperty("--fs", FS[b.dataset.fs]);
+      else elOf(editing.it.id).dataset.fs = b.dataset.fs;
       $$("[data-fs]", fmt).forEach(x => { x.classList.toggle("on", x === b); x.setAttribute("aria-pressed", x === b); });
     }
     if (b.hasAttribute("data-done")) return editing.el.blur();
@@ -1673,7 +1689,7 @@
   });
 
   /* ---------- Barra contextual ---------- */
-    function sw(act, list, cur, cls = "") {
+  function sw(act, list, cur, cls = "") {
     return list.map(c => {
       const bg = act === "color" && NOTE_COLORS[c] ? NOTE_COLORS[c] : c || "transparent";
       const name = NOTE_COLORS[c] && act === "color" ? t("editor.ctx.notas." + c) : c || t("editor.formato.automatico");
