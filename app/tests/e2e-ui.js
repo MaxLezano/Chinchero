@@ -172,6 +172,43 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     ok("sticker propio arrastrado se crea como sticker", (await count()) === n0 + 1 && await p.evaluate(() => document.querySelector(".item.sel").classList.contains("t-sticker")));
     await p.keyboard.press("Delete");
   }
+  // Pegar texto: sin formato por defecto; «Conservar formato» (o Ctrl+Shift+V) lo trae saneado
+  {
+    const HTML = '<meta charset="utf-8"><h2 style="font-family:Consolas">Plan</h2><p style="color:red">Uno <strong>fuerte</strong> <a href="x">y</a> <img src="https://ejemplo.invalid/a.png" onerror="alert(1)"></p><ol><li>a</li><li>b</li></ol><script>alert(1)</script>';
+    const pasteText = (shift, sel) => p.evaluate((html, shift, sel) => {
+      const t = sel ? document.querySelector(sel) : document.body;
+      t.dispatchEvent(new KeyboardEvent("keydown", { key: "V", ctrlKey: true, shiftKey: shift, bubbles: true }));
+      const dt = new DataTransfer();
+      dt.setData("text/plain", "Plan\nUno fuerte y\na\nb"); dt.setData("text/html", html);
+      t.dispatchEvent(new ClipboardEvent("paste", { clipboardData: dt, bubbles: true }));
+    }, HTML, shift, sel);
+    const clean = h => !/style=|<(script|img|a|h2|p|meta)\b|font-family/.test(h);
+    await p.mouse.move(700, 300);
+    await pasteText(false);
+    await sleep(200);
+    const plainNote = await p.evaluate(() => document.querySelector(".item.sel.t-note .txt").innerHTML);
+    ok("pegar en el lienzo: nota sin formato", plainNote === "Plan<br>Uno fuerte y<br>a<br>b", plainNote);
+    ok("pegar en el lienzo: aviso «Conservar formato»", await p.evaluate(() => document.querySelector(".toast button")?.textContent === "Conservar formato"));
+    await p.click(".toast button"); await sleep(150);
+    const richNote = await p.evaluate(() => document.querySelector(".item.sel.t-note .txt").innerHTML);
+    ok("Conservar formato: negrita y lista, HTML saneado", /<b>Plan<\/b>/.test(richNote) && /<b>fuerte<\/b>/.test(richNote) && /<ol><li>a<\/li><li>b<\/li><\/ol>/.test(richNote) && clean(richNote), richNote);
+    // Al editar una nota: se pega sin formato en el cursor y Ctrl+Shift+V cambia a la versión con formato
+    await p.keyboard.press("Enter"); await sleep(150);
+    await p.evaluate(() => { const el = document.activeElement; el.textContent = "Hola "; getSelection().selectAllChildren(el); getSelection().collapseToEnd(); });
+    await pasteText(false, ".txt[contenteditable=true]");
+    await sleep(100);
+    const inEdit = await p.evaluate(() => document.activeElement.innerHTML);
+    ok("pegar al editar: texto sin formato", /^Hola(&nbsp;| )Plan<br>Uno fuerte y<br>a<br>b$/.test(inEdit), inEdit);
+    await pasteText(true, ".txt[contenteditable=true]");
+    await sleep(100);
+    const kept = await p.evaluate(() => document.activeElement.innerHTML);
+    ok("Ctrl+Shift+V justo después conserva el formato", /^Hola&nbsp;<b>Plan/.test(kept) && /<b>fuerte<\/b>/.test(kept) && /<li>b<\/li>/.test(kept), kept);
+    await p.keyboard.press("Escape"); await sleep(150);
+    const saved = await p.evaluate(() => document.querySelector(".item.sel.t-note .txt").innerHTML);
+    ok("al guardar, la nota editada queda saneada", clean(saved) && /<b>fuerte<\/b>/.test(saved), saved);
+    await p.evaluate(() => document.querySelector(".toast")?.remove());
+    await p.keyboard.press("Delete");
+  }
   ok("tooltip de 'Todas las hojas' alineado a la izquierda", await p.$eval("#allSheets", e => e.dataset.tipPos === "top-start"));
   // B1: doble clic en una nota existente edita (no crea)
   let n0 = await count();

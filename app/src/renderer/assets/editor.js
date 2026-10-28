@@ -7,6 +7,34 @@
   const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
   const rand = (a, b) => Math.round((a + Math.random() * (b - a)) * 10) / 10;
   const plain = html => { const d = document.createElement("div"); d.innerHTML = html || ""; return d.textContent; };
+  // HTML de texto con formato: solo negrita, cursiva, subrayado, tachado, listas y saltos, sin atributos.
+  // Lo demás se descarta (scripts, imágenes, estilos) o se deja solo su texto; títulos y párrafos pasan a líneas.
+  const RICH_TAGS = { B: "b", STRONG: "b", I: "i", EM: "i", U: "u", S: "s", STRIKE: "s", DEL: "s", UL: "ul", OL: "ol", LI: "li" };
+  const RICH_DROP = /^(SCRIPT|STYLE|TEMPLATE|IFRAME|OBJECT|EMBED|NOSCRIPT|SVG|MATH|HEAD|TITLE|META|LINK|IMG|PICTURE|VIDEO|AUDIO|CANVAS|INPUT|BUTTON|SELECT|TEXTAREA)$/;
+  const RICH_BLOCK = /^(DIV|P|H[1-6]|BLOCKQUOTE|PRE|TR|SECTION|ARTICLE|HEADER|FOOTER|ASIDE|DT|DD|FIGCAPTION|ADDRESS)$/;
+  function cleanHtml(html) {
+    const src = document.createElement("template"), out = document.createElement("div");
+    // Los atributos se descartan igual, pero un onerror="…" pegado haría que la CSP avise al analizarlo
+    src.innerHTML = (html || "").replace(/<[^>]*>/g, tag => tag.replace(/\son/gi, " data-on"));
+    const walk = (from, to, pre) => {
+      for (const n of from.childNodes) {
+        if (n.nodeType === 3) {
+          // Fuera de <pre> los saltos y tabulaciones del código fuente no se ven: se juntan (los &nbsp; se respetan)
+          if (pre) n.data.split("\n").forEach((t, i) => { if (i) to.append(document.createElement("br")); to.append(t); });
+          else to.append(n.data.replace(/[ \t\r\n\f]+/g, " "));
+        } else if (n.nodeType !== 1 || RICH_DROP.test(n.tagName)) continue;
+        else if (n.tagName === "BR") to.append(document.createElement("br"));
+        else if (RICH_TAGS[n.tagName]) walk(n, to.appendChild(document.createElement(RICH_TAGS[n.tagName])), pre);
+        else if (RICH_BLOCK.test(n.tagName)) {
+          const d = to.appendChild(document.createElement("div"));
+          walk(n, /^H\d$/.test(n.tagName) ? d.appendChild(document.createElement("b")) : d, pre || n.tagName === "PRE");
+          if (!d.textContent.trim() && !d.querySelector("br")) d.replaceWith(...(d.textContent ? [" "] : []));
+        } else { walk(n, to, pre); if (/^T[DH]$/.test(n.tagName)) to.append(" "); }
+      }
+    };
+    walk(src.content, out, false);
+    return out.innerHTML.replace(/^(\s|<br>)+|(\s|<br>)+$/g, "");
+  }
   const norm = s => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
   const viewport = $("#viewport"), world = $("#world"), itemsEl = $("#items");
@@ -1377,7 +1405,15 @@
     if (!text.trim()) return internalClip && pasteItems(internalClip, pastePoint());
     if (isImageUrl(text)) add(mk("photo", 0, 0, { src: text.trim(), caption: "Imagen web", ...(bare && { frame: "none" }) }), pastePoint());
     else if (isUrl(text)) add(mk("link", 0, 0, linkData(text)), pastePoint());
-    else add(mk("note", 0, 0, { text: esc(text.trim()).replace(/\n/g, "<br>") }), pastePoint());
+    else {
+      // La nota sale sin el formato del origen; si traía negrita, listas, etc., el aviso ofrece conservarlo
+      const it = mk("note", 0, 0, { text: esc(text.trim()).replace(/\r?\n/g, "<br>") }), html = cleanHtml(dt.getData("text/html"));
+      add(it, pastePoint());
+      if (/<(b|i|u|s|ul|ol)>/.test(html)) toast("Nota pegada sin formato", "Conservar formato", () => {
+        if (!byId(it.id) || editing?.it === it) return;
+        checkpoint(); it.text = html; saved(); render();
+      });
+    }
     checkTips("paste");
   });
 
@@ -1414,6 +1450,7 @@
     fieldEl.addEventListener("blur", stopEdit, { once: true });
     fieldEl.addEventListener("keydown", onEditKey);
     fieldEl.addEventListener("input", onEditInput);
+    fieldEl.addEventListener("paste", onEditPaste);
     if (fieldEl.hasAttribute("data-rich")) showFmt();
     hideCtx();
     Tour.emit("edit");
@@ -1422,7 +1459,7 @@
   const fieldOf = (it, field, i) => elOf(it.id)?.querySelector(`[data-edit="${CSS.escape(field)}"]${i != null ? `[data-i="${CSS.escape(i)}"]` : ""}`);
 
   function saveField(it, field, i, el) {
-    const val = el.hasAttribute("data-rich") ? el.innerHTML.replace(/^(<br>)+$/, "") : el.textContent.trim();
+    const val = el.hasAttribute("data-rich") ? cleanHtml(el.innerHTML) : el.textContent.trim();
     if (field === "task") {
       if (!val && it.tasks.length > 1) it.tasks.splice(+i, 1);
       else if (it.tasks[+i]) it.tasks[+i].text = val;
@@ -1435,6 +1472,8 @@
     editing = null;
     el.removeEventListener("keydown", onEditKey);
     el.removeEventListener("input", onEditInput);
+    el.removeEventListener("paste", onEditPaste);
+    richPaste = null;
     el.contentEditable = "false";
     if (byId(it.id)) saveField(it, field, i, el);
     if (before !== null && JSON.stringify(it) === before) { undoStack.pop(); updateUndoButtons(); }
@@ -1451,11 +1490,44 @@
     placeFmt();
   }
 
+  // Al editar, el texto se pega sin formato (sin fuentes, colores ni bloques de código del origen).
+  // Si traía negrita, listas, etc., el aviso ofrece conservarlo (también Ctrl+Shift+V justo después).
+  let richPaste = null; // { html, after }: versión con formato de lo último pegado y cómo quedó el campo
+  function onEditPaste(e) {
+    const dt = e.clipboardData, text = dt.getData("text/plain"), el = editing.el;
+    e.preventDefault();
+    if (richPaste && pasteBare && keepFormat()) return;
+    pasteBare = false;
+    richPaste = null;
+    if (!text || text.startsWith(CLIP)) return; // un elemento copiado de Chinchero no se pega como texto
+    if (!el.hasAttribute("data-rich")) return document.execCommand("insertText", false, text.replace(/\s*\n\s*/g, " ").trim());
+    document.execCommand("insertHTML", false, esc(text.replace(/\r\n?/g, "\n")).replace(/\n/g, "<br>"));
+    const html = cleanHtml(dt.getData("text/html"));
+    if (!/<(b|i|u|s|ul|ol)>/.test(html)) return;
+    richPaste = { html, after: el.innerHTML };
+    toast("Pegado sin formato · Ctrl+Shift+V lo conserva", "Conservar formato", keepFormat);
+    $(".toast button")?.addEventListener("pointerdown", ev => ev.preventDefault()); // que el clic no termine la edición
+  }
+  // Cambia lo recién pegado por su versión con formato, si el texto no cambió desde entonces
+  function keepFormat() {
+    const rp = richPaste;
+    richPaste = null;
+    pasteBare = false;
+    if (!rp || !editing || editing.el.innerHTML !== rp.after) return false;
+    editing.el.focus();
+    document.execCommand("undo");
+    document.execCommand("insertHTML", false, rp.html);
+    $(".toast")?.remove();
+    onEditInput();
+    return true;
+  }
+
   function onEditKey(e) {
     e.stopPropagation(); // las teclas de edición no deben disparar atajos globales
     const { it, el, field } = editing;
     const i = +editing.i;
     if (e.key === "Escape" || (e.key === "Enter" && e.ctrlKey)) { e.preventDefault(); el.blur(); return; }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "v") pasteBare = e.shiftKey;
     if (field === "task") {
       if (e.key === "Enter") {
         e.preventDefault();
@@ -2939,7 +3011,7 @@
   const ks = (...ids) => ids.map(id => Keys.label(id) || "—").join(" ");
   const shortcutGroups = () => [
     { title: "Herramientas", rows: [["Seleccionar", ks("tool.select")], ["Nota / Ficha / Lista / Texto", ks("tool.note", "tool.card", "tool.list", "tool.text")], ["Imagen / Enlace / Archivo", ks("tool.image", "tool.link", "tool.file")], ["Stickers / Zona / Dibujo", ks("tool.sticker", "tool.zone", "tool.draw")], ["Goma (dentro del dibujo)", ks("eraser")], ["Hilo", ks("tool.thread")], ["Hilo con teclado: elegir cada extremo", "Tab Enter"], ["Dejar herramienta fija", "Doble-clic"]] },
-    { title: "Edición", rows: [["Deshacer / Rehacer", ks("undo", "redo")], ["Copiar / Cortar / Pegar", "Ctrl+C Ctrl+X Ctrl+V"], ["Duplicar", ks("duplicate")], ["Duplicar arrastrando", "Alt+arrastrar"], ["Editar seleccionado", "Enter"], ["Seleccionar todo", ks("selectAll")], ["Seleccionar con recuadro", "Shift+arrastrar"], ["Agrupar / Desagrupar", ks("group", "ungroup")], ["Pegar imagen sin marco", "Ctrl+Shift+V"], ["Elegir uno dentro de un grupo", "Ctrl+clic"], ["Añadir a la selección", "Shift+clic"], ["Mover 1 px / 10 px", "Flechas Shift+Flechas"], ["Siguiente / anterior elemento", "Tab Shift+Tab"], ["Opciones del elemento", "Shift+F10"], ["Al frente / al fondo", ks("front", "back")], ["Bloquear", ks("lock")], ["Eliminar", "Supr"], ["Ver los atajos", ks("shortcuts")]] },
+    { title: "Edición", rows: [["Deshacer / Rehacer", ks("undo", "redo")], ["Copiar / Cortar / Pegar", "Ctrl+C Ctrl+X Ctrl+V"], ["Duplicar", ks("duplicate")], ["Duplicar arrastrando", "Alt+arrastrar"], ["Editar seleccionado", "Enter"], ["Seleccionar todo", ks("selectAll")], ["Seleccionar con recuadro", "Shift+arrastrar"], ["Agrupar / Desagrupar", ks("group", "ungroup")], ["Pegar imagen sin marco · conservar el formato del texto recién pegado", "Ctrl+Shift+V"], ["Elegir uno dentro de un grupo", "Ctrl+clic"], ["Añadir a la selección", "Shift+clic"], ["Mover 1 px / 10 px", "Flechas Shift+Flechas"], ["Siguiente / anterior elemento", "Tab Shift+Tab"], ["Opciones del elemento", "Shift+F10"], ["Al frente / al fondo", ks("front", "back")], ["Bloquear", ks("lock")], ["Eliminar", "Supr"], ["Ver los atajos", ks("shortcuts")]] },
     { title: "Vista", rows: [["Buscar y acciones", ks("search")], ["Mover lienzo", "Arrastrar-fondo"], ["Zoom", "Rueda"], ["Desplazar en horizontal", "Shift+rueda"], ["Zoom 100% / Ajustar", ks("zoom100", "fit")], ["Hoja anterior / siguiente", ks("prevSheet", "nextSheet")]] },
     { title: "Chinches e hilos", rows: [["Tender un hilo", "Arrastrar-chinche"], ["Mover la chinche", "Shift+arrastrar"], ["Etiqueta del hilo", "Doble-clic"], ["Girar", "Arrastrar-junto-a-una-esquina"], ["Girar de 15° en 15°", "Shift+girar"]] },
   ];
