@@ -225,7 +225,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   await p.keyboard.down("Control"); await p.keyboard.press("i"); await p.keyboard.up("Control"); await sleep(100);
   ok("formato: Ctrl+I marca I", (await fmtOn())[1] === true);
   await p.keyboard.press("End"); await p.keyboard.type("x"); await p.keyboard.press("Home"); await sleep(100);
-  ok("formato: al mover el cursor se actualiza", JSON.stringify(await fmtOn()) === JSON.stringify(await p.evaluate(() => ["bold", "italic", "insertUnorderedList"].map(c => document.queryCommandState(c)))));
+  ok("formato: al mover el cursor se actualiza", JSON.stringify(await fmtOn()) === JSON.stringify(await p.evaluate(() => ["bold", "italic", "underline", "strikeThrough", "insertUnorderedList"].map(c => document.queryCommandState(c)))));
   ok("formato: el marcado se distingue del hover", await p.evaluate(() => {
     const b = document.querySelector('.fmt [data-f="bold"]'); b.classList.add("on");
     const on = getComputedStyle(b).backgroundColor; return on !== "rgba(127, 127, 127, 0.35)" && on !== "rgba(0, 0, 0, 0)";
@@ -243,6 +243,40 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   await p.mouse.move(nb.x, nb.y); await p.mouse.down(); await p.mouse.move(nb.x + 40, nb.y + 30, { steps: 5 }); await p.mouse.up(); await sleep(150);
   ok("editando: clic y arrastre dentro de la nota no corta la edición ni la mueve", await p.evaluate(() => document.activeElement.isContentEditable) && (await noteBox()) === box0, box0 + " → " + await noteBox());
   await p.keyboard.press("Escape"); await sleep(200);
+  // Formato de lo seleccionado: subrayado, tachado, color y tamaño; se guarda como <u>, <s> y <font> sin estilos
+  {
+    const editAll = async () => {
+      await p.mouse.click(c.x, c.y, { clickCount: 2 }); await sleep(200);
+      await p.keyboard.down("Control"); await p.keyboard.press("a"); await p.keyboard.up("Control"); await sleep(100);
+    };
+    const saved = () => p.evaluate(() => document.querySelector(".item.sel.t-note .txt").innerHTML);
+    await editAll();
+    await p.click('.fmt [data-f="underline"]'); await p.click('.fmt [data-f="strikeThrough"]'); await sleep(100);
+    ok("formato: subrayado y tachado quedan marcados", (await fmtOn()).slice(2, 4).every(Boolean));
+    await p.click('.fmt [data-pop="color"]'); await sleep(100);
+    ok("formato: el botón de color abre la paleta", await p.$eval('.fmt-pop[data-for="color"]', e => !e.hidden));
+    await shot(p, "e01b-fmt-color");
+    await p.click('.fmt [data-color="#c92a2a"]'); await sleep(100);
+    ok("formato: al elegir color se cierra la paleta y queda marcado", await p.evaluate(() =>
+      document.querySelector('.fmt-pop[data-for="color"]').hidden && document.querySelector('.fmt [data-color="#c92a2a"]').classList.contains("on")));
+    await p.click('.fmt [data-pop="size"]'); await p.click('.fmt [data-size="5"]'); await sleep(100);
+    ok("formato: el tamaño elegido queda marcado", await p.$eval('.fmt [data-size="5"]', e => e.getAttribute("aria-pressed") === "true"));
+    const big = await p.evaluate(() => { const t = document.activeElement, f = t.querySelector("font[size]"); return f && parseFloat(getComputedStyle(f).fontSize) / parseFloat(getComputedStyle(t).fontSize); });
+    ok("formato: «Grande» es relativo al texto de la nota", Math.abs(big - 1.35) < .02, big);
+    await shot(p, "e01c-fmt-aplicado");
+    await p.keyboard.press("Escape"); await sleep(200);
+    let h = await saved();
+    ok("formato: se guarda con <u>, <s> y <font> de la paleta, sin style", /<u>/.test(h) && /<s>/.test(h) && /color="#c92a2a"/.test(h) && /size="5"/.test(h) && !/style=/.test(h), h);
+    await editAll();
+    await p.click('.fmt [data-pop="color"]'); await p.click('.fmt [data-color=""]');
+    await p.click('.fmt [data-pop="size"]'); await p.click('.fmt [data-size="3"]'); await sleep(100);
+    await p.keyboard.press("Escape"); await sleep(200);
+    h = await saved();
+    ok("formato: «Automático» y «Normal» quitan color y tamaño", !/<font/.test(h) && /<u>/.test(h), h);
+    await p.keyboard.down("Control"); await p.keyboard.press("z"); await p.keyboard.up("Control"); await sleep(150);
+    await p.keyboard.down("Control"); await p.keyboard.press("z"); await p.keyboard.up("Control"); await sleep(150);
+    await p.keyboard.press("Escape"); await sleep(150);
+  }
   // La barra contextual se rehace al cambiar algo: el foco vuelve al mismo botón para seguir con teclado
   await p.mouse.click(c.x, c.y); await sleep(200);
   await p.focus('.ctx [data-act="color"][data-v="blue"]'); await p.keyboard.press("Enter"); await sleep(200);

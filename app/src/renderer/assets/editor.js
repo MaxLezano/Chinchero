@@ -10,8 +10,11 @@
   // espacios duros, que el HTML no junta
   const plainHtml = s => esc(s.replace(/\r\n?/g, "\n").replace(/\t/g, "    ")).replace(/^ +| {2,}/gm, m => "&nbsp;".repeat(m.length)).replace(/\n/g, "<br>");
   const plain = html => { const d = document.createElement("div"); d.innerHTML = html || ""; return d.textContent; };
-  // HTML de texto con formato: solo negrita, cursiva, subrayado, tachado, listas y saltos, sin atributos.
+  // HTML de texto con formato: solo negrita, cursiva, subrayado, tachado, listas, saltos y <font> con un color de
+  // TEXT_COLORS o un tamaño de TEXT_SIZES (lo que genera la barra de formato); ningún otro atributo.
   // Lo demás se descarta (scripts, imágenes, estilos) o se deja solo su texto; títulos y párrafos pasan a líneas.
+  const TEXT_COLORS = { "#c92a2a": "Rojo", "#d9480f": "Naranja", "#2b8a3e": "Verde", "#1864ab": "Azul", "#862e9c": "Morado", "#868e96": "Gris" };
+  const TEXT_SIZES = { 2: "Pequeño", 3: "Normal", 5: "Grande", 6: "Muy grande" };
   const RICH_TAGS = { B: "b", STRONG: "b", I: "i", EM: "i", U: "u", S: "s", STRIKE: "s", DEL: "s", UL: "ul", OL: "ol", LI: "li" };
   const RICH_DROP = /^(SCRIPT|STYLE|TEMPLATE|IFRAME|OBJECT|EMBED|NOSCRIPT|SVG|MATH|HEAD|TITLE|META|LINK|IMG|PICTURE|VIDEO|AUDIO|CANVAS|INPUT|BUTTON|SELECT|TEXTAREA)$/;
   const RICH_BLOCK = /^(DIV|P|H[1-6]|BLOCKQUOTE|PRE|TR|SECTION|ARTICLE|HEADER|FOOTER|ASIDE|DT|DD|FIGCAPTION|ADDRESS)$/;
@@ -27,7 +30,15 @@
           else to.append(n.data.replace(/[ \t\r\n\f]+/g, " "));
         } else if (n.nodeType !== 1 || RICH_DROP.test(n.tagName)) continue;
         else if (n.tagName === "BR") to.append(document.createElement("br"));
-        else if (RICH_TAGS[n.tagName]) walk(n, to.appendChild(document.createElement(RICH_TAGS[n.tagName])), pre);
+        else if (n.tagName === "FONT") {
+          // El tamaño normal (3) no se guarda: execCommand ya quitó el de los padres al aplicarlo
+          const color = (n.getAttribute("color") || "").toLowerCase(), size = n.getAttribute("size");
+          if (!TEXT_COLORS[color] && !(TEXT_SIZES[size] && size !== "3")) { walk(n, to, pre); continue; }
+          const f = to.appendChild(document.createElement("font"));
+          if (TEXT_COLORS[color]) f.setAttribute("color", color);
+          if (TEXT_SIZES[size] && size !== "3") f.setAttribute("size", size);
+          walk(n, f, pre);
+        } else if (RICH_TAGS[n.tagName]) walk(n, to.appendChild(document.createElement(RICH_TAGS[n.tagName])), pre);
         else if (RICH_BLOCK.test(n.tagName)) {
           const d = to.appendChild(document.createElement("div"));
           walk(n, /^H\d$/.test(n.tagName) ? d.appendChild(document.createElement("b")) : d, pre || n.tagName === "PRE");
@@ -1575,19 +1586,33 @@
     if (it.tasks.every(t => t.done)) toast(`¡Lista «${it.title}» completada! 🎉`);
   });
 
-  // Barra de formato para notas y fichas
+  // Barra de formato para notas y fichas. Color y tamaño se aplican a lo seleccionado con <font> (execCommand) y
+  // se eligen en un panel que se abre debajo de la barra
+  const hexRgb = h => `rgb(${[1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)).join(", ")})`;
   function showFmt() {
     const it = editing.it;
     fmt.innerHTML = `<button data-f="bold" aria-label="Negrita (Ctrl+B)" title="Negrita (Ctrl+B)"><b>B</b></button>
       <button data-f="italic" aria-label="Cursiva (Ctrl+I)" title="Cursiva (Ctrl+I)"><i class="serif">I</i></button>
+      <button data-f="underline" aria-label="Subrayado (Ctrl+U)" title="Subrayado (Ctrl+U)"><u>S</u></button>
+      <button data-f="strikeThrough" aria-label="Tachado" title="Tachado"><s>T</s></button>
+      <span class="sep"></span>
+      <button data-pop="color" aria-label="Color del texto" title="Color del texto" aria-expanded="false"><span class="fmt-a">A</span></button>
+      <button data-pop="size" aria-label="Tamaño del texto" title="Tamaño del texto" aria-expanded="false">Aa</button>
       <button data-f="insertUnorderedList" title="Lista con viñetas">• Lista</button>
-      ${it.type === "note" ? `<span class="sep"></span>${["s", "m", "l"].map(s => `<button data-fs="${s}" class="${it.fs === s ? "on" : ""}" aria-pressed="${it.fs === s}" title="Tamaño de letra">${{ s: "Pequeña", m: "Normal", l: "Grande" }[s]}</button>`).join("")}` : ""}
-      <span class="sep"></span><button data-done title="Terminar (Esc)">Listo</button>`;
+      ${it.type === "note" ? `<span class="sep"></span>${["s", "m", "l"].map(s => `<button data-fs="${s}" class="${it.fs === s ? "on" : ""}" aria-pressed="${it.fs === s}" title="Tamaño de toda la nota">${{ s: "Pequeña", m: "Normal", l: "Grande" }[s]}</button>`).join("")}` : ""}
+      <span class="sep"></span><button data-done title="Terminar (Esc)">Listo</button>
+      <div class="fmt-pop" data-for="color" role="group" aria-label="Color del texto" hidden>
+        <button data-color="" class="swatch auto" aria-label="Automático" title="Automático"></button>
+        ${Object.entries(TEXT_COLORS).map(([c, n]) => `<button data-color="${c}" class="swatch" style="background:${c}" aria-label="${n}" title="${n}"></button>`).join("")}
+      </div>
+      <div class="fmt-pop" data-for="size" role="group" aria-label="Tamaño del texto" hidden>
+        ${Object.entries(TEXT_SIZES).map(([v, n]) => `<button data-size="${v}"><font size="${v}">${n}</font></button>`).join("")}
+      </div>`;
     fmt.classList.add("open");
     placeFmt();
     syncFmt();
   }
-  // B, I y Lista quedan marcados según el texto donde está el cursor o la selección
+  // Los botones quedan marcados según el texto donde está el cursor o la selección
   function syncFmt() {
     if (!editing || !fmt.classList.contains("open")) return;
     $$("[data-f]", fmt).forEach(b => {
@@ -1595,6 +1620,13 @@
       b.classList.toggle("on", on);
       b.setAttribute("aria-pressed", on);
     });
+    const color = Object.keys(TEXT_COLORS).find(c => hexRgb(c) === document.queryCommandValue("foreColor")) || "";
+    // El tamaño se lee del <font> más cercano: queryCommandValue lo deduce de los px, que aquí dependen de la nota
+    const node = getSelection().focusNode, f = node && editing.el.contains(node) ? (node.nodeType === 1 ? node : node.parentElement).closest("font[size]") : null;
+    const size = f && editing.el.contains(f) ? f.getAttribute("size") : "3";
+    $(".fmt-a", fmt).style.borderColor = color || "currentColor";
+    $$("[data-color]", fmt).forEach(b => { b.classList.toggle("on", b.dataset.color === color); b.setAttribute("aria-pressed", b.dataset.color === color); });
+    $$("[data-size]", fmt).forEach(b => { b.classList.toggle("on", b.dataset.size === size); b.setAttribute("aria-pressed", b.dataset.size === size); });
   }
   document.addEventListener("selectionchange", syncFmt);
   document.addEventListener("keyup", syncFmt); // Ctrl+B / Ctrl+I con el cursor sin selección no cambian la selección
@@ -1605,11 +1637,21 @@
     fmt.style.left = clamp(r.left, 8, innerWidth - fmt.offsetWidth - 8) + "px";
     fmt.style.top = Math.max(60, r.top - fmt.offsetHeight - 14) + "px";
   }
+  function togglePop(name) {
+    $$(".fmt-pop", fmt).forEach(p => { p.hidden = p.dataset.for !== name || !p.hidden; });
+    $$("[data-pop]", fmt).forEach(b => b.setAttribute("aria-expanded", !$(`.fmt-pop[data-for="${b.dataset.pop}"]`, fmt).hidden));
+  }
   fmt.addEventListener("pointerdown", e => e.preventDefault());
   fmt.addEventListener("click", e => {
     const b = e.target.closest("button");
     if (!b || !editing) return;
+    document.execCommand("styleWithCSS", false, false); // <font> y no style="…", que el saneado descartaría
     if (b.dataset.f) document.execCommand(b.dataset.f);
+    if (b.dataset.pop) return togglePop(b.dataset.pop);
+    // «Automático» pinta con el color propio del texto: el saneado lo quita al guardar porque no está en la paleta
+    if (b.dataset.color != null) document.execCommand("foreColor", false, b.dataset.color || getComputedStyle(editing.el).color);
+    if (b.dataset.size) document.execCommand("fontSize", false, b.dataset.size);
+    if (b.dataset.color != null || b.dataset.size) togglePop(null);
     if (b.dataset.fs) {
       editing.it.fs = b.dataset.fs;
       elOf(editing.it.id).style.setProperty("--fs", FS[b.dataset.fs]);
