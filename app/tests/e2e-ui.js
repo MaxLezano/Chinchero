@@ -618,6 +618,19 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     await a.mouse.move(r.x, r.y - 40); await a.mouse.down(); await a.mouse.move(r.x, r.y + 40, { steps: 8 }); await a.mouse.up(); await sleep(200);
     const parts = await a.evaluate(() => { const e = document.querySelector('[data-id="d1"] path:not(.dh)'); return e ? (e.getAttribute("d").match(/M/g) || []).length : -1; });
     ok("goma: un dibujo antiguo (solo d) se corta en partes", parts === 2, "partes: " + parts);
+    // Al entrar, si la vista guardada no muestra nada, se encuadran los elementos
+    await a.evaluate(() => {
+      const lib = Store.library();
+      lib.boards.push({ id: "lejos", name: "Lejos", group: lib.groups[0].id, updatedAt: Date.now() });
+      Store.saveLibrary();
+      localStorage.setItem("chinchero-data-board-lejos", JSON.stringify({ name: "Lejos", active: 0, sheets: [{ id: "s1", name: "Hoja 1", surface: "dots", view: { x: 0, y: 0, z: 1 }, threads: [], items: [
+        { id: "n1", type: "note", x: 4000, y: 3000, w: 200, h: 120, rot: 0, z: 1, s: 1, text: "Lejos", color: "yellow", fs: "m" }] }] }));
+    });
+    await a.goto(BASE + "02-tablero.html?board=lejos", { waitUntil: "networkidle0" }); await sleep(300);
+    ok("al abrir un tablero se ven sus elementos", await a.evaluate(() => {
+      const b = document.querySelector('[data-id="n1"]').getBoundingClientRect(), v = document.querySelector("#viewport").getBoundingClientRect();
+      return b.left >= v.left && b.right <= v.right && b.top >= v.top && b.bottom <= v.bottom;
+    }));
     await a.goto(BASE + "01-tableros.html?view=recent", { waitUntil: "networkidle0" }); await sleep(300);
     const pv = await a.evaluate(() => {
       const c = document.querySelector('[data-id="pulido"]');

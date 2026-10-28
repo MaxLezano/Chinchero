@@ -636,6 +636,21 @@
     view = { z, x: (W - (x1 - x0) * z) / 2 - x0 * z, y: (H - (y1 - y0) * z) / 2 - y0 * z };
     applyView();
   }
+  // Vista al entrar a una hoja: la guardada si muestra algún elemento; si no, se encuadran todos (sin pasar del 100 %)
+  function enterView() {
+    view = sheet().view ? { ...sheet().view } : { x: 40, y: 20, z: 1 };
+    const rs = sheet().items.map(itemRect);
+    if (!rs.length) return applyView();
+    const { w, h, left } = visibleSize(), m = 60;
+    const seen = rs.some(r => r.x * view.z + view.x < w && (r.x + r.w) * view.z + view.x > left && r.y * view.z + view.y < h && (r.y + r.h) * view.z + view.y > 0);
+    if (!seen) {
+      const x0 = Math.min(...rs.map(r => r.x)), y0 = Math.min(...rs.map(r => r.y));
+      const x1 = Math.max(...rs.map(r => r.x + r.w)), y1 = Math.max(...rs.map(r => r.y + r.h));
+      const z = clamp(Math.min(1, (w - left - 2 * m) / (x1 - x0 || 1), (h - 2 * m) / (y1 - y0 || 1)), .2, 1);
+      view = { z, x: (left + w) / 2 - (x0 + x1) / 2 * z, y: h / 2 - (y0 + y1) / 2 * z };
+    }
+    applyView();
+  }
   function centerOn(it) {
     const r = itemRect(it), { w, h, left } = visibleSize();
     view.x = (left + w) / 2 - (r.x + r.w / 2) * view.z;
@@ -2051,8 +2066,7 @@
     sheet().view = { ...view };
     doc.active = i;
     selection = []; selThread = null;
-    view = sheet().view ? { ...sheet().view } : { x: 40, y: 20, z: 1 };
-    applySurface(); render(); renderSheets();
+    applySurface(); render(); renderSheets(); enterView();
     sheetsEl.children[i]?.scrollIntoView({ block: "nearest" });
     const n = sheet().items.length;
     announce(`Hoja «${sheet().name}», ${n} ${n === 1 ? "elemento" : "elementos"}`);
@@ -2957,7 +2971,7 @@
   applyThreadMode();
   // Pistas de la barra con los atajos actuales
   $$("[data-tool], [data-key]").forEach(b => { const k = Keys.label(b.dataset.key || "tool." + b.dataset.tool); b.dataset.tip = b.dataset.tip.replace(/ · [^·]*$/, "") + (k ? " · " + k : ""); });
-  renderAll();
+  renderAll(); enterView();
   renderMyStickers();
   updateUndoButtons();
   setTool("select");
