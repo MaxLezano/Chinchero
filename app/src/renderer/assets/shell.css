@@ -16,7 +16,7 @@ body { display: grid; grid-template-columns: 248px 1fr; height: 100vh; overflow:
 .nav-item.drop { outline: 2px dashed var(--accent); background: var(--accent-soft); }
 .group-dot { width: 10px; height: 10px; border-radius: 3px; flex: none; }
 .tip { left: 264px; bottom: 24px; }
-.sidebar-footer { margin-top: auto; display: flex; gap: 4px; border-top: 1px solid var(--border); padding-top: 12px; }
+.sidebar-footer { margin-top: auto; display: flex; justify-content: center; gap: 4px; border-top: 1px solid var(--border); padding-top: 12px; }
 .sidebar-footer .icon-btn.active { background: var(--accent-soft); color: var(--accent); }
 
 main { overflow: auto; }

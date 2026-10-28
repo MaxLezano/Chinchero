@@ -11,12 +11,13 @@
   const plainHtml = s => esc(s.replace(/\r\n?/g, "\n").replace(/\t/g, "    ")).replace(/^ +| {2,}/gm, m => "&nbsp;".repeat(m.length)).replace(/\n/g, "<br>");
   const plain = html => { const d = document.createElement("div"); d.innerHTML = html || ""; return d.textContent; };
   // HTML de texto con formato: solo negrita, cursiva, subrayado, tachado, listas, saltos y <font> con un color de
-  // TEXT_COLORS o un tamaño de TEXT_SIZES (lo que genera la barra de formato); ningún otro atributo.
-  // Lo demás se descarta (scripts, imágenes, estilos) o se deja solo su texto; títulos y párrafos pasan a líneas.
+  // TEXT_COLORS o un tamaño de TEXT_SIZES (lo que genera la barra de formato) y la alineación de líneas y listas
+  // (text-align izquierda, centro o derecha); ningún otro atributo. Lo demás se descarta (scripts, imágenes, estilos) o se deja solo su texto; títulos y párrafos pasan a líneas.
   const TEXT_COLORS = { "#c92a2a": "Rojo", "#d9480f": "Naranja", "#2b8a3e": "Verde", "#1864ab": "Azul", "#862e9c": "Morado", "#868e96": "Gris" };
   const TEXT_SIZES = { 2: "Pequeño", 3: "Normal", 5: "Grande", 6: "Muy grande" };
   const RICH_TAGS = { B: "b", STRONG: "b", I: "i", EM: "i", U: "u", S: "s", STRIKE: "s", DEL: "s", UL: "ul", OL: "ol", LI: "li" };
   const RICH_DROP = /^(SCRIPT|STYLE|TEMPLATE|IFRAME|OBJECT|EMBED|NOSCRIPT|SVG|MATH|HEAD|TITLE|META|LINK|IMG|PICTURE|VIDEO|AUDIO|CANVAS|INPUT|BUTTON|SELECT|TEXTAREA)$/;
+  const alignOf = n => { const a = (n.style.textAlign || n.getAttribute("align") || "").toLowerCase(); return /^(left|center|right)$/.test(a) ? a : ""; };
   const RICH_BLOCK = /^(DIV|P|H[1-6]|BLOCKQUOTE|PRE|TR|SECTION|ARTICLE|HEADER|FOOTER|ASIDE|DT|DD|FIGCAPTION|ADDRESS)$/;
   function cleanHtml(html) {
     const src = document.createElement("template"), out = document.createElement("div");
@@ -38,9 +39,13 @@
           if (TEXT_COLORS[color]) f.setAttribute("color", color);
           if (TEXT_SIZES[size] && size !== "3") f.setAttribute("size", size);
           walk(n, f, pre);
-        } else if (RICH_TAGS[n.tagName]) walk(n, to.appendChild(document.createElement(RICH_TAGS[n.tagName])), pre);
-        else if (RICH_BLOCK.test(n.tagName)) {
+        } else if (RICH_TAGS[n.tagName]) {
+          const t = to.appendChild(document.createElement(RICH_TAGS[n.tagName]));
+          if (/^(UL|OL|LI)$/.test(n.tagName) && alignOf(n)) t.style.textAlign = alignOf(n);
+          walk(n, t, pre);
+        } else if (RICH_BLOCK.test(n.tagName)) {
           const d = to.appendChild(document.createElement("div"));
+          if (alignOf(n)) d.style.textAlign = alignOf(n);
           walk(n, /^H\d$/.test(n.tagName) ? d.appendChild(document.createElement("b")) : d, pre || n.tagName === "PRE");
           if (!d.textContent.trim() && !d.querySelector("br")) d.replaceWith(...(d.textContent ? [" "] : []));
         } else { walk(n, to, pre); if (/^T[DH]$/.test(n.tagName)) to.append(" "); }
@@ -1599,6 +1604,9 @@
       <button data-pop="color" aria-label="Color del texto" title="Color del texto" aria-expanded="false"><span class="fmt-a">A</span></button>
       <button data-pop="size" aria-label="Tamaño del texto" title="Tamaño del texto" aria-expanded="false">Aa</button>
       <button data-f="insertUnorderedList" title="Lista con viñetas">• Lista</button>
+      <span class="sep"></span>
+      ${[["justifyLeft", "Alinear a la izquierda", "M4 6h16M4 10h10M4 14h16M4 18h10"], ["justifyCenter", "Centrar", "M4 6h16M7 10h10M4 14h16M7 18h10"], ["justifyRight", "Alinear a la derecha", "M4 6h16M10 10h10M4 14h16M10 18h10"]]
+        .map(([f, n, d]) => `<button data-f="${f}" aria-label="${n}" title="${n}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="${d}"/></svg></button>`).join("")}
       ${it.type === "note" ? `<span class="sep"></span>${["s", "m", "l"].map(s => `<button data-fs="${s}" class="${it.fs === s ? "on" : ""}" aria-pressed="${it.fs === s}" title="Tamaño de toda la nota">${{ s: "Pequeña", m: "Normal", l: "Grande" }[s]}</button>`).join("")}` : ""}
       <span class="sep"></span><button data-done title="Terminar (Esc)">Listo</button>
       <div class="fmt-pop" data-for="color" role="group" aria-label="Color del texto" hidden>
