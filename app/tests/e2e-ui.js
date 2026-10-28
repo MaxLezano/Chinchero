@@ -172,37 +172,37 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     ok("sticker propio arrastrado se crea como sticker", (await count()) === n0 + 1 && await p.evaluate(() => document.querySelector(".item.sel").classList.contains("t-sticker")));
     await p.keyboard.press("Delete");
   }
-  // Pegar texto: sin formato por defecto; «Conservar formato» (o Ctrl+Shift+V) lo trae saneado
+  // Pegar texto: sin formato pero con saltos y sangría; el botón «Conservar formato» del aviso lo trae saneado
   {
     const HTML = '<meta charset="utf-8"><h2 style="font-family:Consolas">Plan</h2><p style="color:red">Uno <strong>fuerte</strong> <a href="x">y</a> <img src="https://ejemplo.invalid/a.png" onerror="alert(1)"></p><ol><li>a</li><li>b</li></ol><script>alert(1)</script>';
-    const pasteText = (shift, sel) => p.evaluate((html, shift, sel) => {
+    const pasteText = sel => p.evaluate((html, sel) => {
       const t = sel ? document.querySelector(sel) : document.body;
-      t.dispatchEvent(new KeyboardEvent("keydown", { key: "V", ctrlKey: true, shiftKey: shift, bubbles: true }));
+      t.dispatchEvent(new KeyboardEvent("keydown", { key: "v", ctrlKey: true, bubbles: true }));
       const dt = new DataTransfer();
-      dt.setData("text/plain", "Plan\nUno fuerte y\na\nb"); dt.setData("text/html", html);
+      dt.setData("text/plain", "Plan\r\n\tUno fuerte y\r\n  a\r\nb\r\n"); dt.setData("text/html", html);
       t.dispatchEvent(new ClipboardEvent("paste", { clipboardData: dt, bubbles: true }));
-    }, HTML, shift, sel);
+    }, HTML, sel);
     const clean = h => !/style=|<(script|img|a|h2|p|meta)\b|font-family/.test(h);
     await p.mouse.move(700, 300);
-    await pasteText(false);
+    await pasteText();
     await sleep(200);
     const plainNote = await p.evaluate(() => document.querySelector(".item.sel.t-note .txt").innerHTML);
-    ok("pegar en el lienzo: nota sin formato", plainNote === "Plan<br>Uno fuerte y<br>a<br>b", plainNote);
-    ok("pegar en el lienzo: aviso «Conservar formato»", await p.evaluate(() => document.querySelector(".toast button")?.textContent === "Conservar formato"));
+    ok("pegar en el lienzo: nota sin formato, con saltos y sangría", plainNote === "Plan<br>&nbsp;&nbsp;&nbsp;&nbsp;Uno fuerte y<br>&nbsp;&nbsp;a<br>b", plainNote);
+    ok("pegar en el lienzo: aviso «Pegado sin formato» con «Conservar formato»", await p.evaluate(() => document.querySelector(".toast span")?.textContent === "Nota pegada sin formato" && document.querySelector(".toast button")?.textContent === "Conservar formato"));
     await p.click(".toast button"); await sleep(150);
     const richNote = await p.evaluate(() => document.querySelector(".item.sel.t-note .txt").innerHTML);
     ok("Conservar formato: negrita y lista, HTML saneado", /<b>Plan<\/b>/.test(richNote) && /<b>fuerte<\/b>/.test(richNote) && /<ol><li>a<\/li><li>b<\/li><\/ol>/.test(richNote) && clean(richNote), richNote);
-    // Al editar una nota: se pega sin formato en el cursor y Ctrl+Shift+V cambia a la versión con formato
+    // Al editar una nota: se pega sin formato en el cursor y el botón del aviso cambia a la versión con formato
     await p.keyboard.press("Enter"); await sleep(150);
-    await p.evaluate(() => { const el = document.activeElement; el.textContent = "Hola "; getSelection().selectAllChildren(el); getSelection().collapseToEnd(); });
-    await pasteText(false, ".txt[contenteditable=true]");
+    await p.evaluate(() => { const el = document.activeElement; el.textContent = "Hola:"; getSelection().selectAllChildren(el); getSelection().collapseToEnd(); });
+    await pasteText(".txt[contenteditable=true]");
     await sleep(100);
     const inEdit = await p.evaluate(() => document.activeElement.innerHTML);
-    ok("pegar al editar: texto sin formato", /^Hola(&nbsp;| )Plan<br>Uno fuerte y<br>a<br>b$/.test(inEdit), inEdit);
-    await pasteText(true, ".txt[contenteditable=true]");
-    await sleep(100);
-    const kept = await p.evaluate(() => document.activeElement.innerHTML);
-    ok("Ctrl+Shift+V justo después conserva el formato", /^Hola&nbsp;<b>Plan/.test(kept) && /<b>fuerte<\/b>/.test(kept) && /<li>b<\/li>/.test(kept), kept);
+    ok("pegar al editar: sin formato, con saltos y sangría", /^Hola:Plan<br>&nbsp;(&nbsp;| ){3}Uno fuerte y<br>&nbsp;(&nbsp;| )a<br>b(<br>)?$/.test(inEdit), inEdit);
+    ok("pegar al editar: aviso «Pegado sin formato»", await p.evaluate(() => document.querySelector(".toast span")?.textContent === "Pegado sin formato"));
+    await p.click(".toast button"); await sleep(150);
+    const kept = await p.evaluate(() => document.activeElement.isContentEditable && document.activeElement.innerHTML);
+    ok("Conservar formato al editar: sigue editando y trae el formato", /^Hola:<b>Plan/.test(kept) && /<b>fuerte<\/b>/.test(kept) && /<li>b<\/li>/.test(kept), kept);
     await p.keyboard.press("Escape"); await sleep(150);
     const saved = await p.evaluate(() => document.querySelector(".item.sel.t-note .txt").innerHTML);
     ok("al guardar, la nota editada queda saneada", clean(saved) && /<b>fuerte<\/b>/.test(saved), saved);

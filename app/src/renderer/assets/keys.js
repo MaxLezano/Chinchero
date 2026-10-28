@@ -38,7 +38,7 @@
   const RESERVED = {
     "Escape": "Salir / cancelar", "Enter": "Editar el elemento", "F2": "Editar el elemento", "Tab": "Siguiente elemento", "Shift+Tab": "Elemento anterior",
     "Delete": "Eliminar", "Backspace": "Eliminar", "Space": "Mover el lienzo", "Shift+F10": "Opciones del elemento", "ContextMenu": "Opciones del elemento",
-    "Ctrl+C": "Copiar", "Ctrl+X": "Cortar", "Ctrl+V": "Pegar", "Ctrl+Shift+V": "Pegar imagen sin marco o conservar el formato del texto", "Ctrl+Shift+Z": "Rehacer", "Ctrl+Shift+G": "Desagrupar",
+    "Ctrl+C": "Copiar", "Ctrl+X": "Cortar", "Ctrl+V": "Pegar", "Ctrl+Shift+V": "Pegar imagen sin marco", "Ctrl+Shift+Z": "Rehacer", "Ctrl+Shift+G": "Desagrupar",
   };
   for (const a of ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"]) RESERVED[a] = RESERVED["Shift+" + a] = "Mover la selección";
   const byId = Object.fromEntries(ACTIONS.map(a => [a.id, a]));
