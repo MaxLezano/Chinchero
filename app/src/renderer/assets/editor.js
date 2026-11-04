@@ -5,6 +5,7 @@
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
   const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+  let focusGroup = null; // id del grupo en foco (ver setFocusGroup); se declara antes de que mk() cree nada
   const rand = (a, b) => Math.round((a + Math.random() * (b - a)) * 10) / 10;
   // Texto plano a HTML: los saltos pasan a <br> y la sangría (tabulación = 4 espacios) y los espacios seguidos a
   // espacios duros, que el HTML no junta
@@ -124,6 +125,7 @@
 
   function mk(type, x, y, o = {}) {
     const it = Object.assign({ id: nid(), type, x, y, rot: 0, locked: false, fix: null, pin: pinC("#e03131") }, DEFAULTS[type](), o);
+    if (focusGroup && !it.group) it.group = focusGroup; // lo que se crea con un grupo en foco entra en él
     it.z = type === "zone" ? ++zZoneTop : ++zTop;
     return it;
   }
@@ -469,6 +471,7 @@
   // Clases y estilos (posición, giro, tamaño) se aplican siempre: es barato y no toca el contenido.
   function render() {
     const items = sheet().items, seen = new Set();
+    if (focusGroup && !items.some(o => o.group === focusGroup)) setFocusGroup(null, true); // se deshizo o se borró el grupo
     let prev = null;
     for (const it of items) {
       const html = itemHTML(it) + (it.locked ? '<span class="lock-ico" aria-hidden="true">🔒</span>' : "");
@@ -480,7 +483,7 @@
       }
       if (c.html !== html) { c.el.innerHTML = html; c.html = html; }
       else c.el.querySelector(":scope > .handles")?.remove(); // applySelection las vuelve a poner
-      c.el.className = `item t-${it.type}${it.frame === "none" ? " noframe" : ""}${it.locked ? " locked" : ""}`;
+      c.el.className = `item t-${it.type}${it.frame === "none" ? " noframe" : ""}${it.locked ? " locked" : ""}${focusGroup && it.group !== focusGroup ? " unfocus" : ""}`;
       styleItem(c.el, it);
       // El orden del DOM sigue al del modelo; solo se mueve lo que no está en su sitio
       const at = prev ? prev.nextSibling : itemsEl.firstChild;
@@ -516,7 +519,17 @@
   }
 
   // Grupos: los elementos con el mismo `group` se seleccionan y mueven juntos (Ctrl+clic elige uno solo)
+  // Foco en un grupo (doble clic en uno de sus elementos): lo de fuera se atenúa y no responde,
+  // y los del grupo se seleccionan, mueven y editan uno a uno, como si estuvieran desagrupados. Esc o un clic fuera sale.
+  function setFocusGroup(g, noRender) {
+    if (focusGroup === g) return;
+    focusGroup = g;
+    viewport.classList.toggle("group-focus", !!g);
+    if (!noRender) render();
+    showHint();
+  }
   function expand(ids) {
+    if (focusGroup) return ids;
     const groups = new Set(ids.map(id => byId(id)?.group).filter(Boolean));
     if (!groups.size) return ids;
     return [...new Set([...ids, ...sheet().items.filter(o => groups.has(o.group)).map(o => o.id)])];
@@ -524,7 +537,7 @@
   // Devuelve el id del grupo si la selección es exactamente un grupo completo
   function selGroup() {
     const its = selection.map(byId).filter(Boolean), g = its[0]?.group;
-    return g && its.length > 1 && its.every(o => o.group === g) && sheet().items.filter(o => o.group === g).length === its.length ? g : null;
+    return !focusGroup && g && its.length > 1 && its.every(o => o.group === g) && sheet().items.filter(o => o.group === g).length === its.length ? g : null;
   }
   function drawGroupBox() {
     const box = $("#groupBox"), g = selGroup();
@@ -822,7 +835,7 @@
       up: () => {
         viewport.classList.remove("panning");
         if (moved) { buildCtx(); Tour.emit("pan"); checkTips("pan"); }
-        else if (clearOnClick) { document.activeElement?.blur?.(); if (selection.length || selThread) setSel([]); }
+        else if (clearOnClick) { document.activeElement?.blur?.(); if (selection.length || selThread) setSel([]); setFocusGroup(null); }
       },
     });
   }
@@ -902,6 +915,7 @@
         setBand(sx, sy, ev.clientX, ev.clientY);
         const l = Math.min(sx, ev.clientX), r = Math.max(sx, ev.clientX), t = Math.min(sy, ev.clientY), b = Math.max(sy, ev.clientY);
         const hits = sheet().items.filter(o => {
+          if (focusGroup && o.group !== focusGroup) return false;
           const rr = elOf(o.id).getBoundingClientRect();
           return o.type === "zone"
             ? rr.left >= l && rr.right <= r && rr.top >= t && rr.bottom <= b
@@ -1369,7 +1383,8 @@
     const copies = clip.items.map(o => {
       const c = JSON.parse(JSON.stringify(o));
       map[o.id] = c.id = nid();
-      if (c.group) { if (gCount[c.group] > 1) c.group = gMap[c.group] ||= "g" + nid(); else delete c.group; }
+      if (focusGroup) c.group = focusGroup;
+      else if (c.group) { if (gCount[c.group] > 1) c.group = gMap[c.group] ||= "g" + nid(); else delete c.group; }
       c.x = Math.round(c.x + dx); c.y = Math.round(c.y + dy);
       c.z = c.type === "zone" ? ++zZoneTop : ++zTop;
       c.locked = false;
@@ -1407,8 +1422,11 @@
   function onCopy(e, cut) {
     if (editing || e.target.matches?.("input, textarea") || !selection.length) return;
     remember(cut);
-    e.clipboardData.setData("text/plain", CLIP + JSON.stringify(internalClip));
     e.preventDefault();
+    const one = selection.length === 1 && byId(selection[0]), code = CLIP + JSON.stringify(internalClip);
+    // Una sola foto: al portapapeles va la imagen, para pegarla en otras apps (si no se puede leer, el código como siempre)
+    if (one?.type === "photo" && /^chinchero-media:\/\/media\//.test(one.src || "") && window.chinchero?.copyMedia) window.chinchero.copyMedia(one.src, code);
+    else e.clipboardData.setData("text/plain", code);
     if (cut) deleteSel(true);
   }
   document.addEventListener("copy", e => onCopy(e, false));
@@ -1731,7 +1749,7 @@
   function multiCtx(its) {
     const g = selGroup(), C = k => t("editor.ctx." + k);
     const p = [`<span class="txt-btn" style="cursor:default">${C(g ? "grupo" : "seleccion")} · ${its.length}</span>`
-      + (g ? tbtn("ungroup", t("atajos.acciones.ungroup")) : `<button class="btn btn-primary" style="padding:5px 10px;font-size:12px" data-act="group" data-tip="${t("atajos.acciones.group")} · ${Keys.label("group")}" data-tip-pos="bottom">${t("atajos.acciones.group")}</button>`)];
+      + (g ? tbtn("ungroup", t("atajos.acciones.ungroup")) : focusGroup ? "" : `<button class="btn btn-primary" style="padding:5px 10px;font-size:12px" data-act="group" data-tip="${t("atajos.acciones.group")} · ${Keys.label("group")}" data-tip-pos="bottom">${t("atajos.acciones.group")}</button>`)];
     if (its.every(o => o.type === "note")) p.push(sw("color", Object.keys(NOTE_COLORS), null, "sq"));
     p.push(icon("align", ICON.alignL, C("alinearIzquierda"), "left") + icon("align", ICON.alignT, C("alinearArriba"), "top")
       + icon("tidy", ICON.grid, C("cuadricula")) + icon("zone", ICON.zone, C("zonaAlrededor")));
@@ -1825,6 +1843,7 @@
     if (n) toast(t("editor.msg.hilosQuitados", { count: n }), t("comun.deshacer"), undo);
   }
   function groupSel() {
+    if (focusGroup) return;
     const its = selection.map(byId).filter(Boolean);
     if (its.length < 2) return toast(t("editor.msg.dosParaAgrupar"));
     const g = "g" + nid();
@@ -1975,7 +1994,7 @@
       if (!toPin) m.push({ label: t("editor.menu.unirHilo"), kbd: t("editor.menu.arrastraChinche"), action: () => { setTool("thread"); threadFrom = it; elOf(it.id).classList.add("thread-target"); } });
     }
     if (its.length > 1) m.push("-",
-      selGroup() ? { label: t("atajos.acciones.ungroup"), kbd: Keys.label("ungroup"), action: ungroupSel } : { label: t("atajos.acciones.group"), kbd: Keys.label("group"), action: groupSel },
+      ...focusGroup ? [] : [selGroup() ? { label: t("atajos.acciones.ungroup"), kbd: Keys.label("ungroup"), action: ungroupSel } : { label: t("atajos.acciones.group"), kbd: Keys.label("group"), action: groupSel }],
       { label: t("editor.ctx.alinearIzquierda"), action: () => align("left") },
       { label: t("editor.ctx.alinearArriba"), action: () => align("top") },
       { label: t("editor.ctx.cuadricula"), action: tidy },
@@ -2021,7 +2040,8 @@
     ]);
   }
 
-  const selectAll = () => setSel(sheet().items.map(o => o.id));
+  const inFocus = o => !focusGroup || o.group === focusGroup;
+  const selectAll = () => setSel(sheet().items.filter(inFocus).map(o => o.id));
 
   /* ---------- Doble clic ---------- */
   viewport.addEventListener("dblclick", e => {
@@ -2034,6 +2054,7 @@
     const it = itemEl && byId(itemEl.dataset.id);
     // Mientras se edita, el doble clic selecciona una palabra (lo hace el navegador): no se vuelve a empezar la edición
     if (editing && it === editing.it) return;
+    if (it?.group && it.group !== focusGroup) { setFocusGroup(it.group); setSel([it.id]); return; }
     if (!it || (it.type === "zone" && !tEl.closest(".zt"))) return;
     if (it.locked) return toast(t("editor.msg.bloqueadoEditar"));
     if (tEl.closest(".t-photo .img")) return it.src || it.art ? openLightbox(it) : pickImage(it);
@@ -2073,7 +2094,7 @@
   // Pista de cada herramienta: editor.pistas.<herramienta>
   const HINTS = new Set(["note", "card", "list", "text", "image", "link", "file", "sticker", "zone", "draw", "thread"]);
   function showHint() {
-    const h = tool === "draw" && drawOpts.erase ? t(drawOpts.erase === "part" ? "editor.pistas.gomaPartes" : "editor.pistas.gomaTrazos") : HINTS.has(tool) ? t("editor.pistas." + tool) : "";
+    const h = tool === "draw" && drawOpts.erase ? t(drawOpts.erase === "part" ? "editor.pistas.gomaPartes" : "editor.pistas.gomaTrazos") : HINTS.has(tool) ? t("editor.pistas." + tool) : focusGroup ? t("editor.pistas.grupo") : "";
     hint.innerHTML = h ? `${h}${toolLocked ? " · <b>" + t("editor.pistas.fija") + "</b>" : ""} · ${t("editor.pistas.salir")}` : "";
     hint.classList.toggle("open", !!h);
   }
@@ -2095,6 +2116,10 @@
     viewport.classList.toggle("creating", CREATE.has(toolId) || toolId === "zone" || toolId === "draw");
     viewport.classList.toggle("tool-thread", toolId === "thread");
     drawPop.classList.toggle("open", toolId === "draw");
+    if (toolId === "draw") {
+      const btn = $('[data-tool="draw"]').getBoundingClientRect();
+      drawPop.style.top = clamp(btn.top - 40, 60, innerHeight - drawPop.offsetHeight - 50) + "px";
+    }
     viewport.classList.toggle("erasing", toolId === "draw" && !!drawOpts.erase);
     if (toolId !== "sticker") stickerPop.classList.remove("open");
     showHint();
@@ -2978,7 +3003,7 @@
   // Tab recorre los elementos de arriba abajo; pasado el último (o antes del primero) devuelve false
   // y el foco sale del lienzo hacia el resto de la interfaz, para no quedar atrapado
   function cycleSelection(back) {
-    const its = [...sheet().items].filter(o => o.type !== "zone").sort((a, b) => a.y - b.y || a.x - b.x);
+    const its = [...sheet().items].filter(o => o.type !== "zone" && inFocus(o)).sort((a, b) => a.y - b.y || a.x - b.x);
     const cur = its.findIndex(o => o.id === selection[0]);
     const i = cur < 0 ? (back ? its.length - 1 : 0) : cur + (back ? -1 : 1);
     const next = its[i];
@@ -3032,6 +3057,7 @@
       $(".inpop")?.remove();
       if (stickerPop.classList.contains("open")) return stickerPop.classList.remove("open");
       if (tool !== "select") return setTool("select");
+      if (focusGroup && !selection.length) return setFocusGroup(null);
       return setSel([]);
     }
     if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); return deleteSel(); }

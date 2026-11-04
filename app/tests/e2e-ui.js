@@ -104,6 +104,14 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     await p.mouse.click(star.x, star.y); await sleep(150);
     ok("clic en un miembro selecciona el grupo", (await p.evaluate(() => document.querySelectorAll(".item.sel").length)) === nsel);
     await shot(p, "e20-group");
+    // Doble clic en un miembro: foco en el grupo (lo demás borroso) y sus elementos se eligen uno a uno
+    await p.mouse.click(star.x, star.y, { clickCount: 2 }); await sleep(200);
+    const foco = await p.evaluate(() => ({ on: document.querySelector("#viewport").classList.contains("group-focus"), sel: document.querySelectorAll(".item.sel").length, out: document.querySelectorAll(".item.unfocus").length, hint: document.querySelector(".hint.open")?.textContent || "" }));
+    ok("doble clic en un grupo lo enfoca y elige solo ese elemento", foco.on && foco.sel === 1 && foco.out > 0 && foco.hint.includes("grupo"), JSON.stringify(foco));
+    await shot(p, "e21-group-focus");
+    await p.keyboard.press("Escape"); await p.keyboard.press("Escape"); await sleep(100);
+    ok("Esc sale del foco del grupo", await p.evaluate(() => !document.querySelector("#viewport").classList.contains("group-focus") && !document.querySelector(".item.unfocus")));
+    await p.mouse.click(star.x, star.y); await sleep(150);
     await p.keyboard.down("Control"); await p.keyboard.press("u"); await p.keyboard.up("Control"); await sleep(150);
     ok("Ctrl+U desagrupa", await p.evaluate(() => getComputedStyle(document.querySelector("#groupBox")).display !== "block"));
     await p.keyboard.press("Escape");
@@ -132,6 +140,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     await p.keyboard.press("d");
     for (const [x0, y0] of [[1150, 120], [1170, 160]]) { await p.mouse.move(x0, y0); await p.mouse.down(); for (let i = 1; i < 12; i++) await p.mouse.move(x0 + i * 5, y0 + Math.sin(i) * 10); await p.mouse.up(); }
     await sleep(150);
+    ok("el panel del lápiz queda debajo de la barra superior", await p.evaluate(() => { const r = document.querySelector("#drawPop").getBoundingClientRect(); return r.top >= document.querySelector(".topbar").getBoundingClientRect().bottom && r.bottom <= innerHeight; }));
     ok("trazos seguidos forman un dibujo", (await p.evaluate(() => document.querySelectorAll(".t-draw").length)) === d0 + 1);
     // Goma: E la activa; «partes» corta los trazos por donde pasa, «trazos enteros» los quita y Ctrl+Z lo devuelve
     const strokes = () => p.evaluate(() => { const e = [...document.querySelectorAll(".t-draw")].at(-1); return (e?.querySelector("path:not(.dh)").getAttribute("d").match(/M/g) || []).length; });
@@ -320,6 +329,16 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   const tasks1 = await p.evaluate(() => [...document.querySelectorAll(".t-list .task")].map(t => t.textContent));
   ok("lista: Enter añade tarea y la vacía se descarta", tasks1.length === tasks0 + 1 && tasks1.includes("Tarea nueva QA"), JSON.stringify(tasks1));
   await shot(p, "e02-list");
+  const casilla = await p.evaluate(() => {
+    const li = document.querySelector(".t-list li").cloneNode(true);
+    li.querySelector(".task").textContent = "Una tarea larga ".repeat(12);
+    document.querySelector(".t-list ul").append(li);
+    // Centro de la casilla desde el borde de la tarea, con offsetTop (el giro y el zoom no cuentan): 13 = mitad de la primera línea de 26
+    const cb = li.querySelector("input"), lines = li.offsetHeight / 26, mid = cb.offsetTop - li.offsetTop + cb.offsetHeight / 2;
+    li.remove();
+    return { lines, mid };
+  });
+  ok("lista: con varias líneas, la casilla queda en la primera", casilla.lines >= 2 && Math.abs(casilla.mid - 13) < 2, JSON.stringify(casilla));
 
   // Undo / redo
   await p.keyboard.down("Control"); await p.keyboard.press("z"); await p.keyboard.up("Control"); await sleep(200);

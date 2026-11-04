@@ -876,7 +876,8 @@
       "gomaPartes": "Pasa la goma por encima de los trazos · borra solo lo que toca",
       "gomaTrazos": "Pasa la goma por encima de los trazos · borra cada trazo entero",
       "fija": "herramienta fija",
-      "salir": "<kbd>Esc</kbd> para salir"
+      "salir": "<kbd>Esc</kbd> para salir",
+      "grupo": "Editando el grupo: cada elemento por separado · clic fuera para terminar"
     },
     "hilos": {
       "over": "Encima de todo",

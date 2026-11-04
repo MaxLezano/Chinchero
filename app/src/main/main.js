@@ -112,6 +112,9 @@ app.whenReady().then(async () => {
       : new Response("Not found", { status: 404 }); // i18n-ok: respuesta HTTP
   });
   try { store.autoBackup(); } catch (e) { console.error("Copia automática:", e); } // i18n-ok: registro, no se ve
+  // Las imágenes y archivos que ya no usa nada (ni un tablero, ni la papelera, ni las copias automáticas, ni el portapapeles)
+  // se borran al abrir: todavía no hay ninguna ventana con un «deshacer» que pudiera devolverlos
+  try { store.cleanMedia(); } catch (e) { console.error("Limpieza de media:", e); } // i18n-ok: registro, no se ve
   createWindow();
   started = true;
   updater.init(() => win);
@@ -277,6 +280,16 @@ handle("export:png", (png, name) => is.bytes(png) && is.str(name), async (e, png
 handle("copy:png", is.bytes, (e, png) => {
   clipboard.writeImage(nativeImage.createFromBuffer(Buffer.from(png)));
   return true;
+});
+
+// Copiar una foto del tablero: va la imagen, para pegarla en otras apps. nativeImage lee PNG, JPEG y BMP;
+// con otro formato (GIF, WebP…) se copia el texto de respaldo, que Chinchero sabe pegar como elemento
+handle("copy:media", (url, fallback) => is.str(url) && url.startsWith("chinchero-media://media/") && is.str(fallback, MAX_BYTES), (e, url, fallback) => {
+  const file = store.mediaFile(url);
+  const img = file && fs.existsSync(file) ? nativeImage.createFromPath(file) : null;
+  if (img && !img.isEmpty()) clipboard.writeImage(img);
+  else clipboard.writeText(fallback);
+  return !!img && !img.isEmpty();
 });
 
 // PDF: una página por hoja, del tamaño de su contenido. Se arma una página oculta con las imágenes y se imprime

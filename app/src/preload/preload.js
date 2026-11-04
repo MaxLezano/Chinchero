@@ -38,6 +38,7 @@ contextBridge.exposeInMainWorld("chinchero", {
   coverWindow: on => ipcRenderer.invoke("capture:cover", on),
   exportPng: (png, name) => ipcRenderer.invoke("export:png", png, name),
   copyPng: png => ipcRenderer.invoke("copy:png", png),
+  copyMedia: (url, fallback) => ipcRenderer.invoke("copy:media", url, fallback),
   exportPdf: (pages, name) => ipcRenderer.invoke("export:pdf", pages, name),
   checkUpdates: () => ipcRenderer.invoke("update:check"),
   installUpdate: () => ipcRenderer.invoke("update:install"),

@@ -876,7 +876,8 @@
       "gomaPartes": "Run the eraser over the strokes · it only erases what it touches",
       "gomaTrazos": "Run the eraser over the strokes · it erases each whole stroke",
       "fija": "tool locked",
-      "salir": "<kbd>Esc</kbd> to exit"
+      "salir": "<kbd>Esc</kbd> to exit",
+      "grupo": "Editing the group: each item on its own · click outside to finish"
     },
     "hilos": {
       "over": "On top of everything",
